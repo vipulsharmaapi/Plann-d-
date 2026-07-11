@@ -5,6 +5,8 @@ import type { ActivityKey, Intent } from '../types'
 
 interface IntentRow {
   id: string
+  user_id: string | null
+  whatsapp_link: string | null
   poster_name: string
   activity: ActivityKey
   title: string
@@ -29,6 +31,8 @@ const istTime = (iso: string) =>
 
 const rowToIntent = (row: IntentRow): Intent => ({
   id: row.id,
+  userId: row.user_id,
+  whatsappLink: row.whatsapp_link,
   activity: row.activity,
   title: row.title,
   note: row.note ?? undefined,
@@ -54,7 +58,7 @@ export function useIntents(): { intents: Intent[]; source: IntentSource; refresh
     const { data, error } = await supabase
       .from('intents')
       .select(
-        'id, poster_name, activity, title, note, lat, lng, venue_name, starts_at, ends_at, spots_needed, spots_filled, women_only',
+        'id, user_id, whatsapp_link, poster_name, activity, title, note, lat, lng, venue_name, starts_at, ends_at, spots_needed, spots_filled, women_only',
       )
       .in('status', ['open', 'full'])
       .gte('ends_at', new Date().toISOString())

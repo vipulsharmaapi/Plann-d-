@@ -1,14 +1,37 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import MapView from './components/MapView'
 import IntentCard from './components/IntentCard'
+import AuthSheet from './components/AuthSheet'
+import PostSheet from './components/PostSheet'
+import JoinSection from './components/JoinSection'
 import { ACTIVITIES, type ActivityKey } from './types'
 import { useIntents } from './hooks/useIntents'
+import { useAuth } from './hooks/useAuth'
 
 export default function App() {
   const [filter, setFilter] = useState<ActivityKey | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(true)
-  const { intents: allIntents, source } = useIntents()
+  const [authOpen, setAuthOpen] = useState(false)
+  const [postOpen, setPostOpen] = useState(false)
+  const afterAuthRef = useRef<'post' | null>(null)
+  const auth = useAuth()
+  const { intents: allIntents, source, refresh } = useIntents()
+
+  const openPost = () => {
+    if (auth.session) {
+      setPostOpen(true)
+    } else {
+      afterAuthRef.current = 'post'
+      setAuthOpen(true)
+    }
+  }
+
+  const handleSignedIn = () => {
+    setAuthOpen(false)
+    if (afterAuthRef.current === 'post') setPostOpen(true)
+    afterAuthRef.current = null
+  }
 
   const intents = useMemo(
     () => (filter ? allIntents.filter((i) => i.activity === filter) : allIntents),
@@ -33,9 +56,28 @@ export default function App() {
       {/* Header */}
       <header className="absolute top-0 inset-x-0 z-10 pointer-events-none">
         <div className="px-4 pt-4">
-          <div className="pointer-events-auto inline-flex items-baseline gap-2 bg-white/95 backdrop-blur rounded-2xl shadow-lg px-4 py-2.5">
-            <h1 className="text-xl font-extrabold tracking-tight text-gray-900">Plann'd</h1>
-            <span className="text-xs font-medium text-gray-500">who's in? · Jaipur</span>
+          <div className="pointer-events-auto flex items-center justify-between">
+            <div className="inline-flex items-baseline gap-2 bg-white/95 backdrop-blur rounded-2xl shadow-lg px-4 py-2.5">
+              <h1 className="text-xl font-extrabold tracking-tight text-gray-900">Plann'd</h1>
+              <span className="text-xs font-medium text-gray-500">who's in? · Jaipur</span>
+            </div>
+            {auth.session ? (
+              <button
+                onClick={() => {
+                  if (confirm('Sign out?')) auth.signOut()
+                }}
+                className="bg-white/95 backdrop-blur rounded-2xl shadow-lg px-3.5 py-2.5 text-sm font-semibold text-gray-700"
+              >
+                {auth.firstName || 'You'} 👋
+              </button>
+            ) : (
+              <button
+                onClick={() => setAuthOpen(true)}
+                className="bg-white/95 backdrop-blur rounded-2xl shadow-lg px-3.5 py-2.5 text-sm font-semibold text-gray-700"
+              >
+                Sign in
+              </button>
+            )}
           </div>
         </div>
 
@@ -65,7 +107,7 @@ export default function App() {
 
       {/* Post intent FAB */}
       <button
-        onClick={() => alert("Posting an intent — coming soon! This will open the 3-step post flow.")}
+        onClick={openPost}
         className="absolute z-20 right-4 bottom-[calc(45%+16px)] w-14 h-14 rounded-full bg-gray-900 text-white text-3xl font-light shadow-xl flex items-center justify-center active:scale-95 transition-transform"
         aria-label="Post an activity"
       >
@@ -101,7 +143,9 @@ export default function App() {
               intent={intent}
               selected={intent.id === selectedId}
               onClick={() => handleSelect(intent.id === selectedId ? null : intent.id)}
-            />
+            >
+              <JoinSection intent={intent} auth={auth} onRequestAuth={() => setAuthOpen(true)} />
+            </IntentCard>
           ))}
           {sorted.length === 0 && (
             <p className="text-center text-gray-500 text-sm pt-8">
@@ -110,6 +154,18 @@ export default function App() {
           )}
         </div>
       </div>
+
+      <AuthSheet auth={auth} open={authOpen} onClose={() => setAuthOpen(false)} onSignedIn={handleSignedIn} />
+      <PostSheet
+        open={postOpen}
+        session={auth.session}
+        firstName={auth.firstName}
+        onClose={() => setPostOpen(false)}
+        onPosted={() => {
+          setPostOpen(false)
+          refresh()
+        }}
+      />
     </div>
   )
 }

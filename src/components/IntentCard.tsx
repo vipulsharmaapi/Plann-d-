@@ -1,19 +1,24 @@
+import type { ReactNode } from 'react'
 import { activityByKey, type Intent } from '../types'
 
 interface Props {
   intent: Intent
   selected: boolean
   onClick: () => void
+  children?: ReactNode
 }
 
-export default function IntentCard({ intent, selected, onClick }: Props) {
+export default function IntentCard({ intent, selected, onClick, children }: Props) {
   const activity = activityByKey(intent.activity)
   const spotsLeft = intent.spotsNeeded - intent.spotsFilled
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
-      className={`w-full text-left rounded-2xl p-4 border transition-colors ${
+      onKeyDown={(e) => e.key === 'Enter' && onClick()}
+      className={`w-full text-left rounded-2xl p-4 border transition-colors cursor-pointer ${
         selected
           ? 'border-gray-900 bg-gray-50 shadow-md'
           : 'border-gray-200 bg-white hover:border-gray-300'
@@ -52,12 +57,11 @@ export default function IntentCard({ intent, selected, onClick }: Props) {
         </div>
       </div>
       {selected && (
-        <div className="mt-3 flex gap-2">
-          <span className="flex-1 text-center bg-gray-900 text-white rounded-xl py-2.5 text-sm font-semibold">
-            I'm in 🙋 (coming soon)
-          </span>
-        </div>
+        <>
+          {intent.note && <p className="mt-2 text-sm text-gray-600">{intent.note}</p>}
+          <div onClick={(e) => e.stopPropagation()}>{children}</div>
+        </>
       )}
-    </button>
+    </div>
   )
 }

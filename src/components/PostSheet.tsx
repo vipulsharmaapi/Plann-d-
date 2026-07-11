@@ -1,0 +1,229 @@
+import { useEffect, useRef, useState } from 'react'
+import maplibregl from 'maplibre-gl'
+import type { Session } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
+import { ACTIVITIES, type ActivityKey } from '../types'
+
+interface Props {
+  open: boolean
+  session: Session | null
+  firstName: string
+  onClose: () => void
+  onPosted: () => void
+}
+
+const JAIPUR_CENTER: [number, number] = [75.7873, 26.8905]
+
+// Today's date in IST as yyyy-mm-dd, so "19:00" becomes 19:00 IST today.
+const todayIST = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
+const toIsoIST = (time: string) => new Date(`${todayIST()}T${time}:00+05:30`).toISOString()
+
+export default function PostSheet({ open, session, firstName, onClose, onPosted }: Props) {
+  const [activity, setActivity] = useState<ActivityKey>('badminton')
+  const [title, setTitle] = useState('')
+  const [note, setNote] = useState('')
+  const [startTime, setStartTime] = useState('19:00')
+  const [endTime, setEndTime] = useState('21:00')
+  const [spots, setSpots] = useState(2)
+  const [womenOnly, setWomenOnly] = useState(false)
+  const [whatsapp, setWhatsapp] = useState('')
+  const [venueName, setVenueName] = useState('')
+  const [pin, setPin] = useState<{ lat: number; lng: number } | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const mapDivRef = useRef<HTMLDivElement>(null)
+  const markerRef = useRef<maplibregl.Marker | null>(null)
+
+  useEffect(() => {
+    if (!open || !mapDivRef.current) return
+    const map = new maplibregl.Map({
+      container: mapDivRef.current,
+      style: {
+        version: 8,
+        sources: {
+          osm: {
+            type: 'raster',
+            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+            tileSize: 256,
+            attribution: '© OpenStreetMap contributors',
+          },
+        },
+        layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
+      },
+      center: JAIPUR_CENTER,
+      zoom: 10.8,
+      attributionControl: false,
+    })
+    map.on('click', (e) => {
+      setPin({ lat: e.lngLat.lat, lng: e.lngLat.lng })
+      if (!markerRef.current) {
+        markerRef.current = new maplibregl.Marker({ color: '#111827' })
+          .setLngLat(e.lngLat)
+          .addTo(map)
+      } else {
+        markerRef.current.setLngLat(e.lngLat)
+      }
+    })
+    return () => {
+      markerRef.current = null
+      map.remove()
+    }
+  }, [open])
+
+  if (!open) return null
+
+  const submit = async () => {
+    if (!session) return
+    setError(null)
+    if (title.trim().length < 3) return setError('Give it a short title (3+ characters).')
+    if (!pin) return setError('Tap the map to drop a pin where you’ll meet.')
+    if (!venueName.trim()) return setError('Name the venue so people know where to go.')
+    if (endTime <= startTime) return setError('End time must be after start time.')
+
+    setBusy(true)
+    const { error: err } = await supabase.from('intents').insert({
+      user_id: session.user.id,
+      poster_name: firstName || 'Someone',
+      activity,
+      title: title.trim(),
+      note: note.trim() || null,
+      lat: pin.lat,
+      lng: pin.lng,
+      venue_name: venueName.trim(),
+      starts_at: toIsoIST(startTime),
+      ends_at: toIsoIST(endTime),
+      spots_needed: spots,
+      women_only: womenOnly,
+      whatsapp_link: whatsapp.trim() || null,
+    })
+    setBusy(false)
+    if (err) {
+      setError(err.message)
+      return
+    }
+    onPosted()
+  }
+
+  const inputCls =
+    'w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-gray-900'
+
+  return (
+    <div className="absolute inset-0 z-30 flex items-end sm:items-center sm:justify-center">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl max-h-[92%] overflow-y-auto p-5 pb-8 space-y-4">
+        <div className="w-10 h-1 rounded-full bg-gray-300 mx-auto sm:hidden" />
+        <h2 className="text-lg font-bold text-gray-900">Post an activity</h2>
+
+        <div className="flex gap-2 overflow-x-auto [scrollbar-width:none]">
+          {ACTIVITIES.map((a) => (
+            <button
+              key={a.key}
+              onClick={() => setActivity(a.key)}
+              className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold border ${
+                activity === a.key
+                  ? 'bg-gray-900 text-white border-gray-900'
+                  : 'bg-white text-gray-700 border-gray-300'
+              }`}
+            >
+              {a.emoji} {a.label}
+            </button>
+          ))}
+        </div>
+
+        <input
+          className={inputCls}
+          placeholder="Title — e.g. Badminton doubles, need 2"
+          value={title}
+          maxLength={80}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+
+        <div className="flex items-center gap-3">
+          <label className="flex-1 text-sm text-gray-600">
+            From
+            <input
+              type="time"
+              className={`${inputCls} mt-1`}
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+            />
+          </label>
+          <label className="flex-1 text-sm text-gray-600">
+            Till
+            <input
+              type="time"
+              className={`${inputCls} mt-1`}
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+            />
+          </label>
+          <label className="w-24 text-sm text-gray-600">
+            Need
+            <select
+              className={`${inputCls} mt-1`}
+              value={spots}
+              onChange={(e) => setSpots(Number(e.target.value))}
+            >
+              {[1, 2, 3, 4, 5, 6, 8, 10].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div>
+          <p className="text-sm text-gray-600 mb-1.5">
+            Where? <span className="text-gray-400">Tap the map to drop a pin</span>
+          </p>
+          <div ref={mapDivRef} className="h-44 rounded-xl overflow-hidden border border-gray-200" />
+        </div>
+
+        <input
+          className={inputCls}
+          placeholder="Venue name — e.g. Central Park, C-Scheme"
+          value={venueName}
+          maxLength={80}
+          onChange={(e) => setVenueName(e.target.value)}
+        />
+
+        <input
+          className={inputCls}
+          placeholder="Note (optional) — skill level, cost split…"
+          value={note}
+          maxLength={280}
+          onChange={(e) => setNote(e.target.value)}
+        />
+
+        <input
+          className={inputCls}
+          placeholder="WhatsApp group link (optional)"
+          value={whatsapp}
+          onChange={(e) => setWhatsapp(e.target.value)}
+        />
+
+        <label className="flex items-center gap-2.5 text-sm font-medium text-gray-700">
+          <input
+            type="checkbox"
+            className="w-4 h-4 accent-pink-600"
+            checked={womenOnly}
+            onChange={(e) => setWomenOnly(e.target.checked)}
+          />
+          Women only
+        </label>
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
+        <button
+          onClick={submit}
+          disabled={busy}
+          className="w-full bg-gray-900 text-white rounded-xl py-3 font-semibold disabled:opacity-40"
+        >
+          {busy ? 'Posting…' : 'Post it 🙌'}
+        </button>
+      </div>
+    </div>
+  )
+}

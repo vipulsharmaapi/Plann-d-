@@ -20,6 +20,8 @@ export const activityByKey = (key: ActivityKey): Activity =>
 
 export interface Intent {
   id: string
+  userId?: string | null
+  whatsappLink?: string | null
   activity: ActivityKey
   title: string
   note?: string

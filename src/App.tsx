@@ -2,16 +2,17 @@ import { useCallback, useMemo, useState } from 'react'
 import MapView from './components/MapView'
 import IntentCard from './components/IntentCard'
 import { ACTIVITIES, type ActivityKey } from './types'
-import { MOCK_INTENTS } from './data/mockIntents'
+import { useIntents } from './hooks/useIntents'
 
 export default function App() {
   const [filter, setFilter] = useState<ActivityKey | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(true)
+  const { intents: allIntents, source } = useIntents()
 
   const intents = useMemo(
-    () => (filter ? MOCK_INTENTS.filter((i) => i.activity === filter) : MOCK_INTENTS),
-    [filter],
+    () => (filter ? allIntents.filter((i) => i.activity === filter) : allIntents),
+    [filter, allIntents],
   )
 
   const handleSelect = useCallback((id: string | null) => {
@@ -84,8 +85,13 @@ export default function App() {
         >
           <div className="w-10 h-1 rounded-full bg-gray-300" />
           <p className="text-sm font-semibold text-gray-900">
-            {intents.length} happening today{' '}
+            {source === 'loading' ? 'Loading…' : `${intents.length} happening today`}{' '}
             {filter ? `· ${ACTIVITIES.find((a) => a.key === filter)?.label}` : ''}
+            {source === 'demo' && (
+              <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 align-middle">
+                demo
+              </span>
+            )}
           </p>
         </button>
         <div className="h-[calc(100%-56px)] overflow-y-auto px-4 pb-6 space-y-3">

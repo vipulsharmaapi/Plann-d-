@@ -1,0 +1,7 @@
+# SPA routing for Hostinger (Apache): serve index.html for all non-file routes
+RewriteEngine On
+RewriteBase /
+RewriteRule ^index\.html$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.html [L]

@@ -1,0 +1,109 @@
+import { useCallback, useMemo, useState } from 'react'
+import MapView from './components/MapView'
+import IntentCard from './components/IntentCard'
+import { ACTIVITIES, type ActivityKey } from './types'
+import { MOCK_INTENTS } from './data/mockIntents'
+
+export default function App() {
+  const [filter, setFilter] = useState<ActivityKey | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(true)
+
+  const intents = useMemo(
+    () => (filter ? MOCK_INTENTS.filter((i) => i.activity === filter) : MOCK_INTENTS),
+    [filter],
+  )
+
+  const handleSelect = useCallback((id: string | null) => {
+    setSelectedId(id)
+    if (id) setSheetOpen(true)
+  }, [])
+
+  const sorted = useMemo(() => {
+    if (!selectedId) return intents
+    const sel = intents.find((i) => i.id === selectedId)
+    return sel ? [sel, ...intents.filter((i) => i.id !== selectedId)] : intents
+  }, [intents, selectedId])
+
+  return (
+    <div className="relative h-full w-full overflow-hidden bg-gray-100">
+      <MapView intents={intents} selectedId={selectedId} onSelect={handleSelect} />
+
+      {/* Header */}
+      <header className="absolute top-0 inset-x-0 z-10 pointer-events-none">
+        <div className="px-4 pt-4">
+          <div className="pointer-events-auto inline-flex items-baseline gap-2 bg-white/95 backdrop-blur rounded-2xl shadow-lg px-4 py-2.5">
+            <h1 className="text-xl font-extrabold tracking-tight text-gray-900">Plann'd</h1>
+            <span className="text-xs font-medium text-gray-500">who's in? · Jaipur</span>
+          </div>
+        </div>
+
+        {/* Activity filter chips */}
+        <div className="pointer-events-auto flex gap-2 overflow-x-auto px-4 py-3 [scrollbar-width:none]">
+          <button
+            onClick={() => setFilter(null)}
+            className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold shadow ${
+              filter === null ? 'bg-gray-900 text-white' : 'bg-white text-gray-700'
+            }`}
+          >
+            All
+          </button>
+          {ACTIVITIES.map((a) => (
+            <button
+              key={a.key}
+              onClick={() => setFilter(filter === a.key ? null : a.key)}
+              className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold shadow ${
+                filter === a.key ? 'bg-gray-900 text-white' : 'bg-white text-gray-700'
+              }`}
+            >
+              {a.emoji} {a.label}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      {/* Post intent FAB */}
+      <button
+        onClick={() => alert("Posting an intent — coming soon! This will open the 3-step post flow.")}
+        className="absolute z-20 right-4 bottom-[calc(45%+16px)] w-14 h-14 rounded-full bg-gray-900 text-white text-3xl font-light shadow-xl flex items-center justify-center active:scale-95 transition-transform"
+        aria-label="Post an activity"
+      >
+        +
+      </button>
+
+      {/* Bottom sheet */}
+      <div
+        className={`absolute inset-x-0 bottom-0 z-10 bg-white rounded-t-3xl shadow-[0_-4px_24px_rgba(0,0,0,0.15)] transition-transform duration-300 ${
+          sheetOpen ? 'translate-y-0' : 'translate-y-[calc(100%-56px)]'
+        }`}
+        style={{ height: '45%' }}
+      >
+        <button
+          className="w-full pt-3 pb-2 flex flex-col items-center gap-1.5"
+          onClick={() => setSheetOpen(!sheetOpen)}
+        >
+          <div className="w-10 h-1 rounded-full bg-gray-300" />
+          <p className="text-sm font-semibold text-gray-900">
+            {intents.length} happening today{' '}
+            {filter ? `· ${ACTIVITIES.find((a) => a.key === filter)?.label}` : ''}
+          </p>
+        </button>
+        <div className="h-[calc(100%-56px)] overflow-y-auto px-4 pb-6 space-y-3">
+          {sorted.map((intent) => (
+            <IntentCard
+              key={intent.id}
+              intent={intent}
+              selected={intent.id === selectedId}
+              onClick={() => handleSelect(intent.id === selectedId ? null : intent.id)}
+            />
+          ))}
+          {sorted.length === 0 && (
+            <p className="text-center text-gray-500 text-sm pt-8">
+              Nothing here yet — be the first to post 🎯
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

@@ -21,6 +21,7 @@ export default function ProfileSheet({ auth, open, onClose }: Props) {
   const [saved, setSaved] = useState(false)
   const [busy, setBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [emojiSaved, setEmojiSaved] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -68,7 +69,9 @@ export default function ProfileSheet({ auth, open, onClose }: Props) {
   const pickEmoji = async (e: string) => {
     setError(null)
     const err = await auth.saveProfile({ emoji: e })
-    if (err) setError(err)
+    if (err) return setError(err)
+    setEmojiSaved(true)
+    setTimeout(() => setEmojiSaved(false), 1500)
   }
 
   const uploadAvatar = async (file: File) => {
@@ -161,10 +164,10 @@ export default function ProfileSheet({ auth, open, onClose }: Props) {
             />
             <button
               onClick={save}
-              disabled={busy || name.trim() === auth.firstName}
+              disabled={busy || !name.trim()}
               className="bg-gray-900 text-white rounded-xl px-4 font-semibold text-sm disabled:opacity-40"
             >
-              {busy ? '…' : saved ? '✓' : 'Save'}
+              {busy ? '…' : saved ? '✓ Saved' : 'Save'}
             </button>
           </div>
         </label>
@@ -172,6 +175,7 @@ export default function ProfileSheet({ auth, open, onClose }: Props) {
         <div>
           <p className="text-sm font-medium text-gray-600 mb-1.5">
             Your emoji <span className="text-gray-400">— shown when you have no photo</span>
+            {emojiSaved && <span className="ml-2 text-green-600 font-semibold">✓ saved</span>}
           </p>
           <div className="grid grid-cols-10 gap-1">
             {EMOJIS.map((e) => (

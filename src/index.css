@@ -1,12 +1,20 @@
 @import 'tailwindcss';
 @import 'maplibre-gl/dist/maplibre-gl.css';
 
+@theme {
+  --font-sans: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
 html,
 body,
 #root {
   height: 100%;
   margin: 0;
   overscroll-behavior: none;
+}
+
+body {
+  font-family: var(--font-sans);
 }
 
 /* Tailwind v4's preflight sets buttons to cursor:default — restore the
@@ -18,10 +26,59 @@ label:has(> input[type='checkbox']) {
   cursor: pointer;
 }
 
+/* Tactile press feedback everywhere */
+button {
+  transition:
+    transform 0.1s ease,
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
 .intent-pin {
   cursor: pointer;
   transition: transform 0.15s ease;
 }
 .intent-pin:hover {
   transform: scale(1.15);
+}
+
+/* Sheet + backdrop entrances */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(28px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.sheet-backdrop {
+  animation: fade-in 0.2s ease both;
+}
+.sheet-panel {
+  animation: sheet-up 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Wordmark */
+.wordmark {
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(120deg, #111827 40%, #4f46e5);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }

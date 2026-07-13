@@ -27,8 +27,8 @@ export default function NotificationsSheet({ open, items, onClose, onOpenNotific
 
   return (
     <div className="absolute inset-0 z-40 flex items-end sm:items-center sm:justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl max-h-[80%] flex flex-col">
+      <div className="sheet-backdrop absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="sheet-panel relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl max-h-[80%] flex flex-col">
         <div className="px-5 pt-4 pb-3 border-b border-gray-100 flex items-center">
           <h2 className="flex-1 text-lg font-bold text-gray-900">Notifications</h2>
           <button onClick={onClose} className="text-gray-400 text-xl px-2" aria-label="Close">

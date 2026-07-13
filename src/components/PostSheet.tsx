@@ -411,8 +411,8 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
 
   return (
     <div className="absolute inset-0 z-30 flex items-end sm:items-center sm:justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl max-h-[92%] overflow-y-auto p-5 pb-8 space-y-4">
+      <div className="sheet-backdrop absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="sheet-panel relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl max-h-[92%] overflow-y-auto p-5 pb-8 space-y-4">
         <div className="w-10 h-1 rounded-full bg-gray-300 mx-auto sm:hidden" />
         <h2 className="text-lg font-bold text-gray-900">
           {editing ? 'Edit your post' : 'Post an activity'}

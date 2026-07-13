@@ -142,8 +142,8 @@ export default function ChatSheet({ intent, auth, onClose }: Props) {
 
   return (
     <div className="absolute inset-0 z-40 flex items-end sm:items-center sm:justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl flex flex-col" style={{ height: '80%' }}>
+      <div className="sheet-backdrop absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="sheet-panel relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl flex flex-col" style={{ height: '80%' }}>
         <div className="px-5 pt-4 pb-3 border-b border-gray-100 flex items-center gap-3">
           <span className="text-2xl">{activity.emoji}</span>
           <div className="min-w-0 flex-1">

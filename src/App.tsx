@@ -119,8 +119,8 @@ export default function App() {
         <div className="px-4 pt-4">
           <div className="pointer-events-auto flex items-center justify-between gap-2">
             <div className="inline-flex items-baseline gap-2 bg-white/95 backdrop-blur rounded-2xl shadow-lg px-4 py-2.5">
-              <h1 className="text-xl font-extrabold tracking-tight text-gray-900">Plann'd</h1>
-              <span className="text-xs font-medium text-gray-500 max-[380px]:hidden">
+              <h1 className="wordmark text-xl">Plann'd</h1>
+              <span className="text-xs font-medium text-gray-500 max-[430px]:hidden">
                 who's in? · Jaipur
               </span>
             </div>
@@ -128,7 +128,7 @@ export default function App() {
             <div className="flex bg-white/95 backdrop-blur rounded-2xl shadow-lg p-1 text-sm font-semibold">
               <button
                 onClick={() => setView('map')}
-                className={`rounded-xl px-3 py-1.5 ${
+                className={`whitespace-nowrap rounded-xl px-3 py-1.5 ${
                   view === 'map' ? 'bg-gray-900 text-white' : 'text-gray-600'
                 }`}
               >
@@ -136,7 +136,7 @@ export default function App() {
               </button>
               <button
                 onClick={() => setView('explore')}
-                className={`rounded-xl px-3 py-1.5 ${
+                className={`whitespace-nowrap rounded-xl px-3 py-1.5 ${
                   view === 'explore' ? 'bg-gray-900 text-white' : 'text-gray-600'
                 }`}
               >
@@ -176,7 +176,7 @@ export default function App() {
             ) : (
               <button
                 onClick={() => setAuthOpen(true)}
-                className="bg-white/95 backdrop-blur rounded-2xl shadow-lg px-3.5 py-2.5 text-sm font-semibold text-gray-700"
+                className="whitespace-nowrap bg-white/95 backdrop-blur rounded-2xl shadow-lg px-3.5 py-2.5 text-sm font-semibold text-gray-700"
               >
                 Sign in
               </button>
@@ -211,7 +211,7 @@ export default function App() {
       {/* Post intent FAB */}
       <button
         onClick={openPost}
-        className={`absolute z-20 right-4 w-14 h-14 rounded-full bg-gray-900 text-white text-3xl font-light shadow-xl flex items-center justify-center active:scale-95 transition-transform ${
+        className={`absolute z-20 right-4 w-14 h-14 rounded-full bg-gradient-to-br from-gray-900 to-indigo-700 text-white text-3xl font-light shadow-xl shadow-indigo-900/30 flex items-center justify-center hover:shadow-2xl hover:shadow-indigo-900/40 ${
           view === 'map' ? 'bottom-[calc(45%+16px)]' : 'bottom-6'
         }`}
         aria-label="Post an activity"
@@ -222,7 +222,7 @@ export default function App() {
       {/* Bottom sheet (map view only) */}
       {view === 'map' && (
       <div
-        className={`absolute inset-x-0 bottom-0 z-10 bg-white rounded-t-3xl shadow-[0_-4px_24px_rgba(0,0,0,0.15)] transition-transform duration-300 ${
+        className={`absolute inset-x-0 bottom-0 z-10 bg-white rounded-t-[28px] shadow-[0_-8px_32px_rgba(0,0,0,0.18)] transition-transform duration-300 ${
           sheetOpen ? 'translate-y-0' : 'translate-y-[calc(100%-56px)]'
         }`}
         style={{ height: '45%' }}
@@ -263,10 +263,32 @@ export default function App() {
               />
             </IntentCard>
           ))}
-          {sorted.length === 0 && (
-            <p className="text-center text-gray-500 text-sm pt-8">
-              Nothing here yet — be the first to post 🎯
-            </p>
+          {source === 'loading' &&
+            sorted.length === 0 &&
+            [0, 1, 2].map((i) => (
+              <div key={i} className="rounded-2xl border border-gray-100 p-4 animate-pulse">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gray-100" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3.5 bg-gray-100 rounded w-3/4" />
+                    <div className="h-3 bg-gray-100 rounded w-1/2" />
+                    <div className="h-2.5 bg-gray-100 rounded w-2/3" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          {source !== 'loading' && sorted.length === 0 && (
+            <div className="text-center pt-6 space-y-2">
+              <p className="text-4xl">🦗</p>
+              <p className="text-sm font-semibold text-gray-700">Quiet right now</p>
+              <p className="text-sm text-gray-500">Someone has to go first — why not you?</p>
+              <button
+                onClick={openPost}
+                className="mt-1 bg-gray-900 text-white rounded-xl px-5 py-2.5 text-sm font-semibold"
+              >
+                Post a plan 🎯
+              </button>
+            </div>
           )}
         </div>
       </div>

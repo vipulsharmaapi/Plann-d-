@@ -12,7 +12,7 @@ import ChatSheet from './components/ChatSheet'
 import NotificationsSheet from './components/NotificationsSheet'
 import { useNotifications, type AppNotification } from './hooks/useNotifications'
 import JoinSection from './components/JoinSection'
-import { ACTIVITIES, type ActivityKey, type Intent } from './types'
+import { ACTIVITIES, activityByKey, type ActivityKey, type Intent } from './types'
 import { useIntents } from './hooks/useIntents'
 import { useAuth } from './hooks/useAuth'
 
@@ -25,6 +25,7 @@ export default function App() {
   const [editIntent, setEditIntent] = useState<Intent | null>(null)
   const [profileOpen, setProfileOpen] = useState(false)
   const [view, setView] = useState<'map' | 'explore'>('map')
+  const [moreFilters, setMoreFilters] = useState(false)
   const [mapProvider, setMapProvider] = useState<'google' | 'maplibre'>(
     GOOGLE_MAPS_KEY ? 'google' : 'maplibre',
   )
@@ -185,28 +186,70 @@ export default function App() {
           </div>
         </div>
 
-        {/* Activity filter chips */}
-        <div className="pointer-events-auto flex gap-2 overflow-x-auto px-4 py-3 [scrollbar-width:none]">
-          <button
-            onClick={() => setFilter(null)}
-            className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold shadow ${
-              filter === null ? 'bg-gray-900 text-white' : 'bg-white text-gray-700'
-            }`}
-          >
-            All
-          </button>
-          {ACTIVITIES.map((a) => (
-            <button
-              key={a.key}
-              onClick={() => setFilter(filter === a.key ? null : a.key)}
-              className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold shadow ${
-                filter === a.key ? 'bg-gray-900 text-white' : 'bg-white text-gray-700'
-              }`}
-            >
-              {a.emoji} {a.label}
-            </button>
-          ))}
-        </div>
+        {/* Activity filter: top activities + expandable grid for the rest */}
+        {(() => {
+          const TOP: ActivityKey[] = ['badminton', 'football', 'cricket', 'running']
+          const topActivities = ACTIVITIES.filter((a) => TOP.includes(a.key))
+          const moreActivities = ACTIVITIES.filter((a) => !TOP.includes(a.key))
+          const hiddenActive = filter && !TOP.includes(filter)
+          const chipCls = (active: boolean) =>
+            `shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-semibold shadow ${
+              active ? 'bg-gray-900 text-white' : 'bg-white text-gray-700'
+            }`
+          return (
+            <div className="pointer-events-auto px-4 py-3">
+              <div className="flex gap-2 overflow-x-auto [scrollbar-width:none]">
+                <button
+                  onClick={() => {
+                    setFilter(null)
+                    setMoreFilters(false)
+                  }}
+                  className={chipCls(filter === null)}
+                >
+                  All
+                </button>
+                {hiddenActive && (
+                  <button onClick={() => setFilter(null)} className={chipCls(true)}>
+                    {activityByKey(filter).emoji} {activityByKey(filter).label} ✕
+                  </button>
+                )}
+                {topActivities.map((a) => (
+                  <button
+                    key={a.key}
+                    onClick={() => setFilter(filter === a.key ? null : a.key)}
+                    className={chipCls(filter === a.key)}
+                  >
+                    {a.emoji} {a.label}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setMoreFilters(!moreFilters)}
+                  className={chipCls(moreFilters)}
+                >
+                  {moreFilters ? 'Less ⌃' : 'More ⌄'}
+                </button>
+              </div>
+              {moreFilters && (
+                <div className="mt-2 bg-white/95 backdrop-blur rounded-2xl shadow-lg p-3 grid grid-cols-3 gap-2">
+                  {moreActivities.map((a) => (
+                    <button
+                      key={a.key}
+                      onClick={() => {
+                        setFilter(filter === a.key ? null : a.key)
+                        setMoreFilters(false)
+                      }}
+                      className={`whitespace-nowrap rounded-xl px-2 py-2 text-xs font-semibold ${
+                        filter === a.key ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      {a.emoji} {a.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })()}
       </header>
 
       {/* Post intent FAB */}

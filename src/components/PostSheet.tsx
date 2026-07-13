@@ -22,9 +22,58 @@ interface VenueResult {
   lng: number
 }
 
+const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined
+
+const nearJaipur = (v: VenueResult) =>
+  Math.abs(v.lat - JAIPUR_CENTER[1]) < 0.55 && Math.abs(v.lng - JAIPUR_CENTER[0]) < 0.55
+
+// Google Places (New) Text Search — much better coverage of Indian venues.
+// Used automatically when VITE_GOOGLE_MAPS_API_KEY is set.
+async function searchVenuesGoogle(q: string): Promise<VenueResult[]> {
+  const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': GOOGLE_KEY!,
+      'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location',
+    },
+    body: JSON.stringify({
+      textQuery: `${q}, Jaipur`,
+      locationBias: {
+        circle: {
+          center: { latitude: JAIPUR_CENTER[1], longitude: JAIPUR_CENTER[0] },
+          radius: 50000,
+        },
+      },
+      pageSize: 6,
+    }),
+  })
+  if (!res.ok) throw new Error(`places ${res.status}`)
+  const json = await res.json()
+  return ((json.places ?? []) as Array<{
+    displayName?: { text?: string }
+    formattedAddress?: string
+    location: { latitude: number; longitude: number }
+  }>)
+    .map((p) => ({
+      name: p.displayName?.text || q,
+      label: (p.formattedAddress ?? '').split(',').slice(0, 2).join(',').trim(),
+      lat: p.location.latitude,
+      lng: p.location.longitude,
+    }))
+    .filter(nearJaipur)
+}
+
 // Free OpenStreetMap geocoder (photon.komoot.io), biased to Jaipur and
 // filtered to ~60 km around it.
 async function searchVenues(q: string): Promise<VenueResult[]> {
+  if (GOOGLE_KEY) {
+    try {
+      return await searchVenuesGoogle(q)
+    } catch {
+      // fall through to the free geocoder on quota/config errors
+    }
+  }
   const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&lat=${JAIPUR_CENTER[1]}&lon=${JAIPUR_CENTER[0]}&limit=6`
   const res = await fetch(url)
   if (!res.ok) return []

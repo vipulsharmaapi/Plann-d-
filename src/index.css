@@ -9,6 +9,15 @@ body,
   overscroll-behavior: none;
 }
 
+/* Tailwind v4's preflight sets buttons to cursor:default — restore the
+   conventional hand cursor for anything clickable. */
+button:not(:disabled),
+[role='button']:not(:disabled),
+select,
+label:has(> input[type='checkbox']) {
+  cursor: pointer;
+}
+
 .intent-pin {
   cursor: pointer;
   transition: transform 0.15s ease;

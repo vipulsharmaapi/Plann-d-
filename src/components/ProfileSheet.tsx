@@ -294,7 +294,7 @@ export default function ProfileSheet({ auth, open, onClose }: Props) {
             await auth.signOut()
             onClose()
           }}
-          className="w-full border border-gray-200 text-gray-600 rounded-xl py-3 text-sm font-semibold"
+          className="w-full border border-gray-200 text-gray-600 rounded-xl py-3 text-sm font-semibold transition-colors hover:bg-gray-100 hover:text-gray-900 hover:border-gray-300"
         >
           Sign out
         </button>

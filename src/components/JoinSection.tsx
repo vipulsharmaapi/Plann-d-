@@ -9,6 +9,7 @@ interface Props {
   onRequestAuth: () => void
   onEdit: (intent: Intent) => void
   onViewProfile: (userId: string) => void
+  onOpenChat: (intent: Intent) => void
 }
 
 interface RequestRow {
@@ -18,7 +19,14 @@ interface RequestRow {
   requesterName?: string
 }
 
-export default function JoinSection({ intent, auth, onRequestAuth, onEdit, onViewProfile }: Props) {
+export default function JoinSection({
+  intent,
+  auth,
+  onRequestAuth,
+  onEdit,
+  onViewProfile,
+  onOpenChat,
+}: Props) {
   const { session } = auth
   const isMine = !!session && intent.userId === session.user.id
   const [myRequest, setMyRequest] = useState<RequestRow | null>(null)
@@ -128,6 +136,12 @@ export default function JoinSection({ intent, auth, onRequestAuth, onEdit, onVie
             Your post · {requests.filter((r) => r.status === 'pending').length} pending
           </p>
           <button
+            onClick={() => onOpenChat(intent)}
+            className="bg-gray-900 text-white rounded-lg px-3 py-1.5 text-xs font-semibold"
+          >
+            💬 Chat
+          </button>
+          <button
             disabled={busy}
             onClick={() => onEdit(intent)}
             className="bg-gray-100 text-gray-700 rounded-lg px-3 py-1.5 text-xs font-semibold"
@@ -209,6 +223,12 @@ export default function JoinSection({ intent, auth, onRequestAuth, onEdit, onVie
       <div className="mt-3 space-y-2">
         <p className="text-sm font-semibold text-green-700">You're in! 🎉</p>
         {posterProfileRow}
+        <button
+          onClick={() => onOpenChat(intent)}
+          className="w-full bg-gray-900 text-white rounded-xl py-2.5 text-sm font-semibold"
+        >
+          💬 Open group chat
+        </button>
         <div className="flex gap-2">
           {intent.whatsappLink && (
             <a

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
-import type { Auth } from '../hooks/useAuth'
+import type { Auth, Gender } from '../hooks/useAuth'
 
 interface Props {
   auth: Auth
@@ -16,6 +16,7 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
+  const [gender, setGender] = useState<Gender | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -54,9 +55,10 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
   }
 
   const submitName = async () => {
+    if (!gender) return setError('Pick a gender to continue.')
     setBusy(true)
     setError(null)
-    const err = await auth.saveFirstName(name.trim())
+    const err = await auth.saveProfile({ first_name: name.trim(), gender })
     setBusy(false)
     if (err) setError(err)
     else onSignedIn()
@@ -128,7 +130,7 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
 
         {step === 'name' && (
           <>
-            <h2 className="text-lg font-bold text-gray-900">What should people call you?</h2>
+            <h2 className="text-lg font-bold text-gray-900">Set up your profile</h2>
             <p className="text-sm text-gray-500">
               First name only — it's shown on your posts.
             </p>
@@ -138,11 +140,37 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
               value={name}
               maxLength={30}
               onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && name.trim() && submitName()}
             />
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1.5">Gender</p>
+              <div className="flex gap-2">
+                {(
+                  [
+                    ['female', 'Female'],
+                    ['male', 'Male'],
+                    ['other', 'Other'],
+                  ] as [Gender, string][]
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setGender(key)}
+                    className={`flex-1 rounded-xl py-2.5 text-sm font-semibold border ${
+                      gender === key
+                        ? 'bg-gray-900 text-white border-gray-900'
+                        : 'bg-white text-gray-700 border-gray-300'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1.5 text-xs text-amber-700">
+                ⚠️ Can't be changed later — it keeps women-only plans trustworthy.
+              </p>
+            </div>
             <button
               onClick={submitName}
-              disabled={busy || !name.trim()}
+              disabled={busy || !name.trim() || !gender}
               className="w-full bg-gray-900 text-white rounded-xl py-3 font-semibold disabled:opacity-40"
             >
               {busy ? 'Saving…' : "Let's go"}

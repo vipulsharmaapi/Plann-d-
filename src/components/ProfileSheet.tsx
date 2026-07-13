@@ -111,6 +111,7 @@ export default function ProfileSheet({ auth, open, onClose }: Props) {
   }
 
   const pickGender = async (g: Gender) => {
+    if (!confirm('Gender can’t be changed after this. Confirm?')) return
     setError(null)
     const err = await auth.saveProfile({ gender: g })
     if (err) return setError(err)
@@ -233,27 +234,32 @@ export default function ProfileSheet({ auth, open, onClose }: Props) {
             Gender <span className="text-gray-400">— used for women-only plans</span>
             {genderSaved && <span className="ml-2 text-green-600 font-semibold">✓ saved</span>}
           </p>
-          <div className="flex gap-2">
-            {(
-              [
-                ['female', 'Female'],
-                ['male', 'Male'],
-                ['other', 'Other'],
-              ] as [Gender, string][]
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => pickGender(key)}
-                className={`flex-1 rounded-xl py-2.5 text-sm font-semibold border ${
-                  auth.gender === key
-                    ? 'bg-gray-900 text-white border-gray-900'
-                    : 'bg-white text-gray-700 border-gray-300'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          {auth.gender ? (
+            <p className="rounded-xl bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 capitalize">
+              {auth.gender} <span className="font-normal text-gray-400">· locked 🔒</span>
+            </p>
+          ) : (
+            <>
+              <div className="flex gap-2">
+                {(
+                  [
+                    ['female', 'Female'],
+                    ['male', 'Male'],
+                    ['other', 'Other'],
+                  ] as [Gender, string][]
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => pickGender(key)}
+                    className="flex-1 rounded-xl py-2.5 text-sm font-semibold border bg-white text-gray-700 border-gray-300"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1.5 text-xs text-amber-700">⚠️ Can't be changed once set.</p>
+            </>
+          )}
         </div>
 
         <label className="block text-sm font-medium text-gray-600">

@@ -13,6 +13,7 @@ interface Props {
   onRequestAuth: () => void
   onEdit: (intent: Intent) => void
   onViewProfile: (userId: string) => void
+  onOpenChat: (intent: Intent) => void
 }
 
 type TimeSlot = 'all' | 'morning' | 'afternoon' | 'evening'
@@ -40,6 +41,7 @@ export default function Explore({
   onRequestAuth,
   onEdit,
   onViewProfile,
+  onOpenChat,
 }: Props) {
   const [slot, setSlot] = useState<TimeSlot>('all')
   const [openOnly, setOpenOnly] = useState(false)
@@ -114,6 +116,7 @@ export default function Explore({
               onRequestAuth={onRequestAuth}
               onEdit={onEdit}
               onViewProfile={onViewProfile}
+              onOpenChat={onOpenChat}
             />
             <button
               onClick={() => onShowOnMap(intent.id)}

@@ -102,6 +102,7 @@ export default function JoinSection({
 
   const respond = async (req: RequestRow, status: 'accepted' | 'declined') => {
     setBusy(true)
+    const wasAccepted = req.status === 'accepted'
     const { error: err } = await supabase
       .from('join_requests')
       .update({ status })
@@ -112,9 +113,25 @@ export default function JoinSection({
         .update({ spots_filled: intent.spotsFilled + 1 })
         .eq('id', intent.id)
     }
+    if (!err && wasAccepted && status === 'declined') {
+      await supabase
+        .from('intents')
+        .update({ spots_filled: Math.max(0, intent.spotsFilled - 1) })
+        .eq('id', intent.id)
+    }
     setBusy(false)
     if (err) setError(err.message)
     else load()
+  }
+
+  const removeJoiner = (req: RequestRow) => {
+    if (
+      !confirm(
+        `Remove ${req.requesterName || 'them'} from this plan? They lose access to the chat and get their spot released.`,
+      )
+    )
+      return
+    respond(req, 'declined')
   }
 
   const messageUser = async (targetUserId: string, targetName: string) => {
@@ -185,15 +202,6 @@ export default function JoinSection({
             >
               {r.requesterName}
             </button>
-            {r.status === 'accepted' && (
-              <button
-                disabled={busy}
-                onClick={() => messageUser(r.user_id, r.requesterName || 'They')}
-                className="bg-green-50 text-green-700 border border-green-200 rounded-lg px-3 py-1.5 text-xs font-semibold"
-              >
-                WhatsApp ↗
-              </button>
-            )}
             {r.status === 'pending' ? (
               <>
                 <button
@@ -211,14 +219,25 @@ export default function JoinSection({
                   Decline
                 </button>
               </>
+            ) : r.status === 'accepted' ? (
+              <>
+                <button
+                  disabled={busy}
+                  onClick={() => messageUser(r.user_id, r.requesterName || 'They')}
+                  className="bg-green-50 text-green-700 border border-green-200 rounded-lg px-3 py-1.5 text-xs font-semibold"
+                >
+                  WhatsApp ↗
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() => removeJoiner(r)}
+                  className="bg-red-50 text-red-600 rounded-lg px-3 py-1.5 text-xs font-semibold"
+                >
+                  Remove
+                </button>
+              </>
             ) : (
-              <span
-                className={`text-xs font-semibold ${
-                  r.status === 'accepted' ? 'text-green-700' : 'text-gray-400'
-                }`}
-              >
-                {r.status}
-              </span>
+              <span className="text-xs font-semibold text-gray-400">declined</span>
             )}
           </div>
         ))}

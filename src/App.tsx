@@ -144,35 +144,36 @@ export default function App() {
               </button>
             </div>
 
-            {auth.session && (
-              <button
-                onClick={() => {
-                  setNotifOpen(true)
-                  notifications.markAllRead()
-                }}
-                className="relative bg-white/95 backdrop-blur rounded-2xl shadow-lg px-3 py-2.5 text-base"
-                aria-label="Notifications"
-              >
-                🔔
-                {notifications.unread > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1">
-                    {notifications.unread > 9 ? '9+' : notifications.unread}
-                  </span>
-                )}
-              </button>
-            )}
             {auth.session ? (
-              <button
-                onClick={() => setProfileOpen(true)}
-                className="flex items-center gap-1.5 bg-white/95 backdrop-blur rounded-2xl shadow-lg px-2.5 py-1.5 text-sm font-semibold text-gray-700"
-              >
-                {auth.avatarUrl ? (
-                  <img src={auth.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover" />
-                ) : (
-                  <span className="text-lg">{auth.emoji}</span>
-                )}
-                <span className="max-[420px]:hidden">{auth.firstName || 'You'}</span>
-              </button>
+              <div className="flex items-center bg-white/95 backdrop-blur rounded-2xl shadow-lg">
+                <button
+                  onClick={() => {
+                    setNotifOpen(true)
+                    notifications.markAllRead()
+                  }}
+                  className="relative pl-3 pr-2 py-2 text-base"
+                  aria-label="Notifications"
+                >
+                  🔔
+                  {notifications.unread > 0 && (
+                    <span className="absolute top-0.5 right-0 min-w-[16px] h-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1">
+                      {notifications.unread > 9 ? '9+' : notifications.unread}
+                    </span>
+                  )}
+                </button>
+                <div className="w-px h-5 bg-gray-200" />
+                <button
+                  onClick={() => setProfileOpen(true)}
+                  className="flex items-center gap-1.5 pl-2 pr-2.5 py-1.5 text-sm font-semibold text-gray-700"
+                >
+                  {auth.avatarUrl ? (
+                    <img src={auth.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover" />
+                  ) : (
+                    <span className="text-lg">{auth.emoji}</span>
+                  )}
+                  <span className="max-[460px]:hidden">{auth.firstName || 'You'}</span>
+                </button>
+              </div>
             ) : (
               <button
                 onClick={() => setAuthOpen(true)}

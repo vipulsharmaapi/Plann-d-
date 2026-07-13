@@ -75,7 +75,7 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
           <>
             <h2 className="text-lg font-bold text-gray-900">Sign in to Plann'd</h2>
             <p className="text-sm text-gray-500">
-              We'll email you a 6-digit code. No passwords.
+              We'll email you a one-time code. No passwords.
             </p>
             <input
               className={inputCls}
@@ -101,21 +101,21 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
           <>
             <h2 className="text-lg font-bold text-gray-900">Check your email</h2>
             <p className="text-sm text-gray-500">
-              Enter the 6-digit code sent to <span className="font-medium">{email}</span>
+              Enter the code sent to <span className="font-medium">{email}</span>
             </p>
             <input
-              className={`${inputCls} tracking-[0.5em] text-center font-mono text-xl`}
+              className={`${inputCls} tracking-[0.4em] text-center font-mono text-xl`}
               inputMode="numeric"
               autoComplete="one-time-code"
-              maxLength={6}
+              maxLength={10}
               placeholder="••••••"
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-              onKeyDown={(e) => e.key === 'Enter' && code.length === 6 && submitCode()}
+              onKeyDown={(e) => e.key === 'Enter' && code.length >= 6 && submitCode()}
             />
             <button
               onClick={submitCode}
-              disabled={busy || code.length !== 6}
+              disabled={busy || code.length < 6}
               className="w-full bg-gray-900 text-white rounded-xl py-3 font-semibold disabled:opacity-40"
             >
               {busy ? 'Verifying…' : 'Verify'}

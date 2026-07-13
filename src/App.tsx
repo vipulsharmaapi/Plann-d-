@@ -4,6 +4,7 @@ import IntentCard from './components/IntentCard'
 import AuthSheet from './components/AuthSheet'
 import PostSheet from './components/PostSheet'
 import ProfileSheet from './components/ProfileSheet'
+import Explore from './components/Explore'
 import JoinSection from './components/JoinSection'
 import { ACTIVITIES, type ActivityKey, type Intent } from './types'
 import { useIntents } from './hooks/useIntents'
@@ -17,6 +18,7 @@ export default function App() {
   const [postOpen, setPostOpen] = useState(false)
   const [editIntent, setEditIntent] = useState<Intent | null>(null)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [view, setView] = useState<'map' | 'explore'>('map')
   const afterAuthRef = useRef<'post' | null>(null)
   const auth = useAuth()
   const { intents: allIntents, source, refresh } = useIntents()
@@ -57,20 +59,65 @@ export default function App() {
     <div className="relative h-full w-full overflow-hidden bg-gray-100">
       <MapView intents={intents} selectedId={selectedId} onSelect={handleSelect} />
 
+      {view === 'explore' && (
+        <Explore
+          intents={intents}
+          auth={auth}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          onShowOnMap={(id) => {
+            setView('map')
+            handleSelect(id)
+          }}
+          onRequestAuth={() => setAuthOpen(true)}
+          onEdit={(i) => {
+            setEditIntent(i)
+            setPostOpen(true)
+          }}
+        />
+      )}
+
       {/* Header */}
       <header className="absolute top-0 inset-x-0 z-10 pointer-events-none">
         <div className="px-4 pt-4">
-          <div className="pointer-events-auto flex items-center justify-between">
+          <div className="pointer-events-auto flex items-center justify-between gap-2">
             <div className="inline-flex items-baseline gap-2 bg-white/95 backdrop-blur rounded-2xl shadow-lg px-4 py-2.5">
               <h1 className="text-xl font-extrabold tracking-tight text-gray-900">Plann'd</h1>
-              <span className="text-xs font-medium text-gray-500">who's in? · Jaipur</span>
+              <span className="text-xs font-medium text-gray-500 max-[380px]:hidden">
+                who's in? · Jaipur
+              </span>
             </div>
+
+            <div className="flex bg-white/95 backdrop-blur rounded-2xl shadow-lg p-1 text-sm font-semibold">
+              <button
+                onClick={() => setView('map')}
+                className={`rounded-xl px-3 py-1.5 ${
+                  view === 'map' ? 'bg-gray-900 text-white' : 'text-gray-600'
+                }`}
+              >
+                🗺️ Map
+              </button>
+              <button
+                onClick={() => setView('explore')}
+                className={`rounded-xl px-3 py-1.5 ${
+                  view === 'explore' ? 'bg-gray-900 text-white' : 'text-gray-600'
+                }`}
+              >
+                📋 Explore
+              </button>
+            </div>
+
             {auth.session ? (
               <button
                 onClick={() => setProfileOpen(true)}
-                className="bg-white/95 backdrop-blur rounded-2xl shadow-lg px-3.5 py-2.5 text-sm font-semibold text-gray-700"
+                className="flex items-center gap-1.5 bg-white/95 backdrop-blur rounded-2xl shadow-lg px-2.5 py-1.5 text-sm font-semibold text-gray-700"
               >
-                {auth.firstName || 'You'} 👋
+                {auth.avatarUrl ? (
+                  <img src={auth.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover" />
+                ) : (
+                  <span className="text-lg">{auth.emoji}</span>
+                )}
+                <span className="max-[420px]:hidden">{auth.firstName || 'You'}</span>
               </button>
             ) : (
               <button
@@ -110,13 +157,16 @@ export default function App() {
       {/* Post intent FAB */}
       <button
         onClick={openPost}
-        className="absolute z-20 right-4 bottom-[calc(45%+16px)] w-14 h-14 rounded-full bg-gray-900 text-white text-3xl font-light shadow-xl flex items-center justify-center active:scale-95 transition-transform"
+        className={`absolute z-20 right-4 w-14 h-14 rounded-full bg-gray-900 text-white text-3xl font-light shadow-xl flex items-center justify-center active:scale-95 transition-transform ${
+          view === 'map' ? 'bottom-[calc(45%+16px)]' : 'bottom-6'
+        }`}
         aria-label="Post an activity"
       >
         +
       </button>
 
-      {/* Bottom sheet */}
+      {/* Bottom sheet (map view only) */}
+      {view === 'map' && (
       <div
         className={`absolute inset-x-0 bottom-0 z-10 bg-white rounded-t-3xl shadow-[0_-4px_24px_rgba(0,0,0,0.15)] transition-transform duration-300 ${
           sheetOpen ? 'translate-y-0' : 'translate-y-[calc(100%-56px)]'
@@ -164,6 +214,7 @@ export default function App() {
           )}
         </div>
       </div>
+      )}
 
       <AuthSheet auth={auth} open={authOpen} onClose={() => setAuthOpen(false)} onSignedIn={handleSignedIn} />
       <ProfileSheet auth={auth} open={profileOpen} onClose={() => setProfileOpen(false)} />

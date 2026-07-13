@@ -7,6 +7,8 @@ import ProfileSheet from './components/ProfileSheet'
 import Explore from './components/Explore'
 import ProfilePeek from './components/ProfilePeek'
 import ChatSheet from './components/ChatSheet'
+import NotificationsSheet from './components/NotificationsSheet'
+import { useNotifications, type AppNotification } from './hooks/useNotifications'
 import JoinSection from './components/JoinSection'
 import { ACTIVITIES, type ActivityKey, type Intent } from './types'
 import { useIntents } from './hooks/useIntents'
@@ -23,9 +25,24 @@ export default function App() {
   const [view, setView] = useState<'map' | 'explore'>('map')
   const [peekUserId, setPeekUserId] = useState<string | null>(null)
   const [chatIntent, setChatIntent] = useState<Intent | null>(null)
+  const [notifOpen, setNotifOpen] = useState(false)
   const afterAuthRef = useRef<'post' | null>(null)
   const auth = useAuth()
   const { intents: allIntents, source, refresh } = useIntents()
+  const notifications = useNotifications(auth.session)
+
+  const openNotification = (n: AppNotification) => {
+    setNotifOpen(false)
+    if (!n.intent_id) return
+    const intent = allIntents.find((i) => i.id === n.intent_id)
+    if (!intent) return // plan expired or was cancelled
+    if (n.type === 'chat_message' || n.type === 'request_accepted') {
+      setChatIntent(intent)
+    } else {
+      setView('map')
+      handleSelect(intent.id)
+    }
+  }
 
   const openPost = () => {
     setEditIntent(null)
@@ -113,6 +130,23 @@ export default function App() {
               </button>
             </div>
 
+            {auth.session && (
+              <button
+                onClick={() => {
+                  setNotifOpen(true)
+                  notifications.markAllRead()
+                }}
+                className="relative bg-white/95 backdrop-blur rounded-2xl shadow-lg px-3 py-2.5 text-base"
+                aria-label="Notifications"
+              >
+                🔔
+                {notifications.unread > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1">
+                    {notifications.unread > 9 ? '9+' : notifications.unread}
+                  </span>
+                )}
+              </button>
+            )}
             {auth.session ? (
               <button
                 onClick={() => setProfileOpen(true)}
@@ -228,6 +262,12 @@ export default function App() {
       <ProfileSheet auth={auth} open={profileOpen} onClose={() => setProfileOpen(false)} />
       <ProfilePeek userId={peekUserId} onClose={() => setPeekUserId(null)} />
       <ChatSheet intent={chatIntent} auth={auth} onClose={() => setChatIntent(null)} />
+      <NotificationsSheet
+        open={notifOpen}
+        items={notifications.items}
+        onClose={() => setNotifOpen(false)}
+        onOpenNotification={openNotification}
+      />
       <PostSheet
         open={postOpen}
         session={auth.session}

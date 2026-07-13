@@ -100,6 +100,29 @@ async function searchVenues(q: string): Promise<VenueResult[]> {
 const todayIST = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
 const toIsoIST = (time: string) => new Date(`${todayIST()}T${time}:00+05:30`).toISOString()
 
+// Default window: next half-hour for 2 hours, clamped to today (IST)
+const defaultTimes = () => {
+  const [h, m] = new Date()
+    .toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })
+    .split(':')
+    .map(Number)
+  let sh = h
+  let sm: number
+  if (m < 30) {
+    sm = 30
+  } else {
+    sh += 1
+    sm = 0
+  }
+  if (sh >= 23) return { start: '23:00', end: '23:59' }
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const eh = Math.min(sh + 2, 23)
+  return {
+    start: `${pad(sh)}:${pad(sm)}`,
+    end: eh === 23 ? '23:59' : `${pad(eh)}:${pad(sm)}`,
+  }
+}
+
 export default function PostSheet({ open, session, firstName, editing, onClose, onPosted }: Props) {
   const [activity, setActivity] = useState<ActivityKey>('badminton')
   const [title, setTitle] = useState('')
@@ -175,11 +198,12 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
       setVenueName(editing.venueName)
       setPin({ lat: editing.lat, lng: editing.lng })
     } else {
+      const t = defaultTimes()
       setActivity('badminton')
       setTitle('')
       setNote('')
-      setStartTime('19:00')
-      setEndTime('21:00')
+      setStartTime(t.start)
+      setEndTime(t.end)
       setSpots(2)
       setWomenOnly(false)
       setWhatsapp('')
@@ -241,6 +265,8 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
     if (!pin) return setError('Tap the map to drop a pin where you’ll meet.')
     if (!venueName.trim()) return setError('Name the venue so people know where to go.')
     if (endTime <= startTime) return setError('End time must be after start time.')
+    if (new Date(toIsoIST(endTime)).getTime() <= Date.now())
+      return setError('That time window has already passed today — pick a later slot.')
 
     setBusy(true)
     const values = {

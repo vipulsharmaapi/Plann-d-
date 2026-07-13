@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import IntentCard from './IntentCard'
 import JoinSection from './JoinSection'
 import type { Auth } from '../hooks/useAuth'
-import type { Intent } from '../types'
+import { humanDay, type Intent } from '../types'
 
 interface Props {
   intents: Intent[]
@@ -44,16 +44,20 @@ export default function Explore({
   const [slot, setSlot] = useState<TimeSlot>('all')
   const [openOnly, setOpenOnly] = useState(false)
   const [womenOnly, setWomenOnly] = useState(false)
+  const [day, setDay] = useState<string | null>(null)
+
+  const days = useMemo(() => [...new Set(intents.map((i) => i.date))].sort(), [intents])
 
   const filtered = useMemo(
     () =>
       intents.filter((i) => {
+        if (day && i.date !== day) return false
         if (slot !== 'all' && slotOf(i.startsAt) !== slot) return false
         if (openOnly && i.spotsNeeded - i.spotsFilled <= 0) return false
         if (womenOnly && !i.womenOnly) return false
         return true
       }),
-    [intents, slot, openOnly, womenOnly],
+    [intents, day, slot, openOnly, womenOnly],
   )
 
   const toggleCls = (active: boolean) =>
@@ -64,6 +68,18 @@ export default function Explore({
   return (
     <div className="absolute inset-0 z-10 bg-gray-50 flex flex-col pt-[7.5rem]">
       <div className="px-4 pb-3 space-y-2">
+        {days.length > 1 && (
+          <div className="flex gap-2 overflow-x-auto [scrollbar-width:none]">
+            <button onClick={() => setDay(null)} className={toggleCls(day === null)}>
+              All days
+            </button>
+            {days.map((d) => (
+              <button key={d} onClick={() => setDay(day === d ? null : d)} className={toggleCls(day === d)}>
+                {humanDay(d)}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex gap-2 overflow-x-auto [scrollbar-width:none]">
           {SLOTS.map((s) => (
             <button key={s.key} onClick={() => setSlot(s.key)} className={toggleCls(slot === s.key)}>
@@ -83,7 +99,7 @@ export default function Explore({
 
       <div className="flex-1 overflow-y-auto px-4 pb-24 space-y-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-          {filtered.length} live plan{filtered.length === 1 ? '' : 's'} today
+          {filtered.length} live plan{filtered.length === 1 ? '' : 's'}
         </p>
         {filtered.map((intent) => (
           <IntentCard

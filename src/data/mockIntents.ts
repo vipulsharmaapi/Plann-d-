@@ -1,9 +1,12 @@
-import type { Intent } from '../types'
+import { todayIST, type Intent } from '../types'
 
 // Placeholder intents around Malviya Nagar, Vaishali Nagar and C-Scheme.
 // Replaced by Supabase queries once the backend is wired up.
+const TODAY = todayIST()
+
 export const MOCK_INTENTS: Intent[] = [
   {
+    date: TODAY,
     id: '1',
     activity: 'badminton',
     title: 'Badminton doubles, need 2',
@@ -20,6 +23,7 @@ export const MOCK_INTENTS: Intent[] = [
     womenOnly: false,
   },
   {
+    date: TODAY,
     id: '2',
     activity: 'football',
     title: '5-a-side turf game',
@@ -36,6 +40,7 @@ export const MOCK_INTENTS: Intent[] = [
     womenOnly: false,
   },
   {
+    date: TODAY,
     id: '3',
     activity: 'running',
     title: 'Morning 5K, easy pace',
@@ -51,6 +56,7 @@ export const MOCK_INTENTS: Intent[] = [
     womenOnly: true,
   },
   {
+    date: TODAY,
     id: '4',
     activity: 'cricket',
     title: 'Box cricket, need 3 players',
@@ -66,6 +72,7 @@ export const MOCK_INTENTS: Intent[] = [
     womenOnly: false,
   },
   {
+    date: TODAY,
     id: '5',
     activity: 'coffee',
     title: 'Coffee + startup talk',

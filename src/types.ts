@@ -29,6 +29,22 @@ export interface Activity {
 export const activityByKey = (key: string): Activity =>
   (ACTIVITIES.find((a) => a.key === key) ?? ACTIVITIES[ACTIVITIES.length - 1]) as Activity
 
+export const todayIST = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
+
+export const humanDay = (date: string): string => {
+  if (date === todayIST()) return 'Today'
+  const tomorrow = new Date(Date.now() + 86400000).toLocaleDateString('en-CA', {
+    timeZone: 'Asia/Kolkata',
+  })
+  if (date === tomorrow) return 'Tomorrow'
+  return new Date(`${date}T12:00:00+05:30`).toLocaleDateString('en-IN', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'Asia/Kolkata',
+  })
+}
+
 export interface Intent {
   id: string
   userId?: string | null
@@ -39,6 +55,7 @@ export interface Intent {
   lat: number
   lng: number
   venueName: string
+  date: string // "2026-07-14" (IST)
   startsAt: string // "19:00"
   endsAt: string // "21:00"
   spotsNeeded: number

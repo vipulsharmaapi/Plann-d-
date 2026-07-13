@@ -33,6 +33,7 @@ const rowToIntent = (row: IntentRow): Intent => ({
   id: row.id,
   userId: row.user_id,
   whatsappLink: row.whatsapp_link,
+  date: new Date(row.starts_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }),
   activity: row.activity,
   title: row.title,
   note: row.note ?? undefined,

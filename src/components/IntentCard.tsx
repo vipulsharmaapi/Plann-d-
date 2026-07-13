@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { activityByKey, type Intent } from '../types'
+import { activityByKey, humanDay, todayIST, type Intent } from '../types'
 
 interface Props {
   intent: Intent
@@ -43,6 +43,9 @@ export default function IntentCard({ intent, selected, onClick, children }: Prop
           <p className="text-sm text-gray-500 truncate">{intent.venueName}</p>
           <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-600">
             <span className="font-medium">
+              {intent.date !== todayIST() && (
+                <span className="text-indigo-700 font-semibold">{humanDay(intent.date)} · </span>
+              )}
               {intent.startsAt}–{intent.endsAt}
             </span>
             <span

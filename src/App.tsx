@@ -182,7 +182,7 @@ export default function App() {
         >
           <div className="w-10 h-1 rounded-full bg-gray-300" />
           <p className="text-sm font-semibold text-gray-900">
-            {source === 'loading' ? 'Loading…' : `${intents.length} happening today`}{' '}
+            {source === 'loading' ? 'Loading…' : `${intents.length} plan${intents.length === 1 ? '' : 's'} live`}{' '}
             {filter ? `· ${ACTIVITIES.find((a) => a.key === filter)?.label}` : ''}
             {source === 'demo' && (
               <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 align-middle">

@@ -98,7 +98,10 @@ async function searchVenues(q: string): Promise<VenueResult[]> {
 
 // Today's date in IST as yyyy-mm-dd, so "19:00" becomes 19:00 IST today.
 const todayIST = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
-const toIsoIST = (time: string) => new Date(`${todayIST()}T${time}:00+05:30`).toISOString()
+const toIsoIST = (date: string, time: string) => new Date(`${date}T${time}:00+05:30`).toISOString()
+// Posting horizon: up to a week ahead keeps the map about near-term plans
+const maxDateIST = () =>
+  new Date(Date.now() + 7 * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
 
 // Default window: next half-hour for 2 hours, clamped to today (IST)
 const defaultTimes = () => {
@@ -127,6 +130,7 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
   const [activity, setActivity] = useState<ActivityKey>('badminton')
   const [title, setTitle] = useState('')
   const [note, setNote] = useState('')
+  const [date, setDate] = useState(todayIST())
   const [startTime, setStartTime] = useState('19:00')
   const [endTime, setEndTime] = useState('21:00')
   const [spots, setSpots] = useState(2)
@@ -190,6 +194,7 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
       setActivity(editing.activity)
       setTitle(editing.title)
       setNote(editing.note ?? '')
+      setDate(editing.date)
       setStartTime(editing.startsAt)
       setEndTime(editing.endsAt)
       setSpots(editing.spotsNeeded)
@@ -202,6 +207,7 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
       setActivity('badminton')
       setTitle('')
       setNote('')
+      setDate(todayIST())
       setStartTime(t.start)
       setEndTime(t.end)
       setSpots(2)
@@ -265,8 +271,10 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
     if (!pin) return setError('Tap the map to drop a pin where you’ll meet.')
     if (!venueName.trim()) return setError('Name the venue so people know where to go.')
     if (endTime <= startTime) return setError('End time must be after start time.')
-    if (new Date(toIsoIST(endTime)).getTime() <= Date.now())
-      return setError('That time window has already passed today — pick a later slot.')
+    if (date < todayIST() || date > maxDateIST())
+      return setError('Pick a date between today and a week from now.')
+    if (new Date(toIsoIST(date, endTime)).getTime() <= Date.now())
+      return setError('That time window has already passed — pick a later slot.')
 
     setBusy(true)
     const values = {
@@ -276,8 +284,8 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
       lat: pin.lat,
       lng: pin.lng,
       venue_name: venueName.trim(),
-      starts_at: toIsoIST(startTime),
-      ends_at: toIsoIST(endTime),
+      starts_at: toIsoIST(date, startTime),
+      ends_at: toIsoIST(date, endTime),
       spots_needed: spots,
       women_only: womenOnly,
       whatsapp_link: whatsapp.trim() || null,
@@ -331,6 +339,18 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
           maxLength={80}
           onChange={(e) => setTitle(e.target.value)}
         />
+
+        <label className="block text-sm text-gray-600">
+          When?
+          <input
+            type="date"
+            className={`${inputCls} mt-1`}
+            value={date}
+            min={todayIST()}
+            max={maxDateIST()}
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </label>
 
         <div className="flex items-center gap-3">
           <label className="flex-1 text-sm text-gray-600">

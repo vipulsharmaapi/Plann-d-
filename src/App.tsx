@@ -3,6 +3,7 @@ import MapView from './components/MapView'
 import IntentCard from './components/IntentCard'
 import AuthSheet from './components/AuthSheet'
 import PostSheet from './components/PostSheet'
+import ProfileSheet from './components/ProfileSheet'
 import JoinSection from './components/JoinSection'
 import { ACTIVITIES, type ActivityKey, type Intent } from './types'
 import { useIntents } from './hooks/useIntents'
@@ -15,6 +16,7 @@ export default function App() {
   const [authOpen, setAuthOpen] = useState(false)
   const [postOpen, setPostOpen] = useState(false)
   const [editIntent, setEditIntent] = useState<Intent | null>(null)
+  const [profileOpen, setProfileOpen] = useState(false)
   const afterAuthRef = useRef<'post' | null>(null)
   const auth = useAuth()
   const { intents: allIntents, source, refresh } = useIntents()
@@ -65,9 +67,7 @@ export default function App() {
             </div>
             {auth.session ? (
               <button
-                onClick={() => {
-                  if (confirm('Sign out?')) auth.signOut()
-                }}
+                onClick={() => setProfileOpen(true)}
                 className="bg-white/95 backdrop-blur rounded-2xl shadow-lg px-3.5 py-2.5 text-sm font-semibold text-gray-700"
               >
                 {auth.firstName || 'You'} 👋
@@ -166,6 +166,7 @@ export default function App() {
       </div>
 
       <AuthSheet auth={auth} open={authOpen} onClose={() => setAuthOpen(false)} onSignedIn={handleSignedIn} />
+      <ProfileSheet auth={auth} open={profileOpen} onClose={() => setProfileOpen(false)} />
       <PostSheet
         open={postOpen}
         session={auth.session}

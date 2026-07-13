@@ -7,6 +7,7 @@ interface Props {
   intent: Intent
   auth: Auth
   onRequestAuth: () => void
+  onEdit: (intent: Intent) => void
 }
 
 interface RequestRow {
@@ -16,7 +17,7 @@ interface RequestRow {
   requesterName?: string
 }
 
-export default function JoinSection({ intent, auth, onRequestAuth }: Props) {
+export default function JoinSection({ intent, auth, onRequestAuth, onEdit }: Props) {
   const { session } = auth
   const isMine = !!session && intent.userId === session.user.id
   const [myRequest, setMyRequest] = useState<RequestRow | null>(null)
@@ -89,14 +90,41 @@ export default function JoinSection({ intent, auth, onRequestAuth }: Props) {
     else load()
   }
 
+  const cancelIntent = async () => {
+    if (!confirm('Cancel this post? People who joined will see it disappear.')) return
+    setBusy(true)
+    const { error: err } = await supabase
+      .from('intents')
+      .update({ status: 'cancelled' })
+      .eq('id', intent.id)
+    setBusy(false)
+    if (err) setError(err.message)
+  }
+
   const spotsLeft = intent.spotsNeeded - intent.spotsFilled
 
   if (isMine) {
     return (
       <div className="mt-3 space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Your post · {requests.filter((r) => r.status === 'pending').length} pending
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="flex-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Your post · {requests.filter((r) => r.status === 'pending').length} pending
+          </p>
+          <button
+            disabled={busy}
+            onClick={() => onEdit(intent)}
+            className="bg-gray-100 text-gray-700 rounded-lg px-3 py-1.5 text-xs font-semibold"
+          >
+            ✏️ Edit
+          </button>
+          <button
+            disabled={busy}
+            onClick={cancelIntent}
+            className="bg-red-50 text-red-600 rounded-lg px-3 py-1.5 text-xs font-semibold"
+          >
+            Cancel post
+          </button>
+        </div>
         {requests.length === 0 && (
           <p className="text-sm text-gray-500">No requests yet — hang tight 🤞</p>
         )}

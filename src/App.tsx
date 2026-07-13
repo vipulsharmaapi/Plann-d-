@@ -4,7 +4,7 @@ import IntentCard from './components/IntentCard'
 import AuthSheet from './components/AuthSheet'
 import PostSheet from './components/PostSheet'
 import JoinSection from './components/JoinSection'
-import { ACTIVITIES, type ActivityKey } from './types'
+import { ACTIVITIES, type ActivityKey, type Intent } from './types'
 import { useIntents } from './hooks/useIntents'
 import { useAuth } from './hooks/useAuth'
 
@@ -14,11 +14,13 @@ export default function App() {
   const [sheetOpen, setSheetOpen] = useState(true)
   const [authOpen, setAuthOpen] = useState(false)
   const [postOpen, setPostOpen] = useState(false)
+  const [editIntent, setEditIntent] = useState<Intent | null>(null)
   const afterAuthRef = useRef<'post' | null>(null)
   const auth = useAuth()
   const { intents: allIntents, source, refresh } = useIntents()
 
   const openPost = () => {
+    setEditIntent(null)
     if (auth.session) {
       setPostOpen(true)
     } else {
@@ -144,7 +146,15 @@ export default function App() {
               selected={intent.id === selectedId}
               onClick={() => handleSelect(intent.id === selectedId ? null : intent.id)}
             >
-              <JoinSection intent={intent} auth={auth} onRequestAuth={() => setAuthOpen(true)} />
+              <JoinSection
+                intent={intent}
+                auth={auth}
+                onRequestAuth={() => setAuthOpen(true)}
+                onEdit={(i) => {
+                  setEditIntent(i)
+                  setPostOpen(true)
+                }}
+              />
             </IntentCard>
           ))}
           {sorted.length === 0 && (
@@ -160,9 +170,14 @@ export default function App() {
         open={postOpen}
         session={auth.session}
         firstName={auth.firstName}
-        onClose={() => setPostOpen(false)}
+        editing={editIntent}
+        onClose={() => {
+          setPostOpen(false)
+          setEditIntent(null)
+        }}
         onPosted={() => {
           setPostOpen(false)
+          setEditIntent(null)
           refresh()
         }}
       />

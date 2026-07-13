@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
-import { ACTIVITIES, type ActivityKey } from '../types'
+import { ACTIVITIES, type ActivityKey, type Intent } from '../types'
 
 interface Props {
   open: boolean
   session: Session | null
   firstName: string
+  editing?: Intent | null
   onClose: () => void
   onPosted: () => void
 }
@@ -18,7 +19,7 @@ const JAIPUR_CENTER: [number, number] = [75.7873, 26.8905]
 const todayIST = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
 const toIsoIST = (time: string) => new Date(`${todayIST()}T${time}:00+05:30`).toISOString()
 
-export default function PostSheet({ open, session, firstName, onClose, onPosted }: Props) {
+export default function PostSheet({ open, session, firstName, editing, onClose, onPosted }: Props) {
   const [activity, setActivity] = useState<ActivityKey>('badminton')
   const [title, setTitle] = useState('')
   const [note, setNote] = useState('')
@@ -34,6 +35,35 @@ export default function PostSheet({ open, session, firstName, onClose, onPosted 
 
   const mapDivRef = useRef<HTMLDivElement>(null)
   const markerRef = useRef<maplibregl.Marker | null>(null)
+
+  // Populate (or reset) the form each time the sheet opens
+  useEffect(() => {
+    if (!open) return
+    if (editing) {
+      setActivity(editing.activity)
+      setTitle(editing.title)
+      setNote(editing.note ?? '')
+      setStartTime(editing.startsAt)
+      setEndTime(editing.endsAt)
+      setSpots(editing.spotsNeeded)
+      setWomenOnly(editing.womenOnly)
+      setWhatsapp(editing.whatsappLink ?? '')
+      setVenueName(editing.venueName)
+      setPin({ lat: editing.lat, lng: editing.lng })
+    } else {
+      setActivity('badminton')
+      setTitle('')
+      setNote('')
+      setStartTime('19:00')
+      setEndTime('21:00')
+      setSpots(2)
+      setWomenOnly(false)
+      setWhatsapp('')
+      setVenueName('')
+      setPin(null)
+    }
+    setError(null)
+  }, [open, editing])
 
   useEffect(() => {
     if (!open || !mapDivRef.current) return
@@ -51,10 +81,15 @@ export default function PostSheet({ open, session, firstName, onClose, onPosted 
         },
         layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
       },
-      center: JAIPUR_CENTER,
-      zoom: 10.8,
+      center: editing ? [editing.lng, editing.lat] : JAIPUR_CENTER,
+      zoom: editing ? 13 : 10.8,
       attributionControl: false,
     })
+    if (editing) {
+      markerRef.current = new maplibregl.Marker({ color: '#111827' })
+        .setLngLat([editing.lng, editing.lat])
+        .addTo(map)
+    }
     map.on('click', (e) => {
       setPin({ lat: e.lngLat.lat, lng: e.lngLat.lng })
       if (!markerRef.current) {
@@ -69,7 +104,7 @@ export default function PostSheet({ open, session, firstName, onClose, onPosted 
       markerRef.current = null
       map.remove()
     }
-  }, [open])
+  }, [open, editing])
 
   if (!open) return null
 
@@ -82,9 +117,7 @@ export default function PostSheet({ open, session, firstName, onClose, onPosted 
     if (endTime <= startTime) return setError('End time must be after start time.')
 
     setBusy(true)
-    const { error: err } = await supabase.from('intents').insert({
-      user_id: session.user.id,
-      poster_name: firstName || 'Someone',
+    const values = {
       activity,
       title: title.trim(),
       note: note.trim() || null,
@@ -96,7 +129,14 @@ export default function PostSheet({ open, session, firstName, onClose, onPosted 
       spots_needed: spots,
       women_only: womenOnly,
       whatsapp_link: whatsapp.trim() || null,
-    })
+    }
+    const { error: err } = editing
+      ? await supabase.from('intents').update(values).eq('id', editing.id)
+      : await supabase.from('intents').insert({
+          ...values,
+          user_id: session.user.id,
+          poster_name: firstName || 'Someone',
+        })
     setBusy(false)
     if (err) {
       setError(err.message)
@@ -113,7 +153,9 @@ export default function PostSheet({ open, session, firstName, onClose, onPosted 
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl max-h-[92%] overflow-y-auto p-5 pb-8 space-y-4">
         <div className="w-10 h-1 rounded-full bg-gray-300 mx-auto sm:hidden" />
-        <h2 className="text-lg font-bold text-gray-900">Post an activity</h2>
+        <h2 className="text-lg font-bold text-gray-900">
+          {editing ? 'Edit your post' : 'Post an activity'}
+        </h2>
 
         <div className="flex gap-2 overflow-x-auto [scrollbar-width:none]">
           {ACTIVITIES.map((a) => (
@@ -221,7 +263,7 @@ export default function PostSheet({ open, session, firstName, onClose, onPosted 
           disabled={busy}
           className="w-full bg-gray-900 text-white rounded-xl py-3 font-semibold disabled:opacity-40"
         >
-          {busy ? 'Posting…' : 'Post it 🙌'}
+          {busy ? 'Saving…' : editing ? 'Save changes' : 'Post it 🙌'}
         </button>
       </div>
     </div>

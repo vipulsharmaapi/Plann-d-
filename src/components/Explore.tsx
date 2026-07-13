@@ -12,6 +12,7 @@ interface Props {
   onShowOnMap: (id: string) => void
   onRequestAuth: () => void
   onEdit: (intent: Intent) => void
+  onViewProfile: (userId: string) => void
 }
 
 type TimeSlot = 'all' | 'morning' | 'afternoon' | 'evening'
@@ -38,6 +39,7 @@ export default function Explore({
   onShowOnMap,
   onRequestAuth,
   onEdit,
+  onViewProfile,
 }: Props) {
   const [slot, setSlot] = useState<TimeSlot>('all')
   const [openOnly, setOpenOnly] = useState(false)
@@ -90,7 +92,13 @@ export default function Explore({
             selected={intent.id === selectedId}
             onClick={() => onSelect(intent.id === selectedId ? null : intent.id)}
           >
-            <JoinSection intent={intent} auth={auth} onRequestAuth={onRequestAuth} onEdit={onEdit} />
+            <JoinSection
+              intent={intent}
+              auth={auth}
+              onRequestAuth={onRequestAuth}
+              onEdit={onEdit}
+              onViewProfile={onViewProfile}
+            />
             <button
               onClick={() => onShowOnMap(intent.id)}
               className="mt-2 w-full border border-gray-200 text-gray-600 rounded-xl py-2 text-sm font-semibold"

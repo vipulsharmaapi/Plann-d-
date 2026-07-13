@@ -8,6 +8,7 @@ interface Props {
   auth: Auth
   onRequestAuth: () => void
   onEdit: (intent: Intent) => void
+  onViewProfile: (userId: string) => void
 }
 
 interface RequestRow {
@@ -17,7 +18,7 @@ interface RequestRow {
   requesterName?: string
 }
 
-export default function JoinSection({ intent, auth, onRequestAuth, onEdit }: Props) {
+export default function JoinSection({ intent, auth, onRequestAuth, onEdit, onViewProfile }: Props) {
   const { session } = auth
   const isMine = !!session && intent.userId === session.user.id
   const [myRequest, setMyRequest] = useState<RequestRow | null>(null)
@@ -90,6 +91,22 @@ export default function JoinSection({ intent, auth, onRequestAuth, onEdit }: Pro
     else load()
   }
 
+  const messageUser = async (targetUserId: string, targetName: string) => {
+    const { data, error: err } = await supabase.rpc('get_match_contact', {
+      p_intent_id: intent.id,
+      p_user_id: targetUserId,
+    })
+    if (err) {
+      setError(err.message)
+      return
+    }
+    if (data) {
+      window.open(`https://wa.me/${String(data).replace(/\D/g, '')}`, '_blank')
+    } else {
+      alert(`${targetName} hasn't added a WhatsApp number yet.`)
+    }
+  }
+
   const cancelIntent = async () => {
     if (!confirm('Cancel this post? People who joined will see it disappear.')) return
     setBusy(true)
@@ -130,7 +147,21 @@ export default function JoinSection({ intent, auth, onRequestAuth, onEdit }: Pro
         )}
         {requests.map((r) => (
           <div key={r.id} className="flex items-center gap-2 text-sm">
-            <span className="flex-1 font-medium text-gray-800">{r.requesterName}</span>
+            <button
+              onClick={() => onViewProfile(r.user_id)}
+              className="flex-1 text-left font-medium text-gray-800 underline decoration-gray-300 underline-offset-2"
+            >
+              {r.requesterName}
+            </button>
+            {r.status === 'accepted' && (
+              <button
+                disabled={busy}
+                onClick={() => messageUser(r.user_id, r.requesterName || 'They')}
+                className="bg-green-50 text-green-700 rounded-lg px-3 py-1.5 text-xs font-semibold"
+              >
+                💬 Message
+              </button>
+            )}
             {r.status === 'pending' ? (
               <>
                 <button
@@ -164,33 +195,58 @@ export default function JoinSection({ intent, auth, onRequestAuth, onEdit }: Pro
     )
   }
 
+  const posterProfileRow = intent.userId ? (
+    <button
+      onClick={() => onViewProfile(intent.userId!)}
+      className="w-full text-left text-xs text-gray-500"
+    >
+      Posted by <span className="font-semibold text-gray-700 underline decoration-gray-300 underline-offset-2">{intent.posterName}</span> — view profile
+    </button>
+  ) : null
+
   if (myRequest?.status === 'accepted') {
     return (
       <div className="mt-3 space-y-2">
         <p className="text-sm font-semibold text-green-700">You're in! 🎉</p>
-        {intent.whatsappLink ? (
-          <a
-            href={intent.whatsappLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block text-center bg-green-600 text-white rounded-xl py-2.5 text-sm font-semibold"
-          >
-            Join the WhatsApp group
-          </a>
-        ) : (
+        {posterProfileRow}
+        <div className="flex gap-2">
+          {intent.whatsappLink && (
+            <a
+              href={intent.whatsappLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 text-center bg-green-600 text-white rounded-xl py-2.5 text-sm font-semibold"
+            >
+              Join the group
+            </a>
+          )}
+          {intent.userId && (
+            <button
+              onClick={() => messageUser(intent.userId!, intent.posterName)}
+              className="flex-1 text-center bg-gray-900 text-white rounded-xl py-2.5 text-sm font-semibold"
+            >
+              💬 Message {intent.posterName}
+            </button>
+          )}
+        </div>
+        {!intent.whatsappLink && !intent.userId && (
           <p className="text-xs text-gray-500">
             {intent.posterName} will coordinate — check back here.
           </p>
         )}
+        {error && <p className="text-xs text-red-600">{error}</p>}
       </div>
     )
   }
 
   if (myRequest?.status === 'pending') {
     return (
-      <p className="mt-3 text-center text-sm font-semibold text-gray-500 bg-gray-100 rounded-xl py-2.5">
-        Requested — waiting for {intent.posterName} ⏳
-      </p>
+      <div className="mt-3 space-y-2">
+        {posterProfileRow}
+        <p className="text-center text-sm font-semibold text-gray-500 bg-gray-100 rounded-xl py-2.5">
+          Requested — waiting for {intent.posterName} ⏳
+        </p>
+      </div>
     )
   }
 
@@ -203,7 +259,8 @@ export default function JoinSection({ intent, auth, onRequestAuth, onEdit }: Pro
   }
 
   return (
-    <div className="mt-3">
+    <div className="mt-3 space-y-2">
+      {posterProfileRow}
       <button
         onClick={requestJoin}
         disabled={busy || spotsLeft <= 0}

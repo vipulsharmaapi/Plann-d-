@@ -22,6 +22,9 @@ export default function ProfileSheet({ auth, open, onClose }: Props) {
   const [busy, setBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [emojiSaved, setEmojiSaved] = useState(false)
+  const [whatsapp, setWhatsapp] = useState('')
+  const [savedWhatsapp, setSavedWhatsapp] = useState('')
+  const [waSaved, setWaSaved] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -42,6 +45,15 @@ export default function ProfileSheet({ auth, open, onClose }: Props) {
     ]).then(([posts, joins]) => {
       setStats({ posts: posts.count ?? 0, joins: joins.count ?? 0 })
     })
+    supabase
+      .from('private_contacts')
+      .select('whatsapp_number')
+      .eq('user_id', session.user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setWhatsapp(data?.whatsapp_number ?? '')
+        setSavedWhatsapp(data?.whatsapp_number ?? '')
+      })
   }, [open, session, auth.firstName])
 
   if (!open || !session) return null
@@ -95,6 +107,21 @@ export default function ProfileSheet({ auth, open, onClose }: Props) {
     setUploading(false)
     if (err) setError(err)
     else flashSaved()
+  }
+
+  const saveWhatsapp = async () => {
+    const digits = whatsapp.replace(/[^\d+]/g, '')
+    if (digits && digits.replace(/\D/g, '').length < 10)
+      return setError('Enter the full number with country code, e.g. +91 98765 43210.')
+    setError(null)
+    const { error: err } = await supabase
+      .from('private_contacts')
+      .upsert({ user_id: session.user.id, whatsapp_number: digits || null })
+    if (err) return setError(err.message)
+    setSavedWhatsapp(digits)
+    setWhatsapp(digits)
+    setWaSaved(true)
+    setTimeout(() => setWaSaved(false), 2000)
   }
 
   const removeAvatar = async () => {
@@ -191,6 +218,31 @@ export default function ProfileSheet({ auth, open, onClose }: Props) {
             ))}
           </div>
         </div>
+
+        <label className="block text-sm font-medium text-gray-600">
+          WhatsApp number{' '}
+          <span className="text-gray-400 font-normal">
+            — shared only with people you match with
+          </span>
+          {waSaved && <span className="ml-2 text-green-600 font-semibold">✓ saved</span>}
+          <div className="mt-1 flex gap-2">
+            <input
+              className="flex-1 rounded-xl border border-gray-300 px-4 py-3 text-base outline-none focus:border-gray-900"
+              inputMode="tel"
+              placeholder="+91 98765 43210"
+              value={whatsapp}
+              onChange={(e) => setWhatsapp(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && saveWhatsapp()}
+            />
+            <button
+              onClick={saveWhatsapp}
+              disabled={whatsapp.trim() === savedWhatsapp}
+              className="bg-gray-900 text-white rounded-xl px-4 font-semibold text-sm disabled:opacity-40"
+            >
+              Save
+            </button>
+          </div>
+        </label>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 

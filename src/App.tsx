@@ -5,6 +5,7 @@ import AuthSheet from './components/AuthSheet'
 import PostSheet from './components/PostSheet'
 import ProfileSheet from './components/ProfileSheet'
 import Explore from './components/Explore'
+import ProfilePeek from './components/ProfilePeek'
 import JoinSection from './components/JoinSection'
 import { ACTIVITIES, type ActivityKey, type Intent } from './types'
 import { useIntents } from './hooks/useIntents'
@@ -19,6 +20,7 @@ export default function App() {
   const [editIntent, setEditIntent] = useState<Intent | null>(null)
   const [profileOpen, setProfileOpen] = useState(false)
   const [view, setView] = useState<'map' | 'explore'>('map')
+  const [peekUserId, setPeekUserId] = useState<string | null>(null)
   const afterAuthRef = useRef<'post' | null>(null)
   const auth = useAuth()
   const { intents: allIntents, source, refresh } = useIntents()
@@ -74,6 +76,7 @@ export default function App() {
             setEditIntent(i)
             setPostOpen(true)
           }}
+          onViewProfile={setPeekUserId}
         />
       )}
 
@@ -204,6 +207,7 @@ export default function App() {
                   setEditIntent(i)
                   setPostOpen(true)
                 }}
+                onViewProfile={setPeekUserId}
               />
             </IntentCard>
           ))}
@@ -218,6 +222,7 @@ export default function App() {
 
       <AuthSheet auth={auth} open={authOpen} onClose={() => setAuthOpen(false)} onSignedIn={handleSignedIn} />
       <ProfileSheet auth={auth} open={profileOpen} onClose={() => setProfileOpen(false)} />
+      <ProfilePeek userId={peekUserId} onClose={() => setPeekUserId(null)} />
       <PostSheet
         open={postOpen}
         session={auth.session}

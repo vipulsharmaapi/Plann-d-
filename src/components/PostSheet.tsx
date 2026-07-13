@@ -234,21 +234,20 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
           {editing ? 'Edit your post' : 'Post an activity'}
         </h2>
 
-        <div className="flex gap-2 overflow-x-auto [scrollbar-width:none]">
-          {ACTIVITIES.map((a) => (
-            <button
-              key={a.key}
-              onClick={() => setActivity(a.key)}
-              className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold border ${
-                activity === a.key
-                  ? 'bg-gray-900 text-white border-gray-900'
-                  : 'bg-white text-gray-700 border-gray-300'
-              }`}
-            >
-              {a.emoji} {a.label}
-            </button>
-          ))}
-        </div>
+        <label className="block text-sm text-gray-600">
+          What's the plan?
+          <select
+            className={`${inputCls} mt-1 appearance-none bg-white`}
+            value={activity}
+            onChange={(e) => setActivity(e.target.value as ActivityKey)}
+          >
+            {ACTIVITIES.map((a) => (
+              <option key={a.key} value={a.key}>
+                {a.emoji} {a.label}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <input
           className={inputCls}

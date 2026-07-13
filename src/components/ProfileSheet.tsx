@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import type { Auth } from '../hooks/useAuth'
+import type { Auth, Gender } from '../hooks/useAuth'
 
 interface Props {
   auth: Auth
@@ -25,6 +25,7 @@ export default function ProfileSheet({ auth, open, onClose }: Props) {
   const [whatsapp, setWhatsapp] = useState('')
   const [savedWhatsapp, setSavedWhatsapp] = useState('')
   const [waSaved, setWaSaved] = useState(false)
+  const [genderSaved, setGenderSaved] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -107,6 +108,14 @@ export default function ProfileSheet({ auth, open, onClose }: Props) {
     setUploading(false)
     if (err) setError(err)
     else flashSaved()
+  }
+
+  const pickGender = async (g: Gender) => {
+    setError(null)
+    const err = await auth.saveProfile({ gender: g })
+    if (err) return setError(err)
+    setGenderSaved(true)
+    setTimeout(() => setGenderSaved(false), 1500)
   }
 
   const saveWhatsapp = async () => {
@@ -214,6 +223,34 @@ export default function ProfileSheet({ auth, open, onClose }: Props) {
                 }`}
               >
                 {e}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-sm font-medium text-gray-600 mb-1.5">
+            Gender <span className="text-gray-400">— used for women-only plans</span>
+            {genderSaved && <span className="ml-2 text-green-600 font-semibold">✓ saved</span>}
+          </p>
+          <div className="flex gap-2">
+            {(
+              [
+                ['female', 'Female'],
+                ['male', 'Male'],
+                ['other', 'Other'],
+              ] as [Gender, string][]
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => pickGender(key)}
+                className={`flex-1 rounded-xl py-2.5 text-sm font-semibold border ${
+                  auth.gender === key
+                    ? 'bg-gray-900 text-white border-gray-900'
+                    : 'bg-white text-gray-700 border-gray-300'
+                }`}
+              >
+                {label}
               </button>
             ))}
           </div>

@@ -258,6 +258,26 @@ export default function JoinSection({ intent, auth, onRequestAuth, onEdit, onVie
     )
   }
 
+  // Women-only gate (also enforced by RLS server-side). Signed-out users
+  // still get the sign-in flow first — we can't know their gender yet.
+  const womenBlocked = intent.womenOnly && !!session && auth.gender !== 'female'
+
+  if (womenBlocked) {
+    return (
+      <div className="mt-3 space-y-2">
+        {posterProfileRow}
+        <p className="text-center text-sm font-semibold text-pink-700 bg-pink-50 rounded-xl py-2.5">
+          🚺 Women-only plan
+          {auth.gender === null && (
+            <span className="block text-xs font-normal text-pink-600 mt-0.5">
+              Set your gender in your profile if this should be open to you.
+            </span>
+          )}
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="mt-3 space-y-2">
       {posterProfileRow}

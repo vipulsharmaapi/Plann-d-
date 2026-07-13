@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
+import { GOOGLE_MAP_ID, loadGoogleMaps, onGoogleAuthFailure } from '../lib/googleMaps'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { ACTIVITIES, type ActivityKey, type Intent } from '../types'
@@ -147,6 +148,8 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
   const mapDivRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const markerRef = useRef<maplibregl.Marker | null>(null)
+  const gMapRef = useRef<google.maps.Map | null>(null)
+  const gMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null)
   const [venueQuery, setVenueQuery] = useState('')
   const [venueResults, setVenueResults] = useState<VenueResult[]>([])
   const [searching, setSearching] = useState(false)
@@ -173,6 +176,20 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
 
   const placePin = (lat: number, lng: number) => {
     setPin({ lat, lng })
+    const gMap = gMapRef.current
+    if (gMap) {
+      if (!gMarkerRef.current) {
+        gMarkerRef.current = new google.maps.marker.AdvancedMarkerElement({
+          map: gMap,
+          position: { lat, lng },
+        })
+      } else {
+        gMarkerRef.current.position = { lat, lng }
+      }
+      gMap.panTo({ lat, lng })
+      if ((gMap.getZoom() ?? 0) < 14) gMap.setZoom(14)
+      return
+    }
     const map = mapRef.current
     if (!map) return
     if (!markerRef.current) {
@@ -231,44 +248,101 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
 
   useEffect(() => {
     if (!open || !mapDivRef.current) return
-    const map = new maplibregl.Map({
-      container: mapDivRef.current,
-      style: {
-        version: 8,
-        sources: {
-          osm: {
-            type: 'raster',
-            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-            tileSize: 256,
-            attribution: '© OpenStreetMap contributors',
+    let cancelled = false
+    let mlMap: maplibregl.Map | null = null
+
+    const initMapLibre = () => {
+      if (cancelled || !mapDivRef.current) return
+      const map = new maplibregl.Map({
+        container: mapDivRef.current,
+        style: {
+          version: 8,
+          sources: {
+            osm: {
+              type: 'raster',
+              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+              tileSize: 256,
+              attribution: '© OpenStreetMap contributors',
+            },
           },
+          layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
         },
-        layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
-      },
-      center: editing ? [editing.lng, editing.lat] : JAIPUR_CENTER,
-      zoom: editing ? 13 : 10.8,
-      attributionControl: false,
-    })
-    if (editing) {
-      markerRef.current = new maplibregl.Marker({ color: '#111827' })
-        .setLngLat([editing.lng, editing.lat])
-        .addTo(map)
-    }
-    map.on('click', (e) => {
-      setPin({ lat: e.lngLat.lat, lng: e.lngLat.lng })
-      if (!markerRef.current) {
+        center: editing ? [editing.lng, editing.lat] : JAIPUR_CENTER,
+        zoom: editing ? 13 : 10.8,
+        attributionControl: false,
+      })
+      if (editing) {
         markerRef.current = new maplibregl.Marker({ color: '#111827' })
-          .setLngLat(e.lngLat)
+          .setLngLat([editing.lng, editing.lat])
           .addTo(map)
-      } else {
-        markerRef.current.setLngLat(e.lngLat)
       }
+      map.on('click', (e) => {
+        setPin({ lat: e.lngLat.lat, lng: e.lngLat.lng })
+        if (!markerRef.current) {
+          markerRef.current = new maplibregl.Marker({ color: '#111827' })
+            .setLngLat(e.lngLat)
+            .addTo(map)
+        } else {
+          markerRef.current.setLngLat(e.lngLat)
+        }
+      })
+      mapRef.current = map
+      mlMap = map
+    }
+
+    const offAuthFailure = onGoogleAuthFailure(() => {
+      if (cancelled || !mapDivRef.current) return
+      // Google map got created but its auth failed — wipe it, use OSM
+      gMapRef.current = null
+      gMarkerRef.current = null
+      mapDivRef.current.innerHTML = ''
+      initMapLibre()
     })
-    mapRef.current = map
+
+    loadGoogleMaps()
+      .then((g) => {
+        if (cancelled || !mapDivRef.current) return
+        const map = new g.maps.Map(mapDivRef.current, {
+          center: editing ? { lat: editing.lat, lng: editing.lng } : { lat: JAIPUR_CENTER[1], lng: JAIPUR_CENTER[0] },
+          zoom: editing ? 13 : 10.8,
+          mapId: GOOGLE_MAP_ID,
+          disableDefaultUI: true,
+          zoomControl: true,
+          clickableIcons: false,
+        })
+        gMapRef.current = map
+        if (editing) {
+          gMarkerRef.current = new g.maps.marker.AdvancedMarkerElement({
+            map,
+            position: { lat: editing.lat, lng: editing.lng },
+          })
+        }
+        map.addListener('click', (e: google.maps.MapMouseEvent) => {
+          if (!e.latLng) return
+          const lat = e.latLng.lat()
+          const lng = e.latLng.lng()
+          setPin({ lat, lng })
+          if (!gMarkerRef.current) {
+            gMarkerRef.current = new g.maps.marker.AdvancedMarkerElement({
+              map,
+              position: { lat, lng },
+            })
+          } else {
+            gMarkerRef.current.position = { lat, lng }
+          }
+        })
+      })
+      .catch(initMapLibre)
+
     return () => {
+      cancelled = true
+      offAuthFailure()
       markerRef.current = null
       mapRef.current = null
-      map.remove()
+      if (gMarkerRef.current) gMarkerRef.current.map = null
+      gMarkerRef.current = null
+      gMapRef.current = null
+      mlMap?.remove()
     }
   }, [open, editing])
 

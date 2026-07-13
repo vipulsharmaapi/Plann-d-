@@ -1,5 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import MapView from './components/MapView'
+import GoogleMapView from './components/GoogleMapView'
+import { GOOGLE_MAPS_KEY } from './lib/googleMaps'
 import IntentCard from './components/IntentCard'
 import AuthSheet from './components/AuthSheet'
 import PostSheet from './components/PostSheet'
@@ -23,6 +25,9 @@ export default function App() {
   const [editIntent, setEditIntent] = useState<Intent | null>(null)
   const [profileOpen, setProfileOpen] = useState(false)
   const [view, setView] = useState<'map' | 'explore'>('map')
+  const [mapProvider, setMapProvider] = useState<'google' | 'maplibre'>(
+    GOOGLE_MAPS_KEY ? 'google' : 'maplibre',
+  )
   const [peekUserId, setPeekUserId] = useState<string | null>(null)
   const [chatIntent, setChatIntent] = useState<Intent | null>(null)
   const [notifOpen, setNotifOpen] = useState(false)
@@ -78,7 +83,16 @@ export default function App() {
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-gray-100">
-      <MapView intents={intents} selectedId={selectedId} onSelect={handleSelect} />
+      {mapProvider === 'google' ? (
+        <GoogleMapView
+          intents={intents}
+          selectedId={selectedId}
+          onSelect={handleSelect}
+          onFallback={() => setMapProvider('maplibre')}
+        />
+      ) : (
+        <MapView intents={intents} selectedId={selectedId} onSelect={handleSelect} />
+      )}
 
       {view === 'explore' && (
         <Explore

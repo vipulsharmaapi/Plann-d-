@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
-import { activityByKey, type Intent } from '../types'
+import { createPinEl } from '../lib/pinElement'
+import type { Intent } from '../types'
 
 const JAIPUR_CENTER: [number, number] = [75.7873, 26.8905]
 
@@ -59,25 +60,7 @@ export default function MapView({ intents, selectedId, onSelect }: Props) {
     markersRef.current.clear()
 
     for (const intent of intents) {
-      const activity = activityByKey(intent.activity)
-      const selected = intent.id === selectedId
-
-      const el = document.createElement('div')
-      el.className = 'intent-pin'
-      el.style.cssText = `
-        width: ${selected ? 44 : 36}px; height: ${selected ? 44 : 36}px;
-        border-radius: 50% 50% 50% 4px;
-        background: ${activity.color};
-        border: 2.5px solid white;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.35);
-        display: flex; align-items: center; justify-content: center;
-        font-size: ${selected ? 20 : 16}px;
-        transform: rotate(-45deg);
-      `
-      const inner = document.createElement('span')
-      inner.textContent = activity.emoji
-      inner.style.transform = 'rotate(45deg)'
-      el.appendChild(inner)
+      const el = createPinEl(intent.activity, intent.id === selectedId)
       el.addEventListener('click', (e) => {
         e.stopPropagation()
         onSelect(intent.id)

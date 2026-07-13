@@ -22,6 +22,26 @@ interface Sender {
   avatarUrl: string | null
 }
 
+// Make http(s) URLs clickable; split-with-capture alternates text/url parts.
+// Only https?:// is linkified, so javascript: and friends stay inert text.
+const URL_RE = /(https?:\/\/[^\s<>"']+)/g
+const renderBody = (text: string) =>
+  text.split(URL_RE).map((part, i) =>
+    i % 2 === 1 ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline underline-offset-2 break-all"
+      >
+        {part}
+      </a>
+    ) : (
+      part
+    ),
+  )
+
 export default function ChatSheet({ intent, auth, onClose }: Props) {
   const { session } = auth
   const [messages, setMessages] = useState<Message[]>([])
@@ -153,11 +173,11 @@ export default function ChatSheet({ intent, auth, onClose }: Props) {
                     </p>
                   )}
                   <div
-                    className={`inline-block rounded-2xl px-3.5 py-2 text-sm ${
+                    className={`inline-block rounded-2xl px-3.5 py-2 text-sm break-words text-left ${
                       mine ? 'bg-gray-900 text-white rounded-br-md' : 'bg-gray-100 text-gray-900 rounded-bl-md'
                     }`}
                   >
-                    {m.body}
+                    {renderBody(m.body)}
                   </div>
                   <p className="text-[10px] text-gray-300 mt-0.5 px-1">{istTime(m.created_at)}</p>
                 </div>

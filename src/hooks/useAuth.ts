@@ -19,6 +19,11 @@ export interface Auth {
   gender: Gender | null
   sendOtp: (email: string) => Promise<string | null>
   verifyOtp: (email: string, token: string) => Promise<string | null>
+  signUpPassword: (email: string, password: string) => Promise<{ error: string | null; needsConfirm: boolean }>
+  signInPassword: (email: string, password: string) => Promise<string | null>
+  verifySignupCode: (email: string, token: string) => Promise<string | null>
+  sendPasswordReset: (email: string) => Promise<string | null>
+  verifyRecovery: (email: string, token: string, newPassword: string) => Promise<string | null>
   saveFirstName: (name: string) => Promise<string | null>
   saveProfile: (fields: ProfileFields) => Promise<string | null>
   signOut: () => Promise<void>
@@ -85,6 +90,40 @@ export function useAuth(): Auth {
     return error?.message ?? null
   }, [])
 
+  const signUpPassword = useCallback(async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signUp({ email, password })
+    if (error) return { error: error.message, needsConfirm: false }
+    // Supabase obfuscates existing accounts: user comes back with no identities
+    if (data.user && (data.user.identities?.length ?? 0) === 0)
+      return { error: 'An account with this email already exists — sign in instead.', needsConfirm: false }
+    return { error: null, needsConfirm: !data.session }
+  }, [])
+
+  const signInPassword = useCallback(async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    return error?.message ?? null
+  }, [])
+
+  const verifySignupCode = useCallback(async (email: string, token: string) => {
+    const { error } = await supabase.auth.verifyOtp({ email, token, type: 'signup' })
+    return error?.message ?? null
+  }, [])
+
+  const sendPasswordReset = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email)
+    return error?.message ?? null
+  }, [])
+
+  const verifyRecovery = useCallback(
+    async (email: string, token: string, newPassword: string) => {
+      const { error } = await supabase.auth.verifyOtp({ email, token, type: 'recovery' })
+      if (error) return error.message
+      const { error: updateErr } = await supabase.auth.updateUser({ password: newPassword })
+      return updateErr?.message ?? null
+    },
+    [],
+  )
+
   const saveProfile = useCallback(
     async (fields: ProfileFields) => {
       if (!session) return 'Not signed in'
@@ -117,6 +156,11 @@ export function useAuth(): Auth {
     gender,
     sendOtp,
     verifyOtp,
+    signUpPassword,
+    signInPassword,
+    verifySignupCode,
+    sendPasswordReset,
+    verifyRecovery,
     saveFirstName,
     saveProfile,
     signOut,

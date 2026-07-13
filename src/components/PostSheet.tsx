@@ -15,6 +15,38 @@ interface Props {
 
 const JAIPUR_CENTER: [number, number] = [75.7873, 26.8905]
 
+interface VenueResult {
+  name: string
+  label: string
+  lat: number
+  lng: number
+}
+
+// Free OpenStreetMap geocoder (photon.komoot.io), biased to Jaipur and
+// filtered to ~60 km around it.
+async function searchVenues(q: string): Promise<VenueResult[]> {
+  const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&lat=${JAIPUR_CENTER[1]}&lon=${JAIPUR_CENTER[0]}&limit=6`
+  const res = await fetch(url)
+  if (!res.ok) return []
+  const json = await res.json()
+  return (json.features ?? [])
+    .map((f: { properties: Record<string, string>; geometry: { coordinates: [number, number] } }) => {
+      const p = f.properties
+      const [lng, lat] = f.geometry.coordinates
+      const area = [p.district, p.city, p.state].filter(Boolean).slice(0, 2).join(', ')
+      return {
+        name: p.name || p.street || q,
+        label: area,
+        lat,
+        lng,
+      }
+    })
+    .filter(
+      (v: VenueResult) =>
+        Math.abs(v.lat - JAIPUR_CENTER[1]) < 0.55 && Math.abs(v.lng - JAIPUR_CENTER[0]) < 0.55,
+    )
+}
+
 // Today's date in IST as yyyy-mm-dd, so "19:00" becomes 19:00 IST today.
 const todayIST = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
 const toIsoIST = (time: string) => new Date(`${todayIST()}T${time}:00+05:30`).toISOString()
@@ -34,7 +66,50 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
   const [busy, setBusy] = useState(false)
 
   const mapDivRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<maplibregl.Map | null>(null)
   const markerRef = useRef<maplibregl.Marker | null>(null)
+  const [venueQuery, setVenueQuery] = useState('')
+  const [venueResults, setVenueResults] = useState<VenueResult[]>([])
+  const [searching, setSearching] = useState(false)
+
+  // Debounced venue search
+  useEffect(() => {
+    const q = venueQuery.trim()
+    if (q.length < 3) {
+      setVenueResults([])
+      return
+    }
+    setSearching(true)
+    const t = setTimeout(async () => {
+      try {
+        setVenueResults(await searchVenues(q))
+      } catch {
+        setVenueResults([])
+      } finally {
+        setSearching(false)
+      }
+    }, 400)
+    return () => clearTimeout(t)
+  }, [venueQuery])
+
+  const placePin = (lat: number, lng: number) => {
+    setPin({ lat, lng })
+    const map = mapRef.current
+    if (!map) return
+    if (!markerRef.current) {
+      markerRef.current = new maplibregl.Marker({ color: '#111827' }).setLngLat([lng, lat]).addTo(map)
+    } else {
+      markerRef.current.setLngLat([lng, lat])
+    }
+    map.easeTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), 14), duration: 500 })
+  }
+
+  const chooseVenue = (v: VenueResult) => {
+    placePin(v.lat, v.lng)
+    setVenueName(v.label ? `${v.name}, ${v.label.split(',')[0]}` : v.name)
+    setVenueQuery('')
+    setVenueResults([])
+  }
 
   // Populate (or reset) the form each time the sheet opens
   useEffect(() => {
@@ -100,8 +175,10 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
         markerRef.current.setLngLat(e.lngLat)
       }
     })
+    mapRef.current = map
     return () => {
       markerRef.current = null
+      mapRef.current = null
       map.remove()
     }
   }, [open, editing])
@@ -218,8 +295,38 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
 
         <div>
           <p className="text-sm text-gray-600 mb-1.5">
-            Where? <span className="text-gray-400">Tap the map to drop a pin</span>
+            Where? <span className="text-gray-400">Search a venue or tap the map</span>
           </p>
+          <div className="relative mb-2">
+            <input
+              className={inputCls}
+              placeholder="🔍 Search venue — e.g. Central Park"
+              value={venueQuery}
+              onChange={(e) => setVenueQuery(e.target.value)}
+            />
+            {(venueResults.length > 0 || searching || venueQuery.trim().length >= 3) && (
+              <div className="absolute top-full inset-x-0 z-10 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                {searching && venueResults.length === 0 && (
+                  <p className="px-3 py-2.5 text-sm text-gray-400">Searching…</p>
+                )}
+                {venueResults.map((v, i) => (
+                  <button
+                    key={i}
+                    onClick={() => chooseVenue(v)}
+                    className="w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0"
+                  >
+                    <span className="font-medium text-gray-900">{v.name}</span>
+                    {v.label && <span className="text-gray-400"> · {v.label}</span>}
+                  </button>
+                ))}
+                {!searching && venueResults.length === 0 && venueQuery.trim().length >= 3 && (
+                  <p className="px-3 py-2.5 text-sm text-gray-400">
+                    No matches near Jaipur — tap the map instead.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
           <div ref={mapDivRef} className="h-44 rounded-xl overflow-hidden border border-gray-200" />
         </div>
 

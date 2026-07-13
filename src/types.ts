@@ -48,7 +48,6 @@ export const humanDay = (date: string): string => {
 export interface Intent {
   id: string
   userId?: string | null
-  whatsappLink?: string | null
   activity: ActivityKey
   title: string
   note?: string

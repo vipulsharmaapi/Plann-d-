@@ -15,6 +15,9 @@ interface Props {
 
 const JAIPUR_CENTER: [number, number] = [75.7873, 26.8905]
 
+// Only real WhatsApp URLs — blocks javascript: and lookalike links
+const WHATSAPP_LINK_RE = /^https:\/\/(chat\.whatsapp\.com|wa\.me)\/.+/i
+
 interface VenueResult {
   name: string
   label: string
@@ -199,9 +202,16 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
       setEndTime(editing.endsAt)
       setSpots(editing.spotsNeeded)
       setWomenOnly(editing.womenOnly)
-      setWhatsapp(editing.whatsappLink ?? '')
+      setWhatsapp('')
       setVenueName(editing.venueName)
       setPin({ lat: editing.lat, lng: editing.lng })
+      // Group link lives in a participant-only table
+      supabase
+        .from('intent_links')
+        .select('whatsapp_link')
+        .eq('intent_id', editing.id)
+        .maybeSingle()
+        .then(({ data }) => setWhatsapp(data?.whatsapp_link ?? ''))
     } else {
       const t = defaultTimes()
       setActivity('badminton')
@@ -275,6 +285,9 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
       return setError('Pick a date between today and a week from now.')
     if (new Date(toIsoIST(date, endTime)).getTime() <= Date.now())
       return setError('That time window has already passed — pick a later slot.')
+    const link = whatsapp.trim()
+    if (link && !WHATSAPP_LINK_RE.test(link))
+      return setError('Group link must look like https://chat.whatsapp.com/…')
 
     setBusy(true)
     const values = {
@@ -288,15 +301,29 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
       ends_at: toIsoIST(date, endTime),
       spots_needed: spots,
       women_only: womenOnly,
-      whatsapp_link: whatsapp.trim() || null,
     }
-    const { error: err } = editing
-      ? await supabase.from('intents').update(values).eq('id', editing.id)
-      : await supabase.from('intents').insert({
-          ...values,
-          user_id: session.user.id,
-          poster_name: firstName || 'Someone',
-        })
+    let intentId = editing?.id ?? null
+    let err: { message: string } | null = null
+    if (editing) {
+      ;({ error: err } = await supabase.from('intents').update(values).eq('id', editing.id))
+    } else {
+      const { data, error } = await supabase
+        .from('intents')
+        .insert({ ...values, user_id: session.user.id, poster_name: firstName || 'Someone' })
+        .select('id')
+        .single()
+      err = error
+      intentId = data?.id ?? null
+    }
+    if (!err && intentId) {
+      if (link) {
+        ;({ error: err } = await supabase
+          .from('intent_links')
+          .upsert({ intent_id: intentId, whatsapp_link: link }))
+      } else if (editing) {
+        await supabase.from('intent_links').delete().eq('intent_id', intentId)
+      }
+    }
     setBusy(false)
     if (err) {
       setError(err.message)
@@ -442,7 +469,7 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
 
         <input
           className={inputCls}
-          placeholder="WhatsApp group link (optional)"
+          placeholder="WhatsApp group link (optional) — https://chat.whatsapp.com/…"
           value={whatsapp}
           onChange={(e) => setWhatsapp(e.target.value)}
         />

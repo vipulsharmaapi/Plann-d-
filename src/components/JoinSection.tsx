@@ -31,8 +31,26 @@ export default function JoinSection({
   const isMine = !!session && intent.userId === session.user.id
   const [myRequest, setMyRequest] = useState<RequestRow | null>(null)
   const [requests, setRequests] = useState<RequestRow[]>([])
+  const [groupLink, setGroupLink] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Group link is readable only by participants (RLS) — fetch once accepted
+  useEffect(() => {
+    if (!session || myRequest?.status !== 'accepted') {
+      setGroupLink(null)
+      return
+    }
+    supabase
+      .from('intent_links')
+      .select('whatsapp_link')
+      .eq('intent_id', intent.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        const link = data?.whatsapp_link
+        setGroupLink(link && link.startsWith('https://') ? link : null)
+      })
+  }, [session, myRequest?.status, intent.id])
 
   const load = useCallback(async () => {
     if (!session) return
@@ -209,14 +227,38 @@ export default function JoinSection({
     )
   }
 
-  const posterProfileRow = intent.userId ? (
-    <button
-      onClick={() => onViewProfile(intent.userId!)}
-      className="w-full text-left text-xs text-gray-500"
-    >
-      Posted by <span className="font-semibold text-gray-700 underline decoration-gray-300 underline-offset-2">{intent.posterName}</span> — view profile
-    </button>
-  ) : null
+  const reportIntent = async () => {
+    if (!session) {
+      onRequestAuth()
+      return
+    }
+    const reason = prompt('What’s wrong with this post?')
+    if (!reason?.trim()) return
+    const { error: err } = await supabase
+      .from('reports')
+      .insert({ reporter_id: session.user.id, intent_id: intent.id, reason: reason.trim() })
+    if (err) setError(err.message)
+    else alert('Reported — thanks for keeping Plann’d safe. 🙏')
+  }
+
+  const posterProfileRow = (
+    <div className="flex items-center text-xs text-gray-500">
+      {intent.userId ? (
+        <button onClick={() => onViewProfile(intent.userId!)} className="flex-1 text-left">
+          Posted by{' '}
+          <span className="font-semibold text-gray-700 underline decoration-gray-300 underline-offset-2">
+            {intent.posterName}
+          </span>{' '}
+          — view profile
+        </button>
+      ) : (
+        <span className="flex-1" />
+      )}
+      <button onClick={reportIntent} className="text-gray-400 hover:text-red-500 shrink-0">
+        ⚠️ Report
+      </button>
+    </div>
+  )
 
   if (myRequest?.status === 'accepted') {
     return (
@@ -230,9 +272,9 @@ export default function JoinSection({
           💬 Open group chat
         </button>
         <div className="flex gap-2">
-          {intent.whatsappLink && (
+          {groupLink && (
             <a
-              href={intent.whatsappLink}
+              href={groupLink}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-1 text-center bg-green-50 text-green-700 border border-green-200 rounded-xl py-2 text-xs font-semibold"

@@ -171,9 +171,9 @@ export default function JoinSection({
               <button
                 disabled={busy}
                 onClick={() => messageUser(r.user_id, r.requesterName || 'They')}
-                className="bg-green-50 text-green-700 rounded-lg px-3 py-1.5 text-xs font-semibold"
+                className="bg-green-50 text-green-700 border border-green-200 rounded-lg px-3 py-1.5 text-xs font-semibold"
               >
-                💬 Message
+                WhatsApp ↗
               </button>
             )}
             {r.status === 'pending' ? (
@@ -235,25 +235,20 @@ export default function JoinSection({
               href={intent.whatsappLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 text-center bg-green-600 text-white rounded-xl py-2.5 text-sm font-semibold"
+              className="flex-1 text-center bg-green-50 text-green-700 border border-green-200 rounded-xl py-2 text-xs font-semibold"
             >
-              Join the group
+              WhatsApp group ↗
             </a>
           )}
           {intent.userId && (
             <button
               onClick={() => messageUser(intent.userId!, intent.posterName)}
-              className="flex-1 text-center bg-gray-900 text-white rounded-xl py-2.5 text-sm font-semibold"
+              className="flex-1 text-center bg-green-50 text-green-700 border border-green-200 rounded-xl py-2 text-xs font-semibold"
             >
-              💬 Message {intent.posterName}
+              WhatsApp {intent.posterName} ↗
             </button>
           )}
         </div>
-        {!intent.whatsappLink && !intent.userId && (
-          <p className="text-xs text-gray-500">
-            {intent.posterName} will coordinate — check back here.
-          </p>
-        )}
         {error && <p className="text-xs text-red-600">{error}</p>}
       </div>
     )

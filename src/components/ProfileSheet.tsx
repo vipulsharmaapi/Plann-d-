@@ -1,11 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Auth, Gender } from '../hooks/useAuth'
+import { INTENT_COLUMNS, rowToIntent, type IntentRow } from '../hooks/useIntents'
+import { activityByKey, humanDay, type Intent } from '../types'
 
 interface Props {
   auth: Auth
   open: boolean
   onClose: () => void
+  onViewIntent: (intent: Intent) => void
+  onRepost: (intent: Intent) => void
+}
+
+interface MyPlan {
+  intent: Intent
+  status: string
+  live: boolean
 }
 
 const EMOJIS = [
@@ -13,7 +23,7 @@ const EMOJIS = [
   '🦁', '🐯', '🦅', '🐺', '🚀', '🌟', '🎸', '🎮', '🧗', '🚴',
 ]
 
-export default function ProfileSheet({ auth, open, onClose }: Props) {
+export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepost }: Props) {
   const { session } = auth
   const [name, setName] = useState('')
   const [stats, setStats] = useState<{ posts: number; joins: number } | null>(null)
@@ -26,6 +36,7 @@ export default function ProfileSheet({ auth, open, onClose }: Props) {
   const [savedWhatsapp, setSavedWhatsapp] = useState('')
   const [waSaved, setWaSaved] = useState(false)
   const [genderSaved, setGenderSaved] = useState(false)
+  const [myPlans, setMyPlans] = useState<MyPlan[] | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -54,6 +65,24 @@ export default function ProfileSheet({ auth, open, onClose }: Props) {
       .then(({ data }) => {
         setWhatsapp(data?.whatsapp_number ?? '')
         setSavedWhatsapp(data?.whatsapp_number ?? '')
+      })
+    supabase
+      .from('intents')
+      .select(`${INTENT_COLUMNS}, status, ends_at`)
+      .eq('user_id', session.user.id)
+      .order('starts_at', { ascending: false })
+      .limit(20)
+      .then(({ data }) => {
+        const now = Date.now()
+        setMyPlans(
+          ((data ?? []) as (IntentRow & { status: string })[]).map((row) => ({
+            intent: rowToIntent(row),
+            status: row.status,
+            live:
+              (row.status === 'open' || row.status === 'full') &&
+              new Date(row.ends_at).getTime() > now,
+          })),
+        )
       })
   }, [open, session, auth.firstName])
 
@@ -286,6 +315,51 @@ export default function ProfileSheet({ auth, open, onClose }: Props) {
             </button>
           </div>
         </label>
+
+        <div>
+          <p className="text-sm font-medium text-gray-600 mb-1.5">My plans</p>
+          {!myPlans && <p className="text-sm text-gray-400">Loading…</p>}
+          {myPlans && myPlans.length === 0 && (
+            <p className="text-sm text-gray-400">Nothing yet — post your first plan 🎯</p>
+          )}
+          <div className="space-y-1.5 max-h-56 overflow-y-auto">
+            {myPlans?.map(({ intent, status, live }) => (
+              <div
+                key={intent.id}
+                className={`flex items-center gap-2.5 rounded-xl px-3 py-2 ${
+                  live ? 'bg-gray-50' : 'bg-gray-50/50'
+                }`}
+              >
+                <span className="text-lg shrink-0">{activityByKey(intent.activity).emoji}</span>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm font-semibold truncate ${live ? 'text-gray-900' : 'text-gray-400'}`}>
+                    {intent.title}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {humanDay(intent.date)} · {intent.startsAt}–{intent.endsAt}
+                    {status === 'cancelled' && ' · cancelled'}
+                    {!live && status !== 'cancelled' && ' · over'}
+                  </p>
+                </div>
+                {live ? (
+                  <button
+                    onClick={() => onViewIntent(intent)}
+                    className="shrink-0 bg-gray-900 text-white rounded-lg px-3 py-1.5 text-xs font-semibold"
+                  >
+                    View
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => onRepost(intent)}
+                    className="shrink-0 bg-white border border-gray-200 text-gray-700 rounded-lg px-3 py-1.5 text-xs font-semibold"
+                  >
+                    Post again
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 

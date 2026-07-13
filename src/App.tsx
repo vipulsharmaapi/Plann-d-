@@ -23,6 +23,7 @@ export default function App() {
   const [authOpen, setAuthOpen] = useState(false)
   const [postOpen, setPostOpen] = useState(false)
   const [editIntent, setEditIntent] = useState<Intent | null>(null)
+  const [templateIntent, setTemplateIntent] = useState<Intent | null>(null)
   const [profileOpen, setProfileOpen] = useState(false)
   const [view, setView] = useState<'map' | 'explore'>('map')
   const [moreFilters, setMoreFilters] = useState(false)
@@ -52,6 +53,7 @@ export default function App() {
 
   const openPost = () => {
     setEditIntent(null)
+    setTemplateIntent(null)
     if (auth.session) {
       setPostOpen(true)
     } else {
@@ -339,7 +341,22 @@ export default function App() {
       )}
 
       <AuthSheet auth={auth} open={authOpen} onClose={() => setAuthOpen(false)} onSignedIn={handleSignedIn} />
-      <ProfileSheet auth={auth} open={profileOpen} onClose={() => setProfileOpen(false)} />
+      <ProfileSheet
+        auth={auth}
+        open={profileOpen}
+        onClose={() => setProfileOpen(false)}
+        onViewIntent={(i) => {
+          setProfileOpen(false)
+          setView('map')
+          handleSelect(i.id)
+        }}
+        onRepost={(i) => {
+          setProfileOpen(false)
+          setEditIntent(null)
+          setTemplateIntent(i)
+          setPostOpen(true)
+        }}
+      />
       <ProfilePeek userId={peekUserId} onClose={() => setPeekUserId(null)} />
       <ChatSheet intent={chatIntent} auth={auth} onClose={() => setChatIntent(null)} />
       <NotificationsSheet
@@ -353,13 +370,16 @@ export default function App() {
         session={auth.session}
         firstName={auth.firstName}
         editing={editIntent}
+        template={templateIntent}
         onClose={() => {
           setPostOpen(false)
           setEditIntent(null)
+          setTemplateIntent(null)
         }}
         onPosted={() => {
           setPostOpen(false)
           setEditIntent(null)
+          setTemplateIntent(null)
           refresh()
         }}
       />

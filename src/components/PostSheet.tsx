@@ -10,6 +10,8 @@ interface Props {
   session: Session | null
   firstName: string
   editing?: Intent | null
+  /** Prefill from a past post but create a new one ("post again") */
+  template?: Intent | null
   onClose: () => void
   onPosted: () => void
 }
@@ -130,7 +132,15 @@ const defaultTimes = () => {
   }
 }
 
-export default function PostSheet({ open, session, firstName, editing, onClose, onPosted }: Props) {
+export default function PostSheet({
+  open,
+  session,
+  firstName,
+  editing,
+  template,
+  onClose,
+  onPosted,
+}: Props) {
   const [activity, setActivity] = useState<ActivityKey>('badminton')
   const [title, setTitle] = useState('')
   const [note, setNote] = useState('')
@@ -231,25 +241,26 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
         .then(({ data }) => setWhatsapp(data?.whatsapp_link ?? ''))
     } else {
       const t = defaultTimes()
-      setActivity('badminton')
-      setTitle('')
-      setNote('')
+      setActivity(template?.activity ?? 'badminton')
+      setTitle(template?.title ?? '')
+      setNote(template?.note ?? '')
       setDate(todayIST())
       setStartTime(t.start)
       setEndTime(t.end)
-      setSpots(2)
-      setWomenOnly(false)
+      setSpots(template?.spotsNeeded ?? 2)
+      setWomenOnly(template?.womenOnly ?? false)
       setWhatsapp('')
-      setVenueName('')
-      setPin(null)
+      setVenueName(template?.venueName ?? '')
+      setPin(template ? { lat: template.lat, lng: template.lng } : null)
     }
     setError(null)
-  }, [open, editing])
+  }, [open, editing, template])
 
   useEffect(() => {
     if (!open || !mapDivRef.current) return
     let cancelled = false
     let mlMap: maplibregl.Map | null = null
+    const prefill = editing ?? template ?? null
 
     const initMapLibre = () => {
       if (cancelled || !mapDivRef.current) return
@@ -267,13 +278,13 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
           },
           layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
         },
-        center: editing ? [editing.lng, editing.lat] : JAIPUR_CENTER,
-        zoom: editing ? 13 : 10.8,
+        center: prefill ? [prefill.lng, prefill.lat] : JAIPUR_CENTER,
+        zoom: prefill ? 13 : 10.8,
         attributionControl: false,
       })
-      if (editing) {
+      if (prefill) {
         markerRef.current = new maplibregl.Marker({ color: '#111827' })
-          .setLngLat([editing.lng, editing.lat])
+          .setLngLat([prefill.lng, prefill.lat])
           .addTo(map)
       }
       map.on('click', (e) => {
@@ -303,18 +314,18 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
       .then((g) => {
         if (cancelled || !mapDivRef.current) return
         const map = new g.maps.Map(mapDivRef.current, {
-          center: editing ? { lat: editing.lat, lng: editing.lng } : { lat: JAIPUR_CENTER[1], lng: JAIPUR_CENTER[0] },
-          zoom: editing ? 13 : 10.8,
+          center: prefill ? { lat: prefill.lat, lng: prefill.lng } : { lat: JAIPUR_CENTER[1], lng: JAIPUR_CENTER[0] },
+          zoom: prefill ? 13 : 10.8,
           mapId: GOOGLE_MAP_ID,
           disableDefaultUI: true,
           zoomControl: true,
           clickableIcons: false,
         })
         gMapRef.current = map
-        if (editing) {
+        if (prefill) {
           gMarkerRef.current = new g.maps.marker.AdvancedMarkerElement({
             map,
-            position: { lat: editing.lat, lng: editing.lng },
+            position: { lat: prefill.lat, lng: prefill.lng },
           })
         }
         map.addListener('click', (e: google.maps.MapMouseEvent) => {
@@ -344,7 +355,7 @@ export default function PostSheet({ open, session, firstName, editing, onClose, 
       gMapRef.current = null
       mlMap?.remove()
     }
-  }, [open, editing])
+  }, [open, editing, template])
 
   if (!open) return null
 

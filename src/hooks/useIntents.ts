@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { MOCK_INTENTS } from '../data/mockIntents'
 import type { ActivityKey, Intent } from '../types'
 
-interface IntentRow {
+export interface IntentRow {
   id: string
   user_id: string | null
   poster_name: string
@@ -28,7 +28,10 @@ const istTime = (iso: string) =>
     timeZone: 'Asia/Kolkata',
   })
 
-const rowToIntent = (row: IntentRow): Intent => ({
+export const INTENT_COLUMNS =
+  'id, user_id, poster_name, activity, title, note, lat, lng, venue_name, starts_at, ends_at, spots_needed, spots_filled, women_only'
+
+export const rowToIntent = (row: IntentRow): Intent => ({
   id: row.id,
   userId: row.user_id,
   date: new Date(row.starts_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }),
@@ -56,9 +59,7 @@ export function useIntents(): { intents: Intent[]; source: IntentSource; refresh
   const refresh = useCallback(async () => {
     const { data, error } = await supabase
       .from('intents')
-      .select(
-        'id, user_id, poster_name, activity, title, note, lat, lng, venue_name, starts_at, ends_at, spots_needed, spots_filled, women_only',
-      )
+      .select(INTENT_COLUMNS)
       .in('status', ['open', 'full'])
       .gte('ends_at', new Date().toISOString())
       .order('starts_at')

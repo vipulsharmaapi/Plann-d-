@@ -159,6 +159,7 @@ export default function App() {
           onViewProfile={setPeekUserId}
           onOpenChat={setChatIntent}
           userLoc={userLoc}
+          onRequestLocation={locateMe}
         />
       )}
 

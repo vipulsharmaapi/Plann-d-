@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import IntentCard from './IntentCard'
 import JoinSection from './JoinSection'
 import type { Auth } from '../hooks/useAuth'
-import type { LatLng } from '../lib/geo'
+import { haversineKm, type LatLng } from '../lib/geo'
 import { humanDay, type Intent } from '../types'
 
 interface Props {
@@ -16,6 +16,7 @@ interface Props {
   onViewProfile: (userId: string) => void
   onOpenChat: (intent: Intent) => void
   userLoc?: LatLng | null
+  onRequestLocation: () => void
 }
 
 type TimeSlot = 'all' | 'morning' | 'afternoon' | 'evening'
@@ -45,11 +46,13 @@ export default function Explore({
   onViewProfile,
   onOpenChat,
   userLoc,
+  onRequestLocation,
 }: Props) {
   const [slot, setSlot] = useState<TimeSlot>('all')
   const [openOnly, setOpenOnly] = useState(false)
   const [womenOnly, setWomenOnly] = useState(false)
   const [day, setDay] = useState<string | null>(null)
+  const [maxKm, setMaxKm] = useState<number | null>(null)
 
   const days = useMemo(() => [...new Set(intents.map((i) => i.date))].sort(), [intents])
 
@@ -60,10 +63,16 @@ export default function Explore({
         if (slot !== 'all' && slotOf(i.startsAt) !== slot) return false
         if (openOnly && i.spotsNeeded - i.spotsFilled <= 0) return false
         if (womenOnly && !i.womenOnly) return false
+        if (maxKm && userLoc && haversineKm(userLoc, i) > maxKm) return false
         return true
       }),
-    [intents, day, slot, openOnly, womenOnly],
+    [intents, day, slot, openOnly, womenOnly, maxKm, userLoc],
   )
+
+  const pickDistance = (km: number | null) => {
+    setMaxKm(km)
+    if (km && !userLoc) onRequestLocation()
+  }
 
   const toggleCls = (active: boolean) =>
     `shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold border ${
@@ -100,7 +109,29 @@ export default function Explore({
           <button onClick={() => setWomenOnly(!womenOnly)} className={toggleCls(womenOnly)}>
             🚺 Women only
           </button>
+          <div className="w-px self-stretch bg-gray-200 shrink-0" />
+          {(
+            [
+              [null, '📍 Any distance'],
+              [2, '< 2 km'],
+              [5, '< 5 km'],
+              [10, '< 10 km'],
+            ] as [number | null, string][]
+          ).map(([km, label]) => (
+            <button
+              key={label}
+              onClick={() => pickDistance(km)}
+              className={toggleCls(maxKm === km)}
+            >
+              {label}
+            </button>
+          ))}
         </div>
+        {maxKm && !userLoc && (
+          <p className="text-xs text-amber-700">
+            📍 Allow location access to filter by distance.
+          </p>
+        )}
       </div>
 
       <div className="relative flex-1 overflow-y-auto pb-24">

@@ -73,6 +73,18 @@ button:active:not(:disabled) {
   animation: sheet-up 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Aurora mesh-gradient backdrop — fills empty space with soft color */
+.aurora {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(42% 55% at 10% 15%, rgba(99, 102, 241, 0.18), transparent 70%),
+    radial-gradient(38% 48% at 90% 10%, rgba(236, 72, 153, 0.13), transparent 70%),
+    radial-gradient(55% 65% at 75% 95%, rgba(56, 189, 248, 0.16), transparent 70%),
+    radial-gradient(42% 58% at 20% 90%, rgba(251, 146, 60, 0.13), transparent 70%);
+}
+
 /* Wordmark */
 .wordmark {
   font-weight: 800;

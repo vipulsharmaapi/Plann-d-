@@ -71,8 +71,9 @@ export default function Explore({
     }`
 
   return (
-    <div className="absolute inset-0 z-10 bg-gradient-to-b from-indigo-50/70 via-gray-50 to-gray-50 flex flex-col pt-[7.5rem]">
-      <div className="mx-auto w-full max-w-4xl px-4 pb-3 space-y-2">
+    <div className="absolute inset-0 z-10 bg-gray-50 flex flex-col pt-[7.5rem]">
+      <div className="aurora" />
+      <div className="relative mx-auto w-full max-w-4xl px-4 pb-3 space-y-2">
         {days.length > 1 && (
           <div className="flex gap-2 overflow-x-auto [scrollbar-width:none]">
             <button onClick={() => setDay(null)} className={toggleCls(day === null)}>
@@ -102,7 +103,7 @@ export default function Explore({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-24">
+      <div className="relative flex-1 overflow-y-auto pb-24">
         <div className="mx-auto w-full max-w-4xl px-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">
             {filtered.length} live plan{filtered.length === 1 ? '' : 's'}

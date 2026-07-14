@@ -329,8 +329,9 @@ export default function App() {
         }`}
         style={{ height: '45%' }}
       >
+        <div className="aurora rounded-t-[28px] overflow-hidden" />
         <button
-          className="w-full pt-3 pb-2 flex flex-col items-center gap-1.5"
+          className="relative w-full pt-3 pb-2 flex flex-col items-center gap-1.5"
           onClick={() => setSheetOpen(!sheetOpen)}
         >
           <div className="w-10 h-1 rounded-full bg-gray-300" />
@@ -344,7 +345,7 @@ export default function App() {
             )}
           </p>
         </button>
-        <div className="h-[calc(100%-56px)] overflow-y-auto px-4 pb-6 space-y-3 mx-auto w-full max-w-3xl">
+        <div className="relative h-[calc(100%-56px)] overflow-y-auto px-4 pb-6 space-y-3 mx-auto w-full max-w-3xl">
           {sorted.map((intent) => (
             <IntentCard
               key={intent.id}

@@ -64,5 +64,30 @@ export function useNotifications(session: Session | null) {
       .is('read_at', null)
   }, [session, unread])
 
-  return { items, unread, markAllRead, refresh }
+  // Chat messages seen live in an open chat shouldn't linger as unread
+  const markChatRead = useCallback(
+    async (intentId: string) => {
+      if (!session) return
+      if (!items.some((n) => n.type === 'chat_message' && n.intent_id === intentId && !n.read_at))
+        return
+      const now = new Date().toISOString()
+      setItems((prev) =>
+        prev.map((n) =>
+          n.type === 'chat_message' && n.intent_id === intentId && !n.read_at
+            ? { ...n, read_at: now }
+            : n,
+        ),
+      )
+      await supabase
+        .from('notifications')
+        .update({ read_at: now })
+        .eq('user_id', session.user.id)
+        .eq('type', 'chat_message')
+        .eq('intent_id', intentId)
+        .is('read_at', null)
+    },
+    [session, items],
+  )
+
+  return { items, unread, markAllRead, markChatRead, refresh }
 }

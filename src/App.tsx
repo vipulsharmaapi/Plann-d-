@@ -111,6 +111,11 @@ export default function App() {
     }
   }, [allIntents, handleSelect])
 
+  // While a chat is open, its message notifications are already "seen"
+  useEffect(() => {
+    if (chatIntent) notifications.markChatRead(chatIntent.id)
+  }, [chatIntent, notifications])
+
   const locateMe = () => {
     if (!navigator.geolocation) return alert('Location not available on this device.')
     setLocating(true)

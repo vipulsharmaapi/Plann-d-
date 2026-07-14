@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import MapView from './components/MapView'
 import GoogleMapView from './components/GoogleMapView'
 import { GOOGLE_MAPS_KEY } from './lib/googleMaps'
@@ -10,6 +10,8 @@ import Explore from './components/Explore'
 import ProfilePeek from './components/ProfilePeek'
 import ChatSheet from './components/ChatSheet'
 import NotificationsSheet from './components/NotificationsSheet'
+import Onboarding from './components/Onboarding'
+import { haversineKm, type LatLng } from './lib/geo'
 import { useNotifications, type AppNotification } from './hooks/useNotifications'
 import JoinSection from './components/JoinSection'
 import { ACTIVITIES, activityByKey, type ActivityKey, type Intent } from './types'
@@ -27,6 +29,12 @@ export default function App() {
   const [profileOpen, setProfileOpen] = useState(false)
   const [view, setView] = useState<'map' | 'explore'>('map')
   const [moreFilters, setMoreFilters] = useState(false)
+  const [userLoc, setUserLoc] = useState<LatLng | null>(null)
+  const [locating, setLocating] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(
+    () => !localStorage.getItem('plannd_onboarded'),
+  )
+  const deepLinkRef = useRef<string | null>(new URLSearchParams(location.search).get('p'))
   const [mapProvider, setMapProvider] = useState<'google' | 'maplibre'>(
     GOOGLE_MAPS_KEY ? 'google' : 'maplibre',
   )
@@ -79,10 +87,45 @@ export default function App() {
   }, [])
 
   const sorted = useMemo(() => {
-    if (!selectedId) return intents
-    const sel = intents.find((i) => i.id === selectedId)
-    return sel ? [sel, ...intents.filter((i) => i.id !== selectedId)] : intents
-  }, [intents, selectedId])
+    let list = intents
+    if (userLoc) {
+      list = [...intents].sort(
+        (a, b) => haversineKm(userLoc, a) - haversineKm(userLoc, b),
+      )
+    }
+    if (!selectedId) return list
+    const sel = list.find((i) => i.id === selectedId)
+    return sel ? [sel, ...list.filter((i) => i.id !== selectedId)] : list
+  }, [intents, selectedId, userLoc])
+
+  // Deep link: /?p=<intent_id> opens the app focused on that plan
+  useEffect(() => {
+    if (!deepLinkRef.current || allIntents.length === 0) return
+    const id = deepLinkRef.current
+    deepLinkRef.current = null
+    history.replaceState(null, '', location.pathname)
+    if (allIntents.some((i) => i.id === id)) {
+      setFilter(null)
+      setView('map')
+      handleSelect(id)
+    }
+  }, [allIntents, handleSelect])
+
+  const locateMe = () => {
+    if (!navigator.geolocation) return alert('Location not available on this device.')
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocating(false)
+        setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+      },
+      () => {
+        setLocating(false)
+        alert('Couldn’t get your location — check the browser permission.')
+      },
+      { enableHighAccuracy: true, timeout: 8000 },
+    )
+  }
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-gray-100">
@@ -92,9 +135,10 @@ export default function App() {
           selectedId={selectedId}
           onSelect={handleSelect}
           onFallback={() => setMapProvider('maplibre')}
+          userLoc={userLoc}
         />
       ) : (
-        <MapView intents={intents} selectedId={selectedId} onSelect={handleSelect} />
+        <MapView intents={intents} selectedId={selectedId} onSelect={handleSelect} userLoc={userLoc} />
       )}
 
       {view === 'explore' && (
@@ -114,6 +158,7 @@ export default function App() {
           }}
           onViewProfile={setPeekUserId}
           onOpenChat={setChatIntent}
+          userLoc={userLoc}
         />
       )}
 
@@ -254,6 +299,17 @@ export default function App() {
         })()}
       </header>
 
+      {/* Locate me */}
+      {view === 'map' && (
+        <button
+          onClick={locateMe}
+          className="absolute z-20 left-4 bottom-[calc(45%+16px)] w-11 h-11 rounded-full bg-white text-lg shadow-xl flex items-center justify-center"
+          aria-label="Show my location"
+        >
+          {locating ? '…' : '📍'}
+        </button>
+      )}
+
       {/* Post intent FAB */}
       <button
         onClick={openPost}
@@ -294,6 +350,7 @@ export default function App() {
               key={intent.id}
               intent={intent}
               selected={intent.id === selectedId}
+              userLoc={userLoc}
               onClick={() => handleSelect(intent.id === selectedId ? null : intent.id)}
             >
               <JoinSection
@@ -364,6 +421,13 @@ export default function App() {
         items={notifications.items}
         onClose={() => setNotifOpen(false)}
         onOpenNotification={openNotification}
+      />
+      <Onboarding
+        open={showOnboarding}
+        onClose={() => {
+          localStorage.setItem('plannd_onboarded', '1')
+          setShowOnboarding(false)
+        }}
       />
       <PostSheet
         open={postOpen}

@@ -18,6 +18,12 @@ interface MyPlan {
   live: boolean
 }
 
+interface JoinedPlan {
+  intent: Intent
+  requestStatus: string
+  live: boolean
+}
+
 const EMOJIS = [
   '🙋', '😎', '🔥', '⚡', '🏸', '⚽', '🏏', '🏃', '☕', '🎯',
   '🦁', '🐯', '🦅', '🐺', '🚀', '🌟', '🎸', '🎮', '🧗', '🚴',
@@ -37,6 +43,7 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
   const [waSaved, setWaSaved] = useState(false)
   const [genderSaved, setGenderSaved] = useState(false)
   const [myPlans, setMyPlans] = useState<MyPlan[] | null>(null)
+  const [joinedPlans, setJoinedPlans] = useState<JoinedPlan[] | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -82,6 +89,27 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
               (row.status === 'open' || row.status === 'full') &&
               new Date(row.ends_at).getTime() > now,
           })),
+        )
+      })
+    supabase
+      .from('join_requests')
+      .select(`status, intents(${INTENT_COLUMNS}, status, ends_at)`)
+      .eq('user_id', session.user.id)
+      .in('status', ['pending', 'accepted'])
+      .order('created_at', { ascending: false })
+      .limit(20)
+      .then(({ data }) => {
+        const now = Date.now()
+        setJoinedPlans(
+          ((data ?? []) as unknown as { status: string; intents: IntentRow & { status: string } }[])
+            .filter((r) => r.intents)
+            .map((r) => ({
+              intent: rowToIntent(r.intents),
+              requestStatus: r.status,
+              live:
+                (r.intents.status === 'open' || r.intents.status === 'full') &&
+                new Date(r.intents.ends_at).getTime() > now,
+            })),
         )
       })
   }, [open, session, auth.firstName])
@@ -354,6 +382,49 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
                     className="shrink-0 bg-white border border-gray-200 text-gray-700 rounded-lg px-3 py-1.5 text-xs font-semibold"
                   >
                     Post again
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-sm font-medium text-gray-600 mb-1.5">Joined</p>
+          {!joinedPlans && <p className="text-sm text-gray-400">Loading…</p>}
+          {joinedPlans && joinedPlans.length === 0 && (
+            <p className="text-sm text-gray-400">Nothing joined yet — tap "I'm in" on a plan 🙋</p>
+          )}
+          <div className="space-y-1.5 max-h-56 overflow-y-auto">
+            {joinedPlans?.map(({ intent, requestStatus, live }) => (
+              <div
+                key={intent.id}
+                className={`flex items-center gap-2.5 rounded-xl px-3 py-2 ${live ? 'bg-gray-50' : 'bg-gray-50/50'}`}
+              >
+                <span className="text-lg shrink-0">{activityByKey(intent.activity).emoji}</span>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm font-semibold truncate ${live ? 'text-gray-900' : 'text-gray-400'}`}>
+                    {intent.title}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {humanDay(intent.date)} · {intent.startsAt}–{intent.endsAt} · by {intent.posterName}
+                  </p>
+                </div>
+                <span
+                  className={`shrink-0 text-[10px] font-bold uppercase tracking-wide rounded-full px-2 py-0.5 ${
+                    requestStatus === 'accepted'
+                      ? 'bg-green-50 text-green-700'
+                      : 'bg-amber-50 text-amber-700'
+                  }`}
+                >
+                  {requestStatus === 'accepted' ? 'in 🎉' : 'pending'}
+                </span>
+                {live && (
+                  <button
+                    onClick={() => onViewIntent(intent)}
+                    className="shrink-0 bg-gray-900 text-white rounded-lg px-3 py-1.5 text-xs font-semibold"
+                  >
+                    View
                   </button>
                 )}
               </div>

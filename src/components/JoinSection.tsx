@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Auth } from '../hooks/useAuth'
-import type { Intent } from '../types'
+import { activityByKey, humanDay, type Intent } from '../types'
 
 interface Props {
   intent: Intent
@@ -246,6 +246,35 @@ export default function JoinSection({
     )
   }
 
+  const shareIntent = async () => {
+    const url = `${location.origin}/?p=${intent.id}`
+    const text = `${activityByKey(intent.activity).emoji} ${intent.title} — ${humanDay(intent.date)} ${intent.startsAt} at ${intent.venueName}. Who's in?`
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Plann'd", text, url })
+      } catch {
+        /* user dismissed the share sheet */
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(`${text} ${url}`)
+        alert('Link copied — paste it anywhere!')
+      } catch {
+        prompt('Copy this link:', `${text} ${url}`)
+      }
+    }
+  }
+
+  const withdrawRequest = async (label: string) => {
+    if (!myRequest) return
+    if (!confirm(label)) return
+    setBusy(true)
+    const { error: err } = await supabase.from('join_requests').delete().eq('id', myRequest.id)
+    setBusy(false)
+    if (err) setError(err.message)
+    else load()
+  }
+
   const reportIntent = async () => {
     if (!session) {
       onRequestAuth()
@@ -273,6 +302,9 @@ export default function JoinSection({
       ) : (
         <span className="flex-1" />
       )}
+      <button onClick={shareIntent} className="text-gray-500 hover:text-gray-900 shrink-0 mr-3 font-semibold">
+        ↗ Share
+      </button>
       <button onClick={reportIntent} className="text-gray-400 hover:text-red-500 shrink-0">
         ⚠️ Report
       </button>
@@ -310,6 +342,15 @@ export default function JoinSection({
             </button>
           )}
         </div>
+        <button
+          disabled={busy}
+          onClick={() =>
+            withdrawRequest("Leave this plan? Your spot opens up and you'll lose the chat.")
+          }
+          className="w-full text-center text-xs font-semibold text-gray-400 hover:text-red-500"
+        >
+          Leave plan
+        </button>
         {error && <p className="text-xs text-red-600">{error}</p>}
       </div>
     )
@@ -322,6 +363,14 @@ export default function JoinSection({
         <p className="text-center text-sm font-semibold text-gray-500 bg-gray-100 rounded-xl py-2.5">
           Requested — waiting for {intent.posterName} ⏳
         </p>
+        <button
+          disabled={busy}
+          onClick={() => withdrawRequest('Withdraw your request?')}
+          className="w-full text-center text-xs font-semibold text-gray-400 hover:text-gray-600"
+        >
+          Withdraw request
+        </button>
+        {error && <p className="text-xs text-red-600">{error}</p>}
       </div>
     )
   }

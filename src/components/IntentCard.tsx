@@ -1,14 +1,16 @@
 import type { ReactNode } from 'react'
+import { formatKm, haversineKm, type LatLng } from '../lib/geo'
 import { activityByKey, humanDay, todayIST, type Intent } from '../types'
 
 interface Props {
   intent: Intent
   selected: boolean
   onClick: () => void
+  userLoc?: LatLng | null
   children?: ReactNode
 }
 
-export default function IntentCard({ intent, selected, onClick, children }: Props) {
+export default function IntentCard({ intent, selected, onClick, userLoc, children }: Props) {
   const activity = activityByKey(intent.activity)
   const spotsLeft = intent.spotsNeeded - intent.spotsFilled
 
@@ -59,6 +61,11 @@ export default function IntentCard({ intent, selected, onClick, children }: Prop
             >
               {spotsLeft <= 0 ? 'Full' : `${spotsLeft} spot${spotsLeft === 1 ? '' : 's'} left`}
             </span>
+            {userLoc && (
+              <span className="font-semibold text-blue-700 bg-blue-50 rounded-full px-2 py-0.5">
+                📍 {formatKm(haversineKm(userLoc, intent))}
+              </span>
+            )}
             <span className="text-gray-400 px-1">{intent.posterName}</span>
           </div>
         </div>

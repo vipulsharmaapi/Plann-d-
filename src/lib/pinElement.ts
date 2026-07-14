@@ -21,3 +21,14 @@ export function createPinEl(activityKey: ActivityKey, selected: boolean): HTMLEl
   el.appendChild(inner)
   return el
 }
+
+// Blue "you are here" dot
+export function createUserDotEl(): HTMLElement {
+  const el = document.createElement('div')
+  el.style.cssText = `
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #3b82f6; border: 3px solid white;
+    box-shadow: 0 0 0 6px rgba(59,130,246,0.25), 0 2px 6px rgba(0,0,0,0.3);
+  `
+  return el
+}

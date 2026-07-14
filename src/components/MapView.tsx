@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
-import { createPinEl } from '../lib/pinElement'
+import { createPinEl, createUserDotEl } from '../lib/pinElement'
+import type { LatLng } from '../lib/geo'
 import type { Intent } from '../types'
 
 const JAIPUR_CENTER: [number, number] = [75.7873, 26.8905]
@@ -9,9 +10,10 @@ interface Props {
   intents: Intent[]
   selectedId: string | null
   onSelect: (id: string | null) => void
+  userLoc?: LatLng | null
 }
 
-export default function MapView({ intents, selectedId, onSelect }: Props) {
+export default function MapView({ intents, selectedId, onSelect, userLoc }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map())
@@ -72,6 +74,20 @@ export default function MapView({ intents, selectedId, onSelect }: Props) {
       markersRef.current.set(intent.id, marker)
     }
   }, [intents, selectedId, onSelect])
+
+  const userMarkerRef = useRef<maplibregl.Marker | null>(null)
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !userLoc) return
+    if (!userMarkerRef.current) {
+      userMarkerRef.current = new maplibregl.Marker({ element: createUserDotEl() })
+        .setLngLat([userLoc.lng, userLoc.lat])
+        .addTo(map)
+      map.easeTo({ center: [userLoc.lng, userLoc.lat], zoom: Math.max(map.getZoom(), 13) })
+    } else {
+      userMarkerRef.current.setLngLat([userLoc.lng, userLoc.lat])
+    }
+  }, [userLoc])
 
   useEffect(() => {
     const map = mapRef.current

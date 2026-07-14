@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import IntentCard from './IntentCard'
 import JoinSection from './JoinSection'
 import type { Auth } from '../hooks/useAuth'
+import type { LatLng } from '../lib/geo'
 import { humanDay, type Intent } from '../types'
 
 interface Props {
@@ -14,6 +15,7 @@ interface Props {
   onEdit: (intent: Intent) => void
   onViewProfile: (userId: string) => void
   onOpenChat: (intent: Intent) => void
+  userLoc?: LatLng | null
 }
 
 type TimeSlot = 'all' | 'morning' | 'afternoon' | 'evening'
@@ -42,6 +44,7 @@ export default function Explore({
   onEdit,
   onViewProfile,
   onOpenChat,
+  userLoc,
 }: Props) {
   const [slot, setSlot] = useState<TimeSlot>('all')
   const [openOnly, setOpenOnly] = useState(false)
@@ -108,6 +111,7 @@ export default function Explore({
             key={intent.id}
             intent={intent}
             selected={intent.id === selectedId}
+            userLoc={userLoc}
             onClick={() => onSelect(intent.id === selectedId ? null : intent.id)}
           >
             <JoinSection

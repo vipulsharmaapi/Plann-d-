@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { GOOGLE_MAP_ID, loadGoogleMaps, onGoogleAuthFailure } from '../lib/googleMaps'
-import { createPinEl } from '../lib/pinElement'
+import { createPinEl, createUserDotEl } from '../lib/pinElement'
+import type { LatLng } from '../lib/geo'
 import type { Intent } from '../types'
 
 const JAIPUR_CENTER = { lat: 26.8905, lng: 75.7873 }
@@ -10,9 +11,10 @@ interface Props {
   selectedId: string | null
   onSelect: (id: string | null) => void
   onFallback: () => void
+  userLoc?: LatLng | null
 }
 
-export default function GoogleMapView({ intents, selectedId, onSelect, onFallback }: Props) {
+export default function GoogleMapView({ intents, selectedId, onSelect, onFallback, userLoc }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<google.maps.Map | null>(null)
   const markersRef = useRef<Map<string, google.maps.marker.AdvancedMarkerElement>>(new Map())
@@ -72,6 +74,23 @@ export default function GoogleMapView({ intents, selectedId, onSelect, onFallbac
       markersRef.current.set(intent.id, marker)
     }
   }, [intents, selectedId, ready])
+
+  const userMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null)
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !ready || !userLoc) return
+    if (!userMarkerRef.current) {
+      userMarkerRef.current = new google.maps.marker.AdvancedMarkerElement({
+        map,
+        position: userLoc,
+        content: createUserDotEl(),
+      })
+      map.panTo(userLoc)
+      if ((map.getZoom() ?? 0) < 13) map.setZoom(13)
+    } else {
+      userMarkerRef.current.position = userLoc
+    }
+  }, [userLoc, ready])
 
   useEffect(() => {
     const map = mapRef.current

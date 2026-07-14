@@ -114,16 +114,31 @@ export default function App() {
   const locateMe = () => {
     if (!navigator.geolocation) return alert('Location not available on this device.')
     setLocating(true)
+    const ok = (pos: GeolocationPosition) => {
+      setLocating(false)
+      setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+    }
+    const denied = () => {
+      setLocating(false)
+      alert('Location permission is blocked — allow it for this site in your browser settings.')
+    }
+    // Fast first: accept a recent cached position (up to 2 min old) with a
+    // relaxed fix; only if that fails, wait for a fresh low-accuracy one.
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocating(false)
-        setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+      ok,
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) return denied()
+        navigator.geolocation.getCurrentPosition(
+          ok,
+          (err2) => {
+            setLocating(false)
+            if (err2.code === err2.PERMISSION_DENIED) return denied()
+            alert('Couldn’t get a location fix right now — try again in a moment.')
+          },
+          { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 },
+        )
       },
-      () => {
-        setLocating(false)
-        alert('Couldn’t get your location — check the browser permission.')
-      },
-      { enableHighAccuracy: true, timeout: 8000 },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 120000 },
     )
   }
 

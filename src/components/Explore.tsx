@@ -71,8 +71,8 @@ export default function Explore({
     }`
 
   return (
-    <div className="absolute inset-0 z-10 bg-gray-50 flex flex-col pt-[7.5rem]">
-      <div className="px-4 pb-3 space-y-2">
+    <div className="absolute inset-0 z-10 bg-gradient-to-b from-indigo-50/70 via-gray-50 to-gray-50 flex flex-col pt-[7.5rem]">
+      <div className="mx-auto w-full max-w-4xl px-4 pb-3 space-y-2">
         {days.length > 1 && (
           <div className="flex gap-2 overflow-x-auto [scrollbar-width:none]">
             <button onClick={() => setDay(null)} className={toggleCls(day === null)}>
@@ -102,41 +102,46 @@ export default function Explore({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-24 space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-          {filtered.length} live plan{filtered.length === 1 ? '' : 's'}
-        </p>
-        {filtered.map((intent) => (
-          <IntentCard
-            key={intent.id}
-            intent={intent}
-            selected={intent.id === selectedId}
-            userLoc={userLoc}
-            onClick={() => onSelect(intent.id === selectedId ? null : intent.id)}
-          >
-            <JoinSection
-              intent={intent}
-              auth={auth}
-              onRequestAuth={onRequestAuth}
-              onEdit={onEdit}
-              onViewProfile={onViewProfile}
-              onOpenChat={onOpenChat}
-            />
-            <button
-              onClick={() => onShowOnMap(intent.id)}
-              className="mt-2 w-full border border-gray-200 text-gray-600 rounded-xl py-2 text-sm font-semibold"
-            >
-              📍 View on map
-            </button>
-          </IntentCard>
-        ))}
-        {filtered.length === 0 && (
-          <div className="text-center pt-16 space-y-1">
-            <p className="text-3xl">🦗</p>
-            <p className="text-sm text-gray-500">Nothing matches these filters right now.</p>
-            <p className="text-sm text-gray-400">Loosen a filter — or post something yourself.</p>
+      <div className="flex-1 overflow-y-auto pb-24">
+        <div className="mx-auto w-full max-w-4xl px-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">
+            {filtered.length} live plan{filtered.length === 1 ? '' : 's'}
+          </p>
+          <div className="grid gap-3 md:grid-cols-2 items-start">
+            {filtered.map((intent) => (
+              <div key={intent.id} className={intent.id === selectedId ? 'md:col-span-2' : ''}>
+                <IntentCard
+                  intent={intent}
+                  selected={intent.id === selectedId}
+                  userLoc={userLoc}
+                  onClick={() => onSelect(intent.id === selectedId ? null : intent.id)}
+                >
+                  <JoinSection
+                    intent={intent}
+                    auth={auth}
+                    onRequestAuth={onRequestAuth}
+                    onEdit={onEdit}
+                    onViewProfile={onViewProfile}
+                    onOpenChat={onOpenChat}
+                  />
+                  <button
+                    onClick={() => onShowOnMap(intent.id)}
+                    className="mt-2 w-full border border-gray-200 text-gray-600 rounded-xl py-2 text-sm font-semibold hover:bg-gray-50"
+                  >
+                    📍 View on map
+                  </button>
+                </IntentCard>
+              </div>
+            ))}
           </div>
-        )}
+          {filtered.length === 0 && (
+            <div className="text-center pt-16 space-y-1">
+              <p className="text-3xl">🦗</p>
+              <p className="text-sm text-gray-500">Nothing matches these filters right now.</p>
+              <p className="text-sm text-gray-400">Loosen a filter — or post something yourself.</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

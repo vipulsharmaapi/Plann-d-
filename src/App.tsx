@@ -192,6 +192,7 @@ export default function App() {
               </button>
             </div>
 
+            <div className="flex items-center gap-2">
             <button
               onClick={locateMe}
               className={`whitespace-nowrap bg-white/95 backdrop-blur rounded-2xl shadow-lg px-3 py-2.5 text-base ${
@@ -239,6 +240,7 @@ export default function App() {
                 Sign in
               </button>
             )}
+            </div>
           </div>
         </div>
 
@@ -342,7 +344,7 @@ export default function App() {
             )}
           </p>
         </button>
-        <div className="h-[calc(100%-56px)] overflow-y-auto px-4 pb-6 space-y-3">
+        <div className="h-[calc(100%-56px)] overflow-y-auto px-4 pb-6 space-y-3 mx-auto w-full max-w-3xl">
           {sorted.map((intent) => (
             <IntentCard
               key={intent.id}

@@ -150,6 +150,25 @@ export default function JoinSection({
     }
   }
 
+  const shareIntent = async () => {
+    const url = `${location.origin}/?p=${intent.id}`
+    const text = `${activityByKey(intent.activity).emoji} ${intent.title} — ${humanDay(intent.date)} ${intent.startsAt} at ${intent.venueName}. Who's in?`
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Plann'd", text, url })
+      } catch {
+        /* user dismissed the share sheet */
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(`${text} ${url}`)
+        alert('Link copied — paste it anywhere!')
+      } catch {
+        prompt('Copy this link:', `${text} ${url}`)
+      }
+    }
+  }
+
   const cancelIntent = async () => {
     if (!confirm('Cancel this post? People who joined will see it disappear.')) return
     setBusy(true)
@@ -175,6 +194,13 @@ export default function JoinSection({
             className="bg-gray-900 text-white rounded-lg px-3 py-1.5 text-xs font-semibold"
           >
             💬 Chat
+          </button>
+          <button
+            disabled={busy}
+            onClick={shareIntent}
+            className="bg-gray-100 text-gray-700 rounded-lg px-3 py-1.5 text-xs font-semibold"
+          >
+            ↗ Share
           </button>
           <button
             disabled={busy}
@@ -244,25 +270,6 @@ export default function JoinSection({
         {error && <p className="text-xs text-red-600">{error}</p>}
       </div>
     )
-  }
-
-  const shareIntent = async () => {
-    const url = `${location.origin}/?p=${intent.id}`
-    const text = `${activityByKey(intent.activity).emoji} ${intent.title} — ${humanDay(intent.date)} ${intent.startsAt} at ${intent.venueName}. Who's in?`
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: "Plann'd", text, url })
-      } catch {
-        /* user dismissed the share sheet */
-      }
-    } else {
-      try {
-        await navigator.clipboard.writeText(`${text} ${url}`)
-        alert('Link copied — paste it anywhere!')
-      } catch {
-        prompt('Copy this link:', `${text} ${url}`)
-      }
-    }
   }
 
   const withdrawRequest = async (label: string) => {

@@ -192,6 +192,15 @@ export default function App() {
               </button>
             </div>
 
+            <button
+              onClick={locateMe}
+              className={`whitespace-nowrap bg-white/95 backdrop-blur rounded-2xl shadow-lg px-3 py-2.5 text-base ${
+                userLoc ? 'ring-1 ring-blue-400' : ''
+              }`}
+              aria-label="Show my location"
+            >
+              {locating ? '…' : '📍'}
+            </button>
             {auth.session ? (
               <div className="flex items-center bg-white/95 backdrop-blur rounded-2xl shadow-lg">
                 <button
@@ -298,17 +307,6 @@ export default function App() {
           )
         })()}
       </header>
-
-      {/* Locate me */}
-      {view === 'map' && (
-        <button
-          onClick={locateMe}
-          className="absolute z-20 left-4 bottom-[calc(45%+16px)] w-11 h-11 rounded-full bg-white text-lg shadow-xl flex items-center justify-center"
-          aria-label="Show my location"
-        >
-          {locating ? '…' : '📍'}
-        </button>
-      )}
 
       {/* Post intent FAB */}
       <button

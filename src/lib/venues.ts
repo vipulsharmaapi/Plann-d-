@@ -1,5 +1,5 @@
 import { haversineKm } from './geo'
-import type { Intent } from '../types'
+import type { ActivityKey, Intent, VenueDraft } from '../types'
 
 export type VenueLocation = Pick<Intent, 'venueName' | 'googlePlaceId' | 'lat' | 'lng'>
 
@@ -31,6 +31,94 @@ export interface VenueDetails {
   googleMapsLinks?: { placeUri?: string; reviewsUri?: string; photosUri?: string }
   attributions?: { provider: string; providerUri?: string }[]
   businessStatus?: string
+}
+
+export const VENUE_CATEGORIES: { activity: ActivityKey; label: string; query: string }[] = [
+  { activity: 'football', label: 'Football', query: 'football grounds and turfs' },
+  { activity: 'coffee', label: 'Cafés', query: 'cafes' },
+  { activity: 'badminton', label: 'Badminton', query: 'badminton courts' },
+  { activity: 'cricket', label: 'Cricket', query: 'cricket grounds and box cricket' },
+  { activity: 'food', label: 'Restaurants', query: 'restaurants' },
+  { activity: 'boardgames', label: 'Board games', query: 'board game cafes' },
+  { activity: 'tennis', label: 'Tennis', query: 'tennis courts' },
+  { activity: 'basketball', label: 'Basketball', query: 'basketball courts' },
+  { activity: 'running', label: 'Running', query: 'parks with running tracks' },
+  { activity: 'cycling', label: 'Cycling', query: 'parks for cycling' },
+  { activity: 'gym', label: 'Gyms', query: 'gyms' },
+  { activity: 'swimming', label: 'Swimming', query: 'swimming pools' },
+  { activity: 'movies', label: 'Cinemas', query: 'movie theaters' },
+  { activity: 'trekking', label: 'Trekking', query: 'hiking trails' },
+  { activity: 'other', label: 'Other places', query: 'public places to meet friends' },
+]
+
+export type DiscoverableVenue = VenueDetails & {
+  displayName: { text: string }
+  location: { latitude: number; longitude: number }
+}
+export type VenueSort = 'rating' | 'reviews' | 'relevance'
+
+// Text-search location bias alone is not a boundary. Keep every selectable
+// result in the same Jaipur area supported by the existing posting form.
+export function isDiscoverableVenue(place: VenueDetails): place is DiscoverableVenue {
+  return !!(
+    /^[A-Za-z0-9_-]{10,255}$/.test(place.id) &&
+    place.displayName?.text?.trim() &&
+    place.location &&
+    Number.isFinite(place.location.latitude) &&
+    Number.isFinite(place.location.longitude) &&
+    Math.abs(place.location.latitude - 26.8905) < 0.55 &&
+    Math.abs(place.location.longitude - 75.7873) < 0.55 &&
+    (!place.businessStatus || place.businessStatus === 'OPERATIONAL')
+  )
+}
+
+export function sortVenues(places: DiscoverableVenue[], sort: VenueSort) {
+  const unique = [...new Map(places.map((place) => [place.id, place])).values()]
+  if (sort === 'relevance') return unique
+  return unique.sort((a, b) =>
+    sort === 'reviews'
+      ? (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0) || (b.rating ?? 0) - (a.rating ?? 0)
+      : (b.rating ?? 0) - (a.rating ?? 0) || (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0),
+  )
+}
+
+export function venueDraft(place: DiscoverableVenue, activity: ActivityKey): VenueDraft {
+  return {
+    activity,
+    venueName: place.displayName.text.slice(0, 80),
+    googlePlaceId: place.id,
+    lat: place.location.latitude,
+    lng: place.location.longitude,
+  }
+}
+
+export async function discoverVenues(
+  activity: ActivityKey,
+  signal: AbortSignal,
+  pageToken?: string,
+): Promise<{ places: DiscoverableVenue[]; nextPageToken?: string }> {
+  if (!key) throw new Error('Venue search is not configured')
+  const category = VENUE_CATEGORIES.find((c) => c.activity === activity)!
+  const result = (await request(
+    'places:searchText',
+    'places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.photos,places.websiteUri,places.googleMapsUri,places.attributions,places.businessStatus,nextPageToken',
+    signal,
+    {
+      textQuery: `${category.query} in Jaipur, Rajasthan, India`,
+      locationBias: {
+        circle: { center: { latitude: 26.8905, longitude: 75.7873 }, radius: 35000 },
+      },
+      rankPreference: 'RELEVANCE',
+      languageCode: 'en',
+      regionCode: 'IN',
+      pageSize: 12,
+      ...(pageToken ? { pageToken } : {}),
+    },
+  )) as { places?: VenueDetails[]; nextPageToken?: string }
+  return {
+    places: (result.places ?? []).filter(isDiscoverableVenue),
+    nextPageToken: result.nextPageToken,
+  }
 }
 
 async function request(

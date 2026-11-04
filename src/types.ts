@@ -18,6 +18,15 @@ export const ACTIVITIES = [
 
 export type ActivityKey = (typeof ACTIVITIES)[number]['key']
 
+/** A venue choice, before the host adds a date, time and group size. */
+export interface VenueDraft {
+  activity: ActivityKey
+  venueName: string
+  googlePlaceId: string
+  lat: number
+  lng: number
+}
+
 export interface Activity {
   key: ActivityKey
   label: string

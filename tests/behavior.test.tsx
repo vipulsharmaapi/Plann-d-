@@ -75,6 +75,7 @@ describe('discovery states', () => {
     intents: [],
     onOpen: vi.fn(),
     onPost: vi.fn(),
+    onVenuePost: vi.fn(),
     onRetry: vi.fn(),
     userLoc: null,
     onRequestLocation: vi.fn(),

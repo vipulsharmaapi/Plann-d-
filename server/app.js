@@ -9,6 +9,7 @@ export function createApp({
   root = resolve('dist'),
   env = process.env,
   fetchImpl = fetch,
+  renderImage = renderPreview,
   html = readFileSync(resolve(root, 'index.html'), 'utf8'),
 } = {}) {
   const app = express()
@@ -16,10 +17,41 @@ export function createApp({
   const url = env.VITE_SUPABASE_URL,
     key = env.VITE_SUPABASE_ANON_KEY
   const cache = new Map()
+  const inFlight = new Map()
+  const images = new Map()
+  let imageBytes = 0
+  function getImage(data) {
+    const cached = images.get(data.image)
+    if (cached) return cached
+    const png = renderImage(data)
+    // Bound process memory on shared hosting. Versions change with public details,
+    // including full/cancelled/ended status; old versions are evicted FIFO.
+    while (images.size && (images.size >= 64 || imageBytes + png.length > 8 * 1024 * 1024)) {
+      const oldest = images.keys().next().value
+      imageBytes -= images.get(oldest).length
+      images.delete(oldest)
+    }
+    if (png.length <= 8 * 1024 * 1024) {
+      images.set(data.image, png)
+      imageBytes += png.length
+    }
+    return png
+  }
   async function getPlan(id) {
     if (!UUID.test(id)) return null
     const cached = cache.get(id)
     if (cached && cached.until > Date.now()) return cached.value
+    if (inFlight.has(id)) return inFlight.get(id)
+    if (inFlight.size >= 64) throw new Error('Preview lookups are busy')
+    const pending = lookupPlan(id)
+    inFlight.set(id, pending)
+    try {
+      return await pending
+    } finally {
+      inFlight.delete(id)
+    }
+  }
+  async function lookupPlan(id) {
     if (!url || !key) throw new Error('Preview database configuration is missing')
     const endpoint = new URL('/rest/v1/intents', url)
     endpoint.searchParams.set('id', `eq.${id}`)
@@ -48,7 +80,7 @@ export function createApp({
     res
       .type('png')
       .set('Cache-Control', 'public, max-age=3600')
-      .send(renderPreview(previewData(null))),
+      .send(getImage(previewData(null))),
   )
   app.get('/og/plans/:id.png', async (req, res) => {
     try {
@@ -62,7 +94,7 @@ export function createApp({
       res
         .type('png')
         .set('Cache-Control', 'public, max-age=60')
-        .send(renderPreview(previewData(plan)))
+        .send(getImage(previewData(plan)))
     } catch {
       res
         .status(503)

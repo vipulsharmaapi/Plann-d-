@@ -1,7 +1,13 @@
 import Sheet from './Sheet'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Auth, Gender } from '../hooks/useAuth'
+import {
+  authErrorMessage,
+  readPendingAuth,
+  rememberPendingAuth,
+  type CodeStep,
+} from '../lib/authFlow'
 
 interface Props {
   auth: Auth
@@ -11,18 +17,31 @@ interface Props {
   onHelp: () => void
 }
 
-type Step = 'email' | 'code' | 'pw' | 'pw-code' | 'pw-forgot' | 'pw-reset' | 'name'
+type Step = 'email' | 'code' | 'pw' | 'pw-code' | 'pw-forgot' | 'pw-reset' | 'name' | 'profile'
 
 export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp }: Props) {
-  const [step, setStep] = useState<Step>('email')
+  const [pending] = useState(readPendingAuth)
+  const [step, setStep] = useState<Step>(pending?.step ?? 'email')
   const [pwMode, setPwMode] = useState<'signin' | 'signup'>('signin')
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(pending?.email ?? '')
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
   const [gender, setGender] = useState<Gender | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const inFlight = useRef(false)
+  const [sentAt, setSentAt] = useState(pending?.sentAt ?? 0)
+  const [sentTo, setSentTo] = useState(pending?.email ?? '')
+  const [now, setNow] = useState(Date.now)
+  const [notice, setNotice] = useState('')
+  const [linkFallback, setLinkFallback] = useState('')
+  const resendWait = Math.max(0, Math.ceil((sentAt + 60000 - now) / 1000))
+  useEffect(() => {
+    if (!resendWait) return
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [resendWait])
 
   if (!open) return null
 
@@ -32,33 +51,99 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp }: P
   // After a session exists: returning users go straight in, new ones set up
   // their profile (auth.firstName loads async, so read the profile directly).
   const finishAuth = async () => {
-    const { data: userData } = await supabase.auth.getUser()
-    const { data: profile } = userData.user
-      ? await supabase
-          .from('profiles')
-          .select('first_name')
-          .eq('id', userData.user.id)
-          .maybeSingle()
-      : { data: null }
-    setBusy(false)
+    setStep('profile')
+    const { data: userData, error: userError } = await supabase.auth.getUser()
+    if (userError || !userData.user) throw new Error('Could not confirm your session. Try again.')
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('first_name')
+      .eq('id', userData.user.id)
+      .maybeSingle()
+    if (profileError) throw new Error('Could not load your profile. Try again.')
+    rememberPendingAuth(null)
     if (profile?.first_name) onSignedIn()
     else setStep('name')
   }
 
   const run = async (fn: () => Promise<string | null>, onOk: () => void | Promise<void>) => {
-    if (busy) return
+    if (inFlight.current) return
+    inFlight.current = true
     setBusy(true)
     setError(null)
+    setNotice('')
     try {
       const err = await fn()
-      if (err) setError(err)
+      if (err) setError(authErrorMessage(err))
       else await onOk()
     } catch {
       setError('Could not connect. Please try again.')
     } finally {
+      inFlight.current = false
       setBusy(false)
     }
   }
+
+  function codeSent(nextStep: CodeStep) {
+    const time = Date.now()
+    setSentAt(time)
+    setSentTo(cleanEmail)
+    setNow(time)
+    setCode('')
+    setStep(nextStep)
+    rememberPendingAuth({ email: cleanEmail, step: nextStep, sentAt: time })
+    setNotice('Code sent. Check your inbox and spam folder.')
+  }
+  function changeEmail() {
+    rememberPendingAuth(null)
+    setCode('')
+    setPassword('')
+    setError(null)
+    setNotice('')
+    setStep('email')
+  }
+  const codeHelp = (codeStep: CodeStep) => (
+    <div className="space-y-3">
+      <p className="text-sm text-gray-600">
+        Check your spam folder, then return to this tab. If it reloads, choose Sign in to continue
+        with the latest code.
+      </p>
+      <button
+        className="secondary w-full"
+        disabled={busy || resendWait > 0}
+        onClick={() =>
+          run(
+            () =>
+              codeStep === 'code'
+                ? auth.sendOtp(cleanEmail)
+                : codeStep === 'pw-code'
+                  ? auth.resendSignupCode(cleanEmail)
+                  : auth.sendPasswordReset(cleanEmail),
+            () => codeSent(codeStep),
+          )
+        }
+      >
+        {resendWait > 0 ? `Resend code in ${resendWait}s` : 'Resend code'}
+      </button>
+      <button
+        onClick={changeEmail}
+        disabled={busy}
+        className="w-full text-sm text-gray-600 underline"
+      >
+        Use a different email
+      </button>
+      <button
+        disabled={busy}
+        className="w-full text-sm text-gray-600 underline"
+        onClick={() => {
+          changeEmail()
+          setStep('pw')
+          setPwMode('signin')
+        }}
+      >
+        Use password instead
+      </button>
+    </div>
+  )
 
   const submitName = async () => {
     if (!gender) return setError('Pick a gender to continue.')
@@ -81,8 +166,7 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp }: P
     <div className="flex bg-gray-100 rounded-xl p-1 text-sm font-semibold">
       <button
         onClick={() => {
-          setStep('email')
-          setError(null)
+          changeEmail()
         }}
         className={`flex-1 rounded-lg py-2 ${step === 'email' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
       >
@@ -91,6 +175,7 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp }: P
       <button
         onClick={() => {
           setStep('pw')
+          rememberPendingAuth(null)
           setError(null)
         }}
         className={`flex-1 rounded-lg py-2 ${step === 'pw' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
@@ -116,7 +201,9 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp }: P
 
         {step === 'email' && (
           <>
-            <p className="text-sm text-gray-500">We'll email you a one-time code. No passwords.</p>
+            <p className="text-sm text-gray-600">
+              New here? This also creates your account. We'll email you a one-time code.
+            </p>
             <label className="field">
               Email address
               <input
@@ -130,12 +217,10 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp }: P
                 onKeyDown={(e) =>
                   e.key === 'Enter' &&
                   emailOk &&
+                  !(resendWait > 0 && sentTo === cleanEmail) &&
                   run(
                     () => auth.sendOtp(cleanEmail),
-                    async () => {
-                      setBusy(false)
-                      setStep('code')
-                    },
+                    () => codeSent('code'),
                   )
                 }
               />
@@ -144,16 +229,17 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp }: P
               onClick={() =>
                 run(
                   () => auth.sendOtp(cleanEmail),
-                  async () => {
-                    setBusy(false)
-                    setStep('code')
-                  },
+                  () => codeSent('code'),
                 )
               }
-              disabled={busy || !emailOk}
+              disabled={busy || !emailOk || (resendWait > 0 && sentTo === cleanEmail)}
               className={primaryCls}
             >
-              {busy ? 'Sending…' : 'Send code'}
+              {busy
+                ? 'Sending…'
+                : resendWait > 0 && sentTo === cleanEmail
+                  ? `Send code in ${resendWait}s`
+                  : 'Send code'}
             </button>
           </>
         )}
@@ -162,7 +248,7 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp }: P
           <>
             <h2 className="text-lg font-bold text-gray-900">Check your email</h2>
             <p className="text-sm text-gray-500">
-              Enter the code sent to <span className="font-medium">{email}</span>
+              Enter the code sent to <span className="font-medium break-all">{email}</span>
             </p>
             <label className="field">
               Verification code
@@ -181,11 +267,9 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp }: P
               disabled={busy || code.length < 6}
               className={primaryCls}
             >
-              {busy ? 'Verifying…' : 'Verify'}
+              {busy ? 'Please wait…' : 'Verify'}
             </button>
-            <button onClick={() => setStep('email')} className="w-full text-sm text-gray-500">
-              Use a different email
-            </button>
+            {codeHelp('code')}
           </>
         )}
 
@@ -247,25 +331,21 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp }: P
             ) : (
               <>
                 <button
-                  onClick={async () => {
+                  onClick={() => {
                     if (password.length < 8) return setError('Use at least 8 characters.')
-                    setBusy(true)
-                    setError(null)
-                    const { error: err, needsConfirm } = await auth.signUpPassword(
-                      cleanEmail,
-                      password,
+                    let needsConfirm = false
+                    void run(
+                      async () => {
+                        const result = await auth.signUpPassword(cleanEmail, password)
+                        needsConfirm = result.needsConfirm
+                        return result.error
+                      },
+                      async () => {
+                        setPassword('')
+                        if (needsConfirm) codeSent('pw-code')
+                        else await finishAuth()
+                      },
                     )
-                    if (err) {
-                      setBusy(false)
-                      setError(err)
-                      return
-                    }
-                    if (needsConfirm) {
-                      setBusy(false)
-                      setStep('pw-code')
-                    } else {
-                      await finishAuth()
-                    }
                   }}
                   disabled={busy || !emailOk || !password}
                   className={primaryCls}
@@ -290,7 +370,7 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp }: P
           <>
             <h2 className="text-lg font-bold text-gray-900">Confirm your email</h2>
             <p className="text-sm text-gray-500">
-              Enter the code sent to <span className="font-medium">{email}</span>
+              Enter the code sent to <span className="font-medium break-all">{email}</span>
             </p>
             <label className="field">
               Verification code
@@ -309,8 +389,9 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp }: P
               disabled={busy || code.length < 6}
               className={primaryCls}
             >
-              {busy ? 'Verifying…' : 'Confirm'}
+              {busy ? 'Please wait…' : 'Confirm'}
             </button>
+            {codeHelp('pw-code')}
           </>
         )}
 
@@ -333,10 +414,7 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp }: P
               onClick={() =>
                 run(
                   () => auth.sendPasswordReset(cleanEmail),
-                  async () => {
-                    setBusy(false)
-                    setStep('pw-reset')
-                  },
+                  () => codeSent('pw-reset'),
                 )
               }
               disabled={busy || !emailOk}
@@ -354,8 +432,8 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp }: P
           <>
             <h2 className="text-lg font-bold text-gray-900">Set a new password</h2>
             <p className="text-sm text-gray-500">
-              Enter the code sent to <span className="font-medium">{email}</span> and your new
-              password.
+              Enter the code sent to <span className="font-medium break-all">{email}</span> and your
+              new password.
             </p>
             <label className="field">
               Verification code
@@ -388,7 +466,24 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp }: P
               disabled={busy || code.length < 6 || !password}
               className={primaryCls}
             >
-              {busy ? 'Updating…' : 'Update password & sign in'}
+              {busy ? 'Please wait…' : 'Update password & sign in'}
+            </button>
+            {codeHelp('pw-reset')}
+          </>
+        )}
+
+        {step === 'profile' && (
+          <>
+            <h2 className="text-lg font-bold">Finishing sign-in</h2>
+            <p className="text-sm text-gray-600">
+              Your account is signed in. We’re loading your profile.
+            </p>
+            <button
+              className={primaryCls}
+              disabled={busy}
+              onClick={() => run(async () => null, finishAuth)}
+            >
+              {busy ? 'Loading…' : 'Retry loading profile'}
             </button>
           </>
         )}
@@ -446,9 +541,50 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp }: P
           </>
         )}
 
+        <details className="text-sm text-gray-700 space-y-3">
+          <summary className="cursor-pointer underline">Trouble signing in?</summary>
+          <p>
+            If you opened Plann’d inside Instagram or another app, try this link in Safari or Chrome
+            and sign in there.
+          </p>
+          <button
+            className="secondary w-full"
+            type="button"
+            onClick={async () => {
+              const id = new URLSearchParams(location.search).get('p')
+              const link = `${location.origin}/${id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ? `?p=${id}` : ''}`
+              try {
+                await navigator.clipboard.writeText(link)
+                setNotice('Link copied. Paste it into Safari or Chrome.')
+              } catch {
+                setLinkFallback(link)
+              }
+            }}
+          >
+            Copy link for another browser
+          </button>
+          {linkFallback && (
+            <label className="field">
+              Select and copy this link
+              <input
+                className={inputCls}
+                value={linkFallback}
+                readOnly
+                onFocus={(e) => e.currentTarget.select()}
+              />
+            </label>
+          )}
+        </details>
+
         <button type="button" onClick={onHelp} className="secondary w-full text-sm">
           Help, privacy & safety
         </button>
+
+        {notice && (
+          <p role="status" className="text-sm text-gray-700">
+            {notice}
+          </p>
+        )}
 
         {error && (
           <p role="alert" className="text-sm text-red-600">

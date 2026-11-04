@@ -25,6 +25,7 @@ export interface Auth {
   ) => Promise<{ error: string | null; needsConfirm: boolean }>
   signInPassword: (email: string, password: string) => Promise<string | null>
   verifySignupCode: (email: string, token: string) => Promise<string | null>
+  resendSignupCode: (email: string) => Promise<string | null>
   sendPasswordReset: (email: string) => Promise<string | null>
   verifyRecovery: (email: string, token: string, newPassword: string) => Promise<string | null>
   saveFirstName: (name: string) => Promise<string | null>
@@ -125,6 +126,11 @@ export function useAuth(): Auth {
     return error?.message ?? null
   }, [])
 
+  const resendSignupCode = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resend({ type: 'signup', email })
+    return error?.message ?? null
+  }, [])
+
   const sendPasswordReset = useCallback(async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email)
     return error?.message ?? null
@@ -173,6 +179,7 @@ export function useAuth(): Auth {
     signUpPassword,
     signInPassword,
     verifySignupCode,
+    resendSignupCode,
     sendPasswordReset,
     verifyRecovery,
     saveFirstName,

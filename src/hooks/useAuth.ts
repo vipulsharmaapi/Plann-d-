@@ -19,7 +19,10 @@ export interface Auth {
   gender: Gender | null
   sendOtp: (email: string) => Promise<string | null>
   verifyOtp: (email: string, token: string) => Promise<string | null>
-  signUpPassword: (email: string, password: string) => Promise<{ error: string | null; needsConfirm: boolean }>
+  signUpPassword: (
+    email: string,
+    password: string,
+  ) => Promise<{ error: string | null; needsConfirm: boolean }>
   signInPassword: (email: string, password: string) => Promise<string | null>
   verifySignupCode: (email: string, token: string) => Promise<string | null>
   sendPasswordReset: (email: string) => Promise<string | null>
@@ -35,6 +38,7 @@ export function useAuth(): Auth {
   const [emoji, setEmoji] = useState('🙋')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [gender, setGender] = useState<Gender | null>(null)
+  const [loadedFor, setLoadedFor] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
@@ -43,7 +47,9 @@ export function useAuth(): Auth {
   }, [])
 
   useEffect(() => {
+    let active = true
     if (!session) {
+      setLoadedFor(null)
       setFirstName('')
       setEmoji('🙋')
       setAvatarUrl(null)
@@ -56,6 +62,7 @@ export function useAuth(): Auth {
       .eq('id', session.user.id)
       .maybeSingle()
       .then(async ({ data, error }) => {
+        if (!active) return
         if (error) {
           // Newer columns may not exist yet (migration not run) — fall back
           // to the original shape so sign-in still works.
@@ -64,17 +71,23 @@ export function useAuth(): Auth {
             .select('first_name')
             .eq('id', session.user.id)
             .maybeSingle()
+          if (!active) return
+          setLoadedFor(session.user.id)
           setFirstName(basic?.first_name ?? '')
           setEmoji('🙋')
           setAvatarUrl(null)
           setGender(null)
           return
         }
+        setLoadedFor(session.user.id)
         setFirstName(data?.first_name ?? '')
         setEmoji(data?.emoji ?? '🙋')
         setAvatarUrl(data?.avatar_url ?? null)
         setGender((data?.gender as Gender | null) ?? null)
       })
+    return () => {
+      active = false
+    }
   }, [session])
 
   const sendOtp = useCallback(async (email: string) => {
@@ -95,7 +108,10 @@ export function useAuth(): Auth {
     if (error) return { error: error.message, needsConfirm: false }
     // Supabase obfuscates existing accounts: user comes back with no identities
     if (data.user && (data.user.identities?.length ?? 0) === 0)
-      return { error: 'An account with this email already exists — sign in instead.', needsConfirm: false }
+      return {
+        error: 'An account with this email already exists — sign in instead.',
+        needsConfirm: false,
+      }
     return { error: null, needsConfirm: !data.session }
   }, [])
 
@@ -114,21 +130,19 @@ export function useAuth(): Auth {
     return error?.message ?? null
   }, [])
 
-  const verifyRecovery = useCallback(
-    async (email: string, token: string, newPassword: string) => {
-      const { error } = await supabase.auth.verifyOtp({ email, token, type: 'recovery' })
-      if (error) return error.message
-      const { error: updateErr } = await supabase.auth.updateUser({ password: newPassword })
-      return updateErr?.message ?? null
-    },
-    [],
-  )
+  const verifyRecovery = useCallback(async (email: string, token: string, newPassword: string) => {
+    const { error } = await supabase.auth.verifyOtp({ email, token, type: 'recovery' })
+    if (error) return error.message
+    const { error: updateErr } = await supabase.auth.updateUser({ password: newPassword })
+    return updateErr?.message ?? null
+  }, [])
 
   const saveProfile = useCallback(
     async (fields: ProfileFields) => {
       if (!session) return 'Not signed in'
       const { error } = await supabase.from('profiles').update(fields).eq('id', session.user.id)
       if (!error) {
+        setLoadedFor(session.user.id)
         if (fields.first_name !== undefined) setFirstName(fields.first_name)
         if (fields.emoji !== undefined) setEmoji(fields.emoji)
         if (fields.avatar_url !== undefined) setAvatarUrl(fields.avatar_url)
@@ -150,10 +164,10 @@ export function useAuth(): Auth {
 
   return {
     session,
-    firstName,
-    emoji,
-    avatarUrl,
-    gender,
+    firstName: loadedFor === session?.user.id ? firstName : '',
+    emoji: loadedFor === session?.user.id ? emoji : '🙋',
+    avatarUrl: loadedFor === session?.user.id ? avatarUrl : null,
+    gender: loadedFor === session?.user.id ? gender : null,
     sendOtp,
     verifyOtp,
     signUpPassword,

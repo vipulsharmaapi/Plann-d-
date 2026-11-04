@@ -1,3 +1,4 @@
+import Sheet from './Sheet'
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Auth, Gender } from '../hooks/useAuth'
@@ -25,8 +26,26 @@ interface JoinedPlan {
 }
 
 const EMOJIS = [
-  '🙋', '😎', '🔥', '⚡', '🏸', '⚽', '🏏', '🏃', '☕', '🎯',
-  '🦁', '🐯', '🦅', '🐺', '🚀', '🌟', '🎸', '🎮', '🧗', '🚴',
+  '🙋',
+  '😎',
+  '🔥',
+  '⚡',
+  '🏸',
+  '⚽',
+  '🏏',
+  '🏃',
+  '☕',
+  '🎯',
+  '🦁',
+  '🐯',
+  '🦅',
+  '🐺',
+  '🚀',
+  '🌟',
+  '🎸',
+  '🎮',
+  '🧗',
+  '🚴',
 ]
 
 export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepost }: Props) {
@@ -75,7 +94,7 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
       })
     supabase
       .from('intents')
-      .select(`${INTENT_COLUMNS}, status, ends_at`)
+      .select(INTENT_COLUMNS)
       .eq('user_id', session.user.id)
       .order('starts_at', { ascending: false })
       .limit(20)
@@ -93,7 +112,7 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
       })
     supabase
       .from('join_requests')
-      .select(`status, intents(${INTENT_COLUMNS}, status, ends_at)`)
+      .select(`status, intents(${INTENT_COLUMNS})`)
       .eq('user_id', session.user.id)
       .in('status', ['pending', 'accepted'])
       .order('created_at', { ascending: false })
@@ -145,7 +164,8 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
   }
 
   const uploadAvatar = async (file: File) => {
-    if (!file.type.startsWith('image/')) return setError('Pick an image file.')
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type))
+      return setError('Choose a JPG, PNG, WebP or GIF image.')
     if (file.size > 4 * 1024 * 1024) return setError('Image too big — keep it under 4 MB.')
     setUploading(true)
     setError(null)
@@ -168,7 +188,7 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
   }
 
   const pickGender = async (g: Gender) => {
-    if (!confirm('Gender can’t be changed after this. Confirm?')) return
+    if (!confirm('Save this self-declared gender? Corrections can be requested in Help.')) return
     setError(null)
     const err = await auth.saveProfile({ gender: g })
     if (err) return setError(err)
@@ -197,8 +217,7 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
   }
 
   return (
-    <div className="absolute inset-0 z-30 flex items-end sm:items-center sm:justify-center">
-      <div className="sheet-backdrop absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
+    <Sheet title="Your profile" onClose={onClose}>
       <div className="sheet-panel relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl max-h-[92%] overflow-y-auto p-6 pb-8 space-y-4">
         <div className="w-10 h-1 rounded-full bg-gray-300 mx-auto sm:hidden" />
 
@@ -229,8 +248,9 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
         </div>
         <input
           ref={fileRef}
+          aria-label="Upload profile photo"
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp,image/gif"
           className="hidden"
           onChange={(e) => e.target.files?.[0] && uploadAvatar(e.target.files[0])}
         />
@@ -250,7 +270,7 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
           First name
           <div className="mt-1 flex gap-2">
             <input
-              className="flex-1 rounded-xl border border-gray-300 px-4 py-3 text-base outline-none focus:border-gray-900"
+              className="min-w-0 flex-1 rounded-xl border border-gray-300 px-4 py-3 text-base outline-none focus:border-gray-900"
               value={name}
               maxLength={30}
               onChange={(e) => setName(e.target.value)}
@@ -271,7 +291,7 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
             Your emoji <span className="text-gray-400">— shown when you have no photo</span>
             {emojiSaved && <span className="ml-2 text-green-600 font-semibold">✓ saved</span>}
           </p>
-          <div className="grid grid-cols-10 gap-1">
+          <div className="grid grid-cols-5 gap-1">
             {EMOJIS.map((e) => (
               <button
                 key={e}
@@ -293,7 +313,8 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
           </p>
           {auth.gender ? (
             <p className="rounded-xl bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 capitalize">
-              {auth.gender} <span className="font-normal text-gray-400">· locked 🔒</span>
+              {auth.gender}{' '}
+              <span className="font-normal text-gray-400">· corrections through Help</span>
             </p>
           ) : (
             <>
@@ -327,7 +348,7 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
           {waSaved && <span className="ml-2 text-green-600 font-semibold">✓ saved</span>}
           <div className="mt-1 flex gap-2">
             <input
-              className="flex-1 rounded-xl border border-gray-300 px-4 py-3 text-base outline-none focus:border-gray-900"
+              className="min-w-0 flex-1 rounded-xl border border-gray-300 px-4 py-3 text-base outline-none focus:border-gray-900"
               inputMode="tel"
               placeholder="+91 98765 43210"
               value={whatsapp}
@@ -360,7 +381,9 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
               >
                 <span className="text-lg shrink-0">{activityByKey(intent.activity).emoji}</span>
                 <div className="min-w-0 flex-1">
-                  <p className={`text-sm font-semibold truncate ${live ? 'text-gray-900' : 'text-gray-400'}`}>
+                  <p
+                    className={`text-sm font-semibold truncate ${live ? 'text-gray-900' : 'text-gray-400'}`}
+                  >
                     {intent.title}
                   </p>
                   <p className="text-xs text-gray-400">
@@ -403,11 +426,14 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
               >
                 <span className="text-lg shrink-0">{activityByKey(intent.activity).emoji}</span>
                 <div className="min-w-0 flex-1">
-                  <p className={`text-sm font-semibold truncate ${live ? 'text-gray-900' : 'text-gray-400'}`}>
+                  <p
+                    className={`text-sm font-semibold truncate ${live ? 'text-gray-900' : 'text-gray-400'}`}
+                  >
                     {intent.title}
                   </p>
                   <p className="text-xs text-gray-400">
-                    {humanDay(intent.date)} · {intent.startsAt}–{intent.endsAt} · by {intent.posterName}
+                    {humanDay(intent.date)} · {intent.startsAt}–{intent.endsAt} · by{' '}
+                    {intent.posterName}
                   </p>
                 </div>
                 <span
@@ -432,7 +458,11 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
           </div>
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-red-600">
+            {error}
+          </p>
+        )}
 
         <button
           onClick={async () => {
@@ -444,6 +474,6 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
           Sign out
         </button>
       </div>
-    </div>
+    </Sheet>
   )
 }

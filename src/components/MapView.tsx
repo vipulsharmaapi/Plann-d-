@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
 import { createPinEl, createUserDotEl } from '../lib/pinElement'
 import type { LatLng } from '../lib/geo'
 import type { Intent } from '../types'
@@ -19,6 +20,7 @@ export default function MapView({ intents, selectedId, onSelect, userLoc }: Prop
   const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map())
 
   useEffect(() => {
+    const markers = markersRef.current
     if (!containerRef.current) return
     const map = new maplibregl.Map({
       container: containerRef.current,
@@ -38,7 +40,7 @@ export default function MapView({ intents, selectedId, onSelect, userLoc }: Prop
       zoom: 11.5,
       attributionControl: { compact: true },
     })
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right')
     map.on('click', (e) => {
       // MapLibre synthesizes clicks from pointer events, so a pin click also
       // fires here — only deselect when the click wasn't on a pin.
@@ -49,7 +51,7 @@ export default function MapView({ intents, selectedId, onSelect, userLoc }: Prop
     return () => {
       map.remove()
       mapRef.current = null
-      markersRef.current.clear()
+      markers.clear()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -63,6 +65,15 @@ export default function MapView({ intents, selectedId, onSelect, userLoc }: Prop
 
     for (const intent of intents) {
       const el = createPinEl(intent.activity, intent.id === selectedId)
+      el.setAttribute('role', 'button')
+      el.setAttribute('aria-label', intent.title)
+      el.tabIndex = 0
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onSelect(intent.id)
+        }
+      })
       el.addEventListener('click', (e) => {
         e.stopPropagation()
         onSelect(intent.id)
@@ -94,7 +105,11 @@ export default function MapView({ intents, selectedId, onSelect, userLoc }: Prop
     if (!map || !selectedId) return
     const intent = intents.find((i) => i.id === selectedId)
     if (intent) {
-      map.easeTo({ center: [intent.lng, intent.lat], zoom: Math.max(map.getZoom(), 13), duration: 500 })
+      map.easeTo({
+        center: [intent.lng, intent.lat],
+        zoom: Math.max(map.getZoom(), 13),
+        duration: 500,
+      })
     }
   }, [selectedId, intents])
 

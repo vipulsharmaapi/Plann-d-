@@ -1,95 +1,75 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-
-interface Props {
+import Sheet from './Sheet'
+interface Profile {
+  first_name: string
+  emoji: string
+  avatar_url: string | null
+  created_at: string
+}
+export default function ProfilePeek({
+  userId,
+  onClose,
+}: {
   userId: string | null
   onClose: () => void
-}
-
-interface PeekData {
-  firstName: string
-  emoji: string
-  avatarUrl: string | null
-  memberSince: string
-  posts: number
-  joins: number
-}
-
-export default function ProfilePeek({ userId, onClose }: Props) {
-  const [data, setData] = useState<PeekData | null>(null)
-
+}) {
+  const [profile, setProfile] = useState<Profile | null>(null),
+    [error, setError] = useState('')
   useEffect(() => {
-    if (!userId) return
-    setData(null)
-    Promise.all([
+    let active = true
+    if (userId)
       supabase
         .from('profiles')
-        .select('first_name, emoji, avatar_url, created_at')
+        .select('first_name,emoji,avatar_url,created_at')
         .eq('id', userId)
-        .maybeSingle(),
-      supabase
-        .from('intents')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId),
-      supabase
-        .from('join_requests')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('status', 'accepted'),
-    ]).then(([profile, posts, joins]) => {
-      setData({
-        firstName: profile.data?.first_name || 'Someone',
-        emoji: profile.data?.emoji ?? '🙋',
-        avatarUrl: profile.data?.avatar_url ?? null,
-        memberSince: profile.data?.created_at
-          ? new Date(profile.data.created_at).toLocaleDateString('en-IN', {
-              month: 'short',
-              year: 'numeric',
-            })
-          : '—',
-        posts: posts.count ?? 0,
-        joins: joins.count ?? 0,
-      })
-    })
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (active) {
+            setProfile(data)
+            if (error || !data) setError('This profile is unavailable.')
+          }
+        })
+    return () => {
+      active = false
+    }
   }, [userId])
-
   if (!userId) return null
-
   return (
-    <div className="absolute inset-0 z-40 flex items-end sm:items-center sm:justify-center">
-      <div className="sheet-backdrop absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="sheet-panel relative w-full sm:max-w-sm bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-8">
-        <div className="w-10 h-1 rounded-full bg-gray-300 mx-auto sm:hidden mb-4" />
-        {!data ? (
-          <p className="text-center text-sm text-gray-400 py-6">Loading…</p>
+    <Sheet title="Member profile" onClose={onClose}>
+      <div className="p-6 pt-16">
+        {error ? (
+          <p role="alert">{error}</p>
+        ) : !profile ? (
+          <p role="status">Loading profile…</p>
         ) : (
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-14 h-14 rounded-2xl bg-gray-900 text-white flex items-center justify-center text-2xl overflow-hidden shrink-0">
-                {data.avatarUrl ? (
-                  <img src={data.avatarUrl} alt="" className="w-full h-full object-cover" />
+          <>
+            <div className="flex items-center gap-4">
+              <div className="h-16 w-16 rounded-2xl bg-indigo-50 flex justify-center items-center overflow-hidden text-3xl">
+                {profile.avatar_url ? (
+                  <img className="h-full w-full object-cover" alt="" src={profile.avatar_url} />
                 ) : (
-                  data.emoji
+                  profile.emoji
                 )}
               </div>
               <div>
-                <h2 className="text-lg font-bold text-gray-900">{data.firstName}</h2>
-                <p className="text-xs text-gray-500">On Plann'd since {data.memberSince}</p>
+                <h2 className="text-xl font-bold">{profile.first_name || 'Member'}</h2>
+                <p className="text-sm text-gray-600">
+                  Member since{' '}
+                  {new Date(profile.created_at).toLocaleDateString('en-IN', {
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                </p>
               </div>
             </div>
-            <div className="flex gap-3">
-              <div className="flex-1 bg-gray-50 rounded-xl p-3 text-center">
-                <p className="text-xl font-extrabold text-gray-900">{data.posts}</p>
-                <p className="text-xs font-medium text-gray-500">posts</p>
-              </div>
-              <div className="flex-1 bg-gray-50 rounded-xl p-3 text-center">
-                <p className="text-xl font-extrabold text-gray-900">{data.joins}</p>
-                <p className="text-xs font-medium text-gray-500">joins</p>
-              </div>
-            </div>
-          </div>
+            <p className="mt-5 text-sm text-gray-600">
+              Profile details are self-declared. Meet in a public place and confirm arrangements in
+              the group chat.
+            </p>
+          </>
         )}
       </div>
-    </div>
+    </Sheet>
   )
 }

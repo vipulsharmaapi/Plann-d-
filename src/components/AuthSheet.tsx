@@ -1,3 +1,4 @@
+import Sheet from './Sheet'
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Auth, Gender } from '../hooks/useAuth'
@@ -24,7 +25,7 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
 
   if (!open) return null
 
-  const emailOk = email.includes('@')
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
   const cleanEmail = email.trim()
 
   // After a session exists: returning users go straight in, new ones set up
@@ -32,7 +33,11 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
   const finishAuth = async () => {
     const { data: userData } = await supabase.auth.getUser()
     const { data: profile } = userData.user
-      ? await supabase.from('profiles').select('first_name').eq('id', userData.user.id).maybeSingle()
+      ? await supabase
+          .from('profiles')
+          .select('first_name')
+          .eq('id', userData.user.id)
+          .maybeSingle()
       : { data: null }
     setBusy(false)
     if (profile?.first_name) onSignedIn()
@@ -40,15 +45,18 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
   }
 
   const run = async (fn: () => Promise<string | null>, onOk: () => void | Promise<void>) => {
+    if (busy) return
     setBusy(true)
     setError(null)
-    const err = await fn()
-    if (err) {
+    try {
+      const err = await fn()
+      if (err) setError(err)
+      else await onOk()
+    } catch {
+      setError('Could not connect. Please try again.')
+    } finally {
       setBusy(false)
-      setError(err)
-      return
     }
-    await onOk()
   }
 
   const submitName = async () => {
@@ -92,8 +100,7 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
   )
 
   return (
-    <div className="absolute inset-0 z-30 flex items-end sm:items-center sm:justify-center">
-      <div className="sheet-backdrop absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
+    <Sheet title="Sign in" onClose={onClose}>
       <div className="sheet-panel relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-8 space-y-4">
         <div className="w-10 h-1 rounded-full bg-gray-300 mx-auto sm:hidden" />
 
@@ -109,27 +116,38 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
         {step === 'email' && (
           <>
             <p className="text-sm text-gray-500">We'll email you a one-time code. No passwords.</p>
-            <input
-              className={inputCls}
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) =>
-                e.key === 'Enter' && emailOk && run(() => auth.sendOtp(cleanEmail), async () => {
-                  setBusy(false)
-                  setStep('code')
-                })
-              }
-            />
+            <label className="field">
+              Email address
+              <input
+                className={inputCls}
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) =>
+                  e.key === 'Enter' &&
+                  emailOk &&
+                  run(
+                    () => auth.sendOtp(cleanEmail),
+                    async () => {
+                      setBusy(false)
+                      setStep('code')
+                    },
+                  )
+                }
+              />
+            </label>
             <button
               onClick={() =>
-                run(() => auth.sendOtp(cleanEmail), async () => {
-                  setBusy(false)
-                  setStep('code')
-                })
+                run(
+                  () => auth.sendOtp(cleanEmail),
+                  async () => {
+                    setBusy(false)
+                    setStep('code')
+                  },
+                )
               }
               disabled={busy || !emailOk}
               className={primaryCls}
@@ -145,15 +163,18 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
             <p className="text-sm text-gray-500">
               Enter the code sent to <span className="font-medium">{email}</span>
             </p>
-            <input
-              className={codeInputCls}
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={10}
-              placeholder="••••••"
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-            />
+            <label className="field">
+              Verification code
+              <input
+                className={codeInputCls}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={10}
+                placeholder="••••••"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              />
+            </label>
             <button
               onClick={() => run(() => auth.verifyOtp(cleanEmail, code.trim()), finishAuth)}
               disabled={busy || code.length < 6}
@@ -169,23 +190,29 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
 
         {step === 'pw' && (
           <>
-            <input
-              className={inputCls}
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <input
-              className={inputCls}
-              type="password"
-              autoComplete={pwMode === 'signup' ? 'new-password' : 'current-password'}
-              placeholder={pwMode === 'signup' ? 'Choose a password (8+ characters)' : 'Password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <label className="field">
+              Email address
+              <input
+                className={inputCls}
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </label>
+            <label className="field">
+              Password
+              <input
+                className={inputCls}
+                type="password"
+                autoComplete={pwMode === 'signup' ? 'new-password' : 'current-password'}
+                placeholder={pwMode === 'signup' ? 'Choose a password (8+ characters)' : 'Password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
             {pwMode === 'signin' ? (
               <>
                 <button
@@ -196,10 +223,22 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
                   {busy ? 'Signing in…' : 'Sign in'}
                 </button>
                 <div className="flex justify-between text-sm">
-                  <button onClick={() => { setPwMode('signup'); setError(null) }} className="text-gray-600 font-semibold">
+                  <button
+                    onClick={() => {
+                      setPwMode('signup')
+                      setError(null)
+                    }}
+                    className="text-gray-600 font-semibold"
+                  >
                     Create account
                   </button>
-                  <button onClick={() => { setStep('pw-forgot'); setError(null) }} className="text-gray-500">
+                  <button
+                    onClick={() => {
+                      setStep('pw-forgot')
+                      setError(null)
+                    }}
+                    className="text-gray-500"
+                  >
                     Forgot password?
                   </button>
                 </div>
@@ -211,7 +250,10 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
                     if (password.length < 8) return setError('Use at least 8 characters.')
                     setBusy(true)
                     setError(null)
-                    const { error: err, needsConfirm } = await auth.signUpPassword(cleanEmail, password)
+                    const { error: err, needsConfirm } = await auth.signUpPassword(
+                      cleanEmail,
+                      password,
+                    )
                     if (err) {
                       setBusy(false)
                       setError(err)
@@ -230,7 +272,10 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
                   {busy ? 'Creating…' : 'Create account'}
                 </button>
                 <button
-                  onClick={() => { setPwMode('signin'); setError(null) }}
+                  onClick={() => {
+                    setPwMode('signin')
+                    setError(null)
+                  }}
                   className="w-full text-sm text-gray-500"
                 >
                   Already have an account? Sign in
@@ -246,15 +291,18 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
             <p className="text-sm text-gray-500">
               Enter the code sent to <span className="font-medium">{email}</span>
             </p>
-            <input
-              className={codeInputCls}
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={10}
-              placeholder="••••••"
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-            />
+            <label className="field">
+              Verification code
+              <input
+                className={codeInputCls}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={10}
+                placeholder="••••••"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              />
+            </label>
             <button
               onClick={() => run(() => auth.verifySignupCode(cleanEmail, code.trim()), finishAuth)}
               disabled={busy || code.length < 6}
@@ -269,20 +317,26 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
           <>
             <h2 className="text-lg font-bold text-gray-900">Reset your password</h2>
             <p className="text-sm text-gray-500">We'll email you a reset code.</p>
-            <input
-              className={inputCls}
-              type="email"
-              inputMode="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+            <label className="field">
+              Email address
+              <input
+                className={inputCls}
+                type="email"
+                inputMode="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </label>
             <button
               onClick={() =>
-                run(() => auth.sendPasswordReset(cleanEmail), async () => {
-                  setBusy(false)
-                  setStep('pw-reset')
-                })
+                run(
+                  () => auth.sendPasswordReset(cleanEmail),
+                  async () => {
+                    setBusy(false)
+                    setStep('pw-reset')
+                  },
+                )
               }
               disabled={busy || !emailOk}
               className={primaryCls}
@@ -299,25 +353,32 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
           <>
             <h2 className="text-lg font-bold text-gray-900">Set a new password</h2>
             <p className="text-sm text-gray-500">
-              Enter the code sent to <span className="font-medium">{email}</span> and your new password.
+              Enter the code sent to <span className="font-medium">{email}</span> and your new
+              password.
             </p>
-            <input
-              className={codeInputCls}
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={10}
-              placeholder="••••••"
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-            />
-            <input
-              className={inputCls}
-              type="password"
-              autoComplete="new-password"
-              placeholder="New password (8+ characters)"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <label className="field">
+              Verification code
+              <input
+                className={codeInputCls}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={10}
+                placeholder="••••••"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              />
+            </label>
+            <label className="field">
+              Password
+              <input
+                className={inputCls}
+                type="password"
+                autoComplete="new-password"
+                placeholder="New password (8+ characters)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
             <button
               onClick={() => {
                 if (password.length < 8) return setError('Use at least 8 characters.')
@@ -335,13 +396,16 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
           <>
             <h2 className="text-lg font-bold text-gray-900">Set up your profile</h2>
             <p className="text-sm text-gray-500">First name only — it's shown on your posts.</p>
-            <input
-              className={inputCls}
-              placeholder="First name"
-              value={name}
-              maxLength={30}
-              onChange={(e) => setName(e.target.value)}
-            />
+            <label className="field">
+              First name
+              <input
+                className={inputCls}
+                placeholder="First name"
+                value={name}
+                maxLength={30}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </label>
             <div>
               <p className="text-sm font-medium text-gray-600 mb-1.5">Gender</p>
               <div className="flex gap-2">
@@ -354,6 +418,7 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
                 ).map(([key, label]) => (
                   <button
                     key={key}
+                    aria-pressed={gender === key}
                     onClick={() => setGender(key)}
                     className={`flex-1 rounded-xl py-2.5 text-sm font-semibold border ${
                       gender === key
@@ -366,7 +431,8 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
                 ))}
               </div>
               <p className="mt-1.5 text-xs text-amber-700">
-                ⚠️ Can't be changed later — it keeps women-only plans trustworthy.
+                Gender is self-declared, not identity verification. You can request a correction in
+                Help.
               </p>
             </div>
             <button
@@ -379,8 +445,12 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
           </>
         )}
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-red-600">
+            {error}
+          </p>
+        )}
       </div>
-    </div>
+    </Sheet>
   )
 }

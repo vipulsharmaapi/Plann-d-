@@ -1,474 +1,476 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import MapView from './components/MapView'
-import GoogleMapView from './components/GoogleMapView'
-import { GOOGLE_MAPS_KEY } from './lib/googleMaps'
-import IntentCard from './components/IntentCard'
-import AuthSheet from './components/AuthSheet'
-import PostSheet from './components/PostSheet'
-import ProfileSheet from './components/ProfileSheet'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { CalendarDays, Compass, Map, Inbox, MapPin, Plus, HelpCircle, User } from 'lucide-react'
 import Explore from './components/Explore'
-import ProfilePeek from './components/ProfilePeek'
-import ChatSheet from './components/ChatSheet'
+import MyPlans from './components/MyPlans'
 import NotificationsSheet from './components/NotificationsSheet'
-import Onboarding from './components/Onboarding'
-import { haversineKm, type LatLng } from './lib/geo'
-import { useNotifications, type AppNotification } from './hooks/useNotifications'
+import IntentCard from './components/IntentCard'
 import JoinSection from './components/JoinSection'
-import { ACTIVITIES, activityByKey, type ActivityKey, type Intent } from './types'
-import { useIntents } from './hooks/useIntents'
+import Sheet from './components/Sheet'
 import { useAuth } from './hooks/useAuth'
-
+import { INTENT_COLUMNS, rowToIntent, useIntents, type IntentRow } from './hooks/useIntents'
+import { useNotifications, type AppNotification } from './hooks/useNotifications'
+import { supabase } from './lib/supabase'
+import { GOOGLE_MAPS_KEY } from './lib/googleMaps'
+import type { LatLng } from './lib/geo'
+import { humanDay, type Intent, type ActivityKey } from './types'
+const MapView = lazy(() => import('./components/MapView'))
+const GoogleMapView = lazy(() => import('./components/GoogleMapView'))
+const AuthSheet = lazy(() => import('./components/AuthSheet'))
+const PostSheet = lazy(() => import('./components/PostSheet'))
+const ProfileSheet = lazy(() => import('./components/ProfileSheet'))
+const ProfilePeek = lazy(() => import('./components/ProfilePeek'))
+const ChatSheet = lazy(() => import('./components/ChatSheet'))
+const HelpSheet = lazy(() => import('./components/HelpSheet'))
+type View = 'explore' | 'map' | 'plans' | 'inbox'
 export default function App() {
-  const [filter, setFilter] = useState<ActivityKey | null>(null)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [sheetOpen, setSheetOpen] = useState(true)
-  const [authOpen, setAuthOpen] = useState(false)
-  const [postOpen, setPostOpen] = useState(false)
-  const [editIntent, setEditIntent] = useState<Intent | null>(null)
-  const [templateIntent, setTemplateIntent] = useState<Intent | null>(null)
-  const [profileOpen, setProfileOpen] = useState(false)
-  const [view, setView] = useState<'map' | 'explore'>('map')
-  const [moreFilters, setMoreFilters] = useState(false)
-  const [userLoc, setUserLoc] = useState<LatLng | null>(null)
-  const [locating, setLocating] = useState(false)
-  const [showOnboarding, setShowOnboarding] = useState(
-    () => !localStorage.getItem('plannd_onboarded'),
-  )
-  const deepLinkRef = useRef<string | null>(new URLSearchParams(location.search).get('p'))
-  const [mapProvider, setMapProvider] = useState<'google' | 'maplibre'>(
-    GOOGLE_MAPS_KEY ? 'google' : 'maplibre',
-  )
-  const [peekUserId, setPeekUserId] = useState<string | null>(null)
-  const [chatIntent, setChatIntent] = useState<Intent | null>(null)
-  const [notifOpen, setNotifOpen] = useState(false)
-  const afterAuthRef = useRef<'post' | null>(null)
-  const auth = useAuth()
-  const { intents: allIntents, source, refresh } = useIntents()
-  const notifications = useNotifications(auth.session)
-
-  const openNotification = (n: AppNotification) => {
-    setNotifOpen(false)
-    if (!n.intent_id) return
-    const intent = allIntents.find((i) => i.id === n.intent_id)
-    if (!intent) return // plan expired or was cancelled
-    if (n.type === 'chat_message' || n.type === 'request_accepted') {
-      setChatIntent(intent)
-    } else {
-      setView('map')
-      handleSelect(intent.id)
-    }
-  }
-
-  const openPost = () => {
-    setEditIntent(null)
-    setTemplateIntent(null)
-    if (auth.session) {
-      setPostOpen(true)
-    } else {
-      afterAuthRef.current = 'post'
-      setAuthOpen(true)
-    }
-  }
-
-  const handleSignedIn = () => {
-    setAuthOpen(false)
-    if (afterAuthRef.current === 'post') setPostOpen(true)
-    afterAuthRef.current = null
-  }
-
-  const intents = useMemo(
-    () => (filter ? allIntents.filter((i) => i.activity === filter) : allIntents),
-    [filter, allIntents],
-  )
-
-  const handleSelect = useCallback((id: string | null) => {
-    setSelectedId(id)
-    if (id) setSheetOpen(true)
+  const auth = useAuth(),
+    { intents, source, refresh } = useIntents(auth.session?.user.id),
+    notifications = useNotifications(auth.session)
+  const [view, setView] = useState<View>('explore'),
+    [activity, setActivity] = useState<ActivityKey | null>(null),
+    [selected, setSelected] = useState<Intent | null>(null)
+  const [authOpen, setAuthOpen] = useState(false),
+    [postOpen, setPostOpen] = useState(false),
+    [profileOpen, setProfileOpen] = useState(false),
+    [helpOpen, setHelpOpen] = useState(false)
+  const [editing, setEditing] = useState<Intent | null>(null),
+    [template, setTemplate] = useState<Intent | null>(null),
+    [peek, setPeek] = useState<string | null>(null),
+    [chat, setChat] = useState<Intent | null>(null)
+  const [userLoc, setUserLoc] = useState<LatLng | null>(null),
+    [locating, setLocating] = useState(false),
+    [notice, setNotice] = useState(''),
+    [linkLoading, setLinkLoading] = useState(false)
+  const [provider, setProvider] = useState(GOOGLE_MAPS_KEY ? 'google' : 'maplibre')
+  const afterAuth = useRef<'post' | 'plan' | null>(null),
+    deepLink = useRef(new URLSearchParams(location.search).get('p'))
+  const [planKey, setPlanKey] = useState(0)
+  const openPlan = useCallback((intent: Intent) => {
+    setSelected(intent)
+    setNotice('')
+    history.replaceState(null, '', `/?p=${intent.id}`)
   }, [])
-
-  const sorted = useMemo(() => {
-    let list = intents
-    if (userLoc) {
-      list = [...intents].sort(
-        (a, b) => haversineKm(userLoc, a) - haversineKm(userLoc, b),
-      )
-    }
-    if (!selectedId) return list
-    const sel = list.find((i) => i.id === selectedId)
-    return sel ? [sel, ...list.filter((i) => i.id !== selectedId)] : list
-  }, [intents, selectedId, userLoc])
-
-  // Deep link: /?p=<intent_id> opens the app focused on that plan
-  useEffect(() => {
-    if (!deepLinkRef.current || allIntents.length === 0) return
-    const id = deepLinkRef.current
-    deepLinkRef.current = null
+  function closePlan() {
+    setSelected(null)
     history.replaceState(null, '', location.pathname)
-    if (allIntents.some((i) => i.id === id)) {
-      setFilter(null)
-      setView('map')
-      handleSelect(id)
-    }
-  }, [allIntents, handleSelect])
-
-  // While a chat is open, its message notifications are already "seen"
+  }
+  const fetchPlan = useCallback(
+    async (id: string) => {
+      setLinkLoading(true)
+      try {
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+          setNotice('This plan link is invalid. Browse upcoming plans below.')
+          return null
+        }
+        const { data, error } = await supabase
+          .from('intents')
+          .select(INTENT_COLUMNS)
+          .eq('id', id)
+          .maybeSingle()
+        if (error) throw error
+        if (!data) {
+          setNotice('This plan is no longer available. Browse upcoming plans below.')
+          return null
+        }
+        const intent = rowToIntent(data as IntentRow)
+        openPlan(intent)
+        return intent
+      } catch {
+        setNotice('Couldn’t open this plan. Check your connection and try the link again.')
+        return null
+      } finally {
+        setLinkLoading(false)
+      }
+    },
+    [openPlan],
+  )
   useEffect(() => {
-    if (chatIntent) notifications.markChatRead(chatIntent.id)
-  }, [chatIntent, notifications])
-
-  const locateMe = () => {
-    if (!navigator.geolocation) return alert('Location not available on this device.')
+    if (deepLink.current) {
+      const id = deepLink.current
+      deepLink.current = null
+      fetchPlan(id)
+    }
+  }, [fetchPlan])
+  useEffect(() => {
+    setSelected((previous) =>
+      previous ? (intents.find((i) => i.id === previous.id) ?? previous) : null,
+    )
+  }, [intents])
+  const selectedId = selected?.id
+  useEffect(() => {
+    if (!selectedId) return
+    const channel = supabase
+      .channel('open-plan-' + selectedId + '-' + crypto.randomUUID())
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'intents', filter: `id=eq.${selectedId}` },
+        (payload) => setSelected(rowToIntent(payload.new as IntentRow)),
+      )
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [selectedId])
+  useEffect(() => {
+    document.title = selected
+      ? `${selected.title} · ${humanDay(selected.date)} | Plann’d`
+      : 'Plann’d — Find your people in Jaipur'
+  }, [selected])
+  useEffect(() => {
+    if (
+      chat &&
+      notifications.items.some(
+        (n) => n.intent_id === chat.id && n.type === 'chat_message' && !n.read_at,
+      )
+    )
+      void notifications.markChatRead(chat.id)
+  }, [chat, notifications])
+  function signIn(action?: 'post' | 'plan') {
+    afterAuth.current = action ?? null
+    setAuthOpen(true)
+  }
+  function post() {
+    setEditing(null)
+    setTemplate(null)
+    if (auth.session) setPostOpen(true)
+    else signIn('post')
+  }
+  function signedIn() {
+    setAuthOpen(false)
+    if (afterAuth.current === 'post') setPostOpen(true)
+    if (afterAuth.current === 'plan')
+      setNotice('You’re signed in. Review the plan, then send your join request.')
+    afterAuth.current = null
+  }
+  function locate() {
+    if (!navigator.geolocation) {
+      setNotice('Location isn’t available here. Search by venue or neighbourhood.')
+      return
+    }
     setLocating(true)
-    const ok = (pos: GeolocationPosition) => {
-      setLocating(false)
-      setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-    }
-    const denied = () => {
-      setLocating(false)
-      alert('Location permission is blocked — allow it for this site in your browser settings.')
-    }
-    // Fast first: accept a recent cached position (up to 2 min old) with a
-    // relaxed fix; only if that fails, wait for a fresh low-accuracy one.
     navigator.geolocation.getCurrentPosition(
-      ok,
-      (err) => {
-        if (err.code === err.PERMISSION_DENIED) return denied()
-        navigator.geolocation.getCurrentPosition(
-          ok,
-          (err2) => {
-            setLocating(false)
-            if (err2.code === err2.PERMISSION_DENIED) return denied()
-            alert('Couldn’t get a location fix right now — try again in a moment.')
-          },
-          { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 },
+      (p) => {
+        setUserLoc({ lat: p.coords.latitude, lng: p.coords.longitude })
+        setLocating(false)
+        setNotice('Plans are now sorted by distance from you.')
+      },
+      () => {
+        setLocating(false)
+        setNotice(
+          'Couldn’t get your location. You can search by venue or neighbourhood. When ready, allow location in your browser settings.',
         )
       },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 120000 },
+      { timeout: 10000, maximumAge: 120000, enableHighAccuracy: false },
     )
   }
-
+  async function openNotification(n: AppNotification) {
+    await notifications.markRead(n.id)
+    if (n.intent_id) {
+      const i = await fetchPlan(n.intent_id)
+      if (i && n.type === 'chat_message' && i.status !== 'cancelled') {
+        setSelected(null)
+        setChat(i)
+      }
+    }
+  }
+  const mapIntents = intents.filter((i) => !activity || i.activity === activity)
+  const nav = [
+    { key: 'explore' as View, label: 'Explore', icon: Compass },
+    { key: 'map' as View, label: 'Map', icon: Map },
+    { key: 'plans' as View, label: 'My plans', icon: CalendarDays },
+    { key: 'inbox' as View, label: 'Inbox', icon: Inbox },
+  ]
   return (
-    <div className="relative h-full w-full overflow-hidden bg-gray-100">
-      {mapProvider === 'google' ? (
-        <GoogleMapView
-          intents={intents}
-          selectedId={selectedId}
-          onSelect={handleSelect}
-          onFallback={() => setMapProvider('maplibre')}
-          userLoc={userLoc}
-        />
-      ) : (
-        <MapView intents={intents} selectedId={selectedId} onSelect={handleSelect} userLoc={userLoc} />
-      )}
-
-      {view === 'explore' && (
-        <Explore
-          intents={intents}
-          auth={auth}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-          onShowOnMap={(id) => {
-            setView('map')
-            handleSelect(id)
-          }}
-          onRequestAuth={() => setAuthOpen(true)}
-          onEdit={(i) => {
-            setEditIntent(i)
-            setPostOpen(true)
-          }}
-          onViewProfile={setPeekUserId}
-          onOpenChat={setChatIntent}
-          userLoc={userLoc}
-          onRequestLocation={locateMe}
-        />
-      )}
-
-      {/* Header */}
-      <header className="absolute top-0 inset-x-0 z-10 pointer-events-none">
-        <div className="px-4 pt-4">
-          <div className="pointer-events-auto flex items-center justify-between gap-2">
-            <div className="inline-flex items-baseline gap-2 bg-white/95 backdrop-blur rounded-2xl shadow-lg px-4 py-2.5">
-              <h1 className="wordmark text-xl">Plann'd</h1>
-              <span className="text-xs font-medium text-gray-500 max-[430px]:hidden">
-                who's in? · Jaipur
-              </span>
-            </div>
-
-            <div className="flex bg-white/95 backdrop-blur rounded-2xl shadow-lg p-1 text-sm font-semibold">
+    <div className="min-h-dvh flex flex-col bg-slate-50 pb-[calc(76px+env(safe-area-inset-bottom))] sm:pb-0">
+      <a className="sr-only focus:not-sr-only focus:p-3 focus:bg-white" href="#main-content">
+        Skip to content
+      </a>
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 h-[72px] flex items-center gap-3">
+          <button
+            onClick={() => setView('explore')}
+            className="text-left mr-auto"
+            aria-label="Plann’d home"
+          >
+            <span className="wordmark block text-2xl">Plann’d</span>
+            <span className="block text-[10px] font-semibold text-gray-500 tracking-wider">
+              JAIPUR · WHO’S IN?
+            </span>
+          </button>
+          <nav aria-label="Main navigation" className="hidden sm:flex gap-1 mr-auto">
+            {nav.map((n) => (
               <button
-                onClick={() => setView('map')}
-                className={`whitespace-nowrap rounded-xl px-3 py-1.5 ${
-                  view === 'map' ? 'bg-gray-900 text-white' : 'text-gray-600'
-                }`}
+                key={n.key}
+                onClick={() => setView(n.key)}
+                className={`relative flex items-center gap-2 px-3 rounded-xl text-sm font-semibold ${view === n.key ? 'bg-indigo-50 text-indigo-800' : 'text-gray-600'}`}
+                aria-current={view === n.key ? 'page' : undefined}
               >
-                🗺️ Map
-              </button>
-              <button
-                onClick={() => setView('explore')}
-                className={`whitespace-nowrap rounded-xl px-3 py-1.5 ${
-                  view === 'explore' ? 'bg-gray-900 text-white' : 'text-gray-600'
-                }`}
-              >
-                📋 Explore
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2">
-            <button
-              onClick={locateMe}
-              className={`whitespace-nowrap bg-white/95 backdrop-blur rounded-2xl shadow-lg px-3 py-2.5 text-base ${
-                userLoc ? 'ring-1 ring-blue-400' : ''
-              }`}
-              aria-label="Show my location"
-            >
-              {locating ? '…' : '📍'}
-            </button>
-            {auth.session ? (
-              <div className="flex items-center bg-white/95 backdrop-blur rounded-2xl shadow-lg">
-                <button
-                  onClick={() => {
-                    setNotifOpen(true)
-                    notifications.markAllRead()
-                  }}
-                  className="relative pl-3 pr-2 py-2 text-base"
-                  aria-label="Notifications"
-                >
-                  🔔
-                  {notifications.unread > 0 && (
-                    <span className="absolute top-0.5 right-0 min-w-[16px] h-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1">
-                      {notifications.unread > 9 ? '9+' : notifications.unread}
-                    </span>
-                  )}
-                </button>
-                <div className="w-px h-5 bg-gray-200" />
-                <button
-                  onClick={() => setProfileOpen(true)}
-                  className="flex items-center gap-1.5 pl-2 pr-2.5 py-1.5 text-sm font-semibold text-gray-700"
-                >
-                  {auth.avatarUrl ? (
-                    <img src={auth.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover" />
-                  ) : (
-                    <span className="text-lg">{auth.emoji}</span>
-                  )}
-                  <span className="max-[460px]:hidden">{auth.firstName || 'You'}</span>
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setAuthOpen(true)}
-                className="whitespace-nowrap bg-white/95 backdrop-blur rounded-2xl shadow-lg px-3.5 py-2.5 text-sm font-semibold text-gray-700"
-              >
-                Sign in
-              </button>
-            )}
-            </div>
-          </div>
-        </div>
-
-        {/* Activity filter: top activities + expandable grid for the rest */}
-        {(() => {
-          const TOP: ActivityKey[] = ['badminton', 'football', 'cricket', 'running']
-          const topActivities = ACTIVITIES.filter((a) => TOP.includes(a.key))
-          const moreActivities = ACTIVITIES.filter((a) => !TOP.includes(a.key))
-          const hiddenActive = filter && !TOP.includes(filter)
-          const chipCls = (active: boolean) =>
-            `shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-semibold shadow ${
-              active ? 'bg-gray-900 text-white' : 'bg-white text-gray-700'
-            }`
-          return (
-            <div className="pointer-events-auto px-4 py-3">
-              <div className="flex gap-2 overflow-x-auto [scrollbar-width:none]">
-                <button
-                  onClick={() => {
-                    setFilter(null)
-                    setMoreFilters(false)
-                  }}
-                  className={chipCls(filter === null)}
-                >
-                  All
-                </button>
-                {hiddenActive && (
-                  <button onClick={() => setFilter(null)} className={chipCls(true)}>
-                    {activityByKey(filter).emoji} {activityByKey(filter).label} ✕
-                  </button>
+                <n.icon size={18} />
+                {n.label}
+                {n.key === 'inbox' && notifications.unread > 0 && (
+                  <span className="text-xs text-indigo-700">{notifications.unread}</span>
                 )}
-                {topActivities.map((a) => (
-                  <button
-                    key={a.key}
-                    onClick={() => setFilter(filter === a.key ? null : a.key)}
-                    className={chipCls(filter === a.key)}
-                  >
-                    {a.emoji} {a.label}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setMoreFilters(!moreFilters)}
-                  className={chipCls(moreFilters)}
-                >
-                  {moreFilters ? 'Less ⌃' : 'More ⌄'}
-                </button>
-              </div>
-              {moreFilters && (
-                <div className="mt-2 bg-white/95 backdrop-blur rounded-2xl shadow-lg p-3 grid grid-cols-3 gap-2">
-                  {moreActivities.map((a) => (
-                    <button
-                      key={a.key}
-                      onClick={() => {
-                        setFilter(filter === a.key ? null : a.key)
-                        setMoreFilters(false)
-                      }}
-                      className={`whitespace-nowrap rounded-xl px-2 py-2 text-xs font-semibold ${
-                        filter === a.key ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      {a.emoji} {a.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )
-        })()}
-      </header>
-
-      {/* Post intent FAB */}
-      <button
-        onClick={openPost}
-        className={`absolute z-20 right-4 w-14 h-14 rounded-full bg-gradient-to-br from-gray-900 to-indigo-700 text-white text-3xl font-light shadow-xl shadow-indigo-900/30 flex items-center justify-center hover:shadow-2xl hover:shadow-indigo-900/40 ${
-          view === 'map' ? 'bottom-[calc(45%+16px)]' : 'bottom-6'
-        }`}
-        aria-label="Post an activity"
-      >
-        +
-      </button>
-
-      {/* Bottom sheet (map view only) */}
-      {view === 'map' && (
-      <div
-        className={`absolute inset-x-0 bottom-0 z-10 bg-white rounded-t-[28px] shadow-[0_-8px_32px_rgba(0,0,0,0.18)] transition-transform duration-300 ${
-          sheetOpen ? 'translate-y-0' : 'translate-y-[calc(100%-56px)]'
-        }`}
-        style={{ height: '45%' }}
-      >
-        <div className="aurora rounded-t-[28px] overflow-hidden" />
-        <button
-          className="relative w-full pt-3 pb-2 flex flex-col items-center gap-1.5"
-          onClick={() => setSheetOpen(!sheetOpen)}
-        >
-          <div className="w-10 h-1 rounded-full bg-gray-300" />
-          <p className="text-sm font-semibold text-gray-900">
-            {source === 'loading' ? 'Loading…' : `${intents.length} plan${intents.length === 1 ? '' : 's'} live`}{' '}
-            {filter ? `· ${ACTIVITIES.find((a) => a.key === filter)?.label}` : ''}
-            {source === 'demo' && (
-              <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 align-middle">
-                demo
-              </span>
-            )}
-          </p>
-        </button>
-        <div className="relative h-[calc(100%-56px)] overflow-y-auto px-4 pb-6 space-y-3 mx-auto w-full max-w-3xl">
-          {sorted.map((intent) => (
-            <IntentCard
-              key={intent.id}
-              intent={intent}
-              selected={intent.id === selectedId}
-              userLoc={userLoc}
-              onClick={() => handleSelect(intent.id === selectedId ? null : intent.id)}
-            >
-              <JoinSection
-                intent={intent}
-                auth={auth}
-                onRequestAuth={() => setAuthOpen(true)}
-                onEdit={(i) => {
-                  setEditIntent(i)
-                  setPostOpen(true)
-                }}
-                onViewProfile={setPeekUserId}
-                onOpenChat={setChatIntent}
-              />
-            </IntentCard>
-          ))}
-          {source === 'loading' &&
-            sorted.length === 0 &&
-            [0, 1, 2].map((i) => (
-              <div key={i} className="rounded-2xl border border-gray-100 p-4 animate-pulse">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gray-100" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-3.5 bg-gray-100 rounded w-3/4" />
-                    <div className="h-3 bg-gray-100 rounded w-1/2" />
-                    <div className="h-2.5 bg-gray-100 rounded w-2/3" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          {source !== 'loading' && sorted.length === 0 && (
-            <div className="text-center pt-6 space-y-2">
-              <p className="text-4xl">🦗</p>
-              <p className="text-sm font-semibold text-gray-700">Quiet right now</p>
-              <p className="text-sm text-gray-500">Someone has to go first — why not you?</p>
-              <button
-                onClick={openPost}
-                className="mt-1 bg-gray-900 text-white rounded-xl px-5 py-2.5 text-sm font-semibold"
-              >
-                Post a plan 🎯
               </button>
-            </div>
+            ))}
+          </nav>
+          <button
+            className="secondary !p-2.5"
+            disabled={locating}
+            onClick={locate}
+            aria-label={locating ? 'Finding your location' : 'Use my location'}
+          >
+            <MapPin size={19} />
+          </button>
+          {auth.session ? (
+            <button
+              className="secondary !p-2.5"
+              onClick={() => setProfileOpen(true)}
+              aria-label="Your profile"
+            >
+              <User size={19} />
+            </button>
+          ) : (
+            <button
+              className="primary !px-3 !py-2 text-sm whitespace-nowrap"
+              onClick={() => signIn()}
+            >
+              Sign in
+            </button>
           )}
         </div>
-      </div>
+      </header>
+      {notice && (
+        <div
+          role="status"
+          className="bg-indigo-50 px-4 sm:px-8 py-3 flex items-center gap-3 text-sm"
+        >
+          <p className="flex-1 max-w-5xl mx-auto">{notice}</p>
+          <button onClick={() => setNotice('')} aria-label="Dismiss notice" className="px-3">
+            ✕
+          </button>
+        </div>
       )}
-
-      <AuthSheet auth={auth} open={authOpen} onClose={() => setAuthOpen(false)} onSignedIn={handleSignedIn} />
-      <ProfileSheet
-        auth={auth}
-        open={profileOpen}
-        onClose={() => setProfileOpen(false)}
-        onViewIntent={(i) => {
-          setProfileOpen(false)
-          setView('map')
-          handleSelect(i.id)
-        }}
-        onRepost={(i) => {
-          setProfileOpen(false)
-          setEditIntent(null)
-          setTemplateIntent(i)
-          setPostOpen(true)
-        }}
-      />
-      <ProfilePeek userId={peekUserId} onClose={() => setPeekUserId(null)} />
-      <ChatSheet intent={chatIntent} auth={auth} onClose={() => setChatIntent(null)} />
-      <NotificationsSheet
-        open={notifOpen}
-        items={notifications.items}
-        onClose={() => setNotifOpen(false)}
-        onOpenNotification={openNotification}
-      />
-      <Onboarding
-        open={showOnboarding}
-        onClose={() => {
-          localStorage.setItem('plannd_onboarded', '1')
-          setShowOnboarding(false)
-        }}
-      />
-      <PostSheet
-        open={postOpen}
-        session={auth.session}
-        firstName={auth.firstName}
-        editing={editIntent}
-        template={templateIntent}
-        onClose={() => {
-          setPostOpen(false)
-          setEditIntent(null)
-          setTemplateIntent(null)
-        }}
-        onPosted={() => {
-          setPostOpen(false)
-          setEditIntent(null)
-          setTemplateIntent(null)
-          refresh()
-        }}
-      />
+      <main id="main-content" className="flex-1 min-w-0">
+        {view === 'explore' && (
+          <Explore
+            intents={intents}
+            source={source}
+            onOpen={openPlan}
+            onPost={post}
+            onRetry={refresh}
+            userLoc={userLoc}
+            onRequestLocation={locate}
+            activity={activity}
+            onActivity={setActivity}
+          />
+        )}
+        {view === 'plans' && (
+          <MyPlans
+            key={`${planKey}-${auth.session?.user.id ?? 'guest'}`}
+            userId={auth.session?.user.id}
+            onSignIn={() => signIn()}
+            onOpen={openPlan}
+            onPost={post}
+          />
+        )}
+        {view === 'inbox' && (
+          <NotificationsSheet
+            items={notifications.items}
+            state={notifications.state}
+            signedIn={!!auth.session}
+            onSignIn={() => signIn()}
+            onOpenNotification={openNotification}
+            onRetry={notifications.refresh}
+            onMarkAll={notifications.markAllRead}
+          />
+        )}
+        {view === 'map' && (
+          <section className="relative h-[calc(100dvh-148px)] sm:h-[calc(100dvh-120px)] min-h-[480px]">
+            <Suspense
+              fallback={
+                <p role="status" className="p-8">
+                  Loading the map…
+                </p>
+              }
+            >
+              {provider === 'google' ? (
+                <GoogleMapView
+                  intents={mapIntents}
+                  selectedId={selected?.id ?? null}
+                  onSelect={(id) => {
+                    const i = mapIntents.find((i) => i.id === id)
+                    if (i) openPlan(i)
+                  }}
+                  userLoc={userLoc}
+                  onFallback={() => setProvider('maplibre')}
+                />
+              ) : (
+                <MapView
+                  intents={mapIntents}
+                  selectedId={selected?.id ?? null}
+                  onSelect={(id) => {
+                    const i = mapIntents.find((i) => i.id === id)
+                    if (i) openPlan(i)
+                  }}
+                  userLoc={userLoc}
+                />
+              )}
+            </Suspense>
+            <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-3 pointer-events-none">
+              <p className="bg-white shadow rounded-xl px-4 py-3 text-sm font-semibold pointer-events-auto">
+                {source === 'loading'
+                  ? 'Loading plans…'
+                  : source === 'error'
+                    ? 'Plans could not be refreshed'
+                    : `${mapIntents.length} upcoming ${mapIntents.length === 1 ? 'plan' : 'plans'}`}
+              </p>
+              <button className="primary pointer-events-auto" onClick={post}>
+                <Plus size={18} />
+                Post
+              </button>
+            </div>
+            {mapIntents.length === 0 && source === 'live' && (
+              <div className="absolute bottom-6 left-4 right-4 max-w-md mx-auto bg-white rounded-2xl shadow-lg p-5 text-center">
+                <h1 className="font-bold text-lg">No upcoming plans yet</h1>
+                <p className="text-sm text-gray-600 mt-2 mb-4">
+                  Choose a public spot and get the first plan started.
+                </p>
+                <button className="primary" onClick={post}>
+                  Post a plan
+                </button>
+              </div>
+            )}
+          </section>
+        )}
+      </main>
+      <footer className="max-w-5xl w-full mx-auto px-4 sm:px-8 py-4 flex justify-between items-center text-xs text-gray-600">
+        <span>Plann’d · Jaipur</span>
+        <button onClick={() => setHelpOpen(true)} className="flex items-center gap-1">
+          <HelpCircle size={15} />
+          Help, privacy & safety
+        </button>
+      </footer>
+      <nav
+        aria-label="Mobile navigation"
+        className="fixed bottom-0 inset-x-0 z-20 bg-white border-t border-gray-200 grid grid-cols-4 sm:hidden"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        {nav.map((n) => (
+          <button
+            key={n.key}
+            className={`relative min-h-[68px] flex flex-col justify-center items-center gap-1 text-[11px] font-semibold ${view === n.key ? 'text-indigo-800 bg-indigo-50' : 'text-gray-600'}`}
+            aria-current={view === n.key ? 'page' : undefined}
+            onClick={() => setView(n.key)}
+          >
+            <n.icon size={22} />
+            {n.label}
+            {n.key === 'inbox' && notifications.unread > 0 && (
+              <span className="absolute right-4 top-2 rounded-full bg-indigo-700 text-white px-1.5 text-[10px]">
+                {notifications.unread > 9 ? '9+' : notifications.unread}
+              </span>
+            )}
+          </button>
+        ))}
+      </nav>
+      {linkLoading && (
+        <div
+          role="status"
+          className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow p-4 z-30"
+        >
+          Opening plan…
+        </div>
+      )}
+      {selected && (
+        <Sheet title="Plan details" onClose={closePlan}>
+          <div className="p-5 pt-16">
+            <IntentCard intent={selected} selected>
+              <JoinSection
+                intent={selected}
+                auth={auth}
+                onRequestAuth={() => signIn('plan')}
+                onEdit={(i) => {
+                  setEditing(i)
+                  setTemplate(null)
+                  setPostOpen(true)
+                }}
+                onViewProfile={setPeek}
+                onOpenChat={setChat}
+              />
+            </IntentCard>
+            {selected.womenOnly && (
+              <p className="text-xs text-gray-600 mt-4">
+                Women-only eligibility uses self-declared gender. Plann’d does not verify identity.
+              </p>
+            )}
+          </div>
+        </Sheet>
+      )}
+      <Suspense
+        fallback={
+          <div
+            role="status"
+            className="fixed inset-x-4 bottom-24 bg-white p-4 shadow-xl rounded-xl z-40"
+          >
+            Loading…
+          </div>
+        }
+      >
+        {authOpen && (
+          <AuthSheet auth={auth} open onClose={() => setAuthOpen(false)} onSignedIn={signedIn} />
+        )}
+        {postOpen && (
+          <PostSheet
+            open
+            session={auth.session}
+            firstName={auth.firstName}
+            editing={editing}
+            template={template}
+            onClose={() => setPostOpen(false)}
+            onPosted={() => {
+              setPostOpen(false)
+              setSelected(null)
+              refresh()
+              setPlanKey((k) => k + 1)
+              setView('plans')
+              setNotice(
+                editing
+                  ? 'Your plan has been updated. Members receive an inbox update.'
+                  : 'Your plan is posted. Requests will appear in My plans.',
+              )
+            }}
+          />
+        )}
+        {profileOpen && (
+          <ProfileSheet
+            key={auth.session?.user.id}
+            auth={auth}
+            open
+            onClose={() => setProfileOpen(false)}
+            onViewIntent={(i) => {
+              setProfileOpen(false)
+              openPlan(i)
+            }}
+            onRepost={(i) => {
+              setProfileOpen(false)
+              setEditing(null)
+              setTemplate(i)
+              setPostOpen(true)
+            }}
+          />
+        )}
+        {peek && <ProfilePeek userId={peek} onClose={() => setPeek(null)} />}
+        {chat && (
+          <ChatSheet
+            key={`${chat.id}-${auth.session?.user.id}`}
+            intent={chat}
+            auth={auth}
+            onClose={() => setChat(null)}
+          />
+        )}
+        {helpOpen && (
+          <HelpSheet userId={auth.session?.user.id} onClose={() => setHelpOpen(false)} />
+        )}
+      </Suspense>
     </div>
   )
 }

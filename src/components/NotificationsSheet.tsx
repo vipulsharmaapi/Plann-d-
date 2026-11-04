@@ -1,64 +1,92 @@
 import type { AppNotification } from '../hooks/useNotifications'
-
-interface Props {
-  open: boolean
-  items: AppNotification[]
-  onClose: () => void
-  onOpenNotification: (n: AppNotification) => void
-}
-
-const ICONS: Record<AppNotification['type'], string> = {
+const ICONS: Record<string, string> = {
   join_request: '🙋',
   request_accepted: '🎉',
   chat_message: '💬',
+  plan_updated: '🗓️',
+  plan_cancelled: '✕',
+  reminder: '🔔',
 }
-
-const timeAgo = (iso: string) => {
-  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
-  if (mins < 1) return 'now'
-  if (mins < 60) return `${mins}m`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h`
-  return `${Math.floor(hours / 24)}d`
-}
-
-export default function NotificationsSheet({ open, items, onClose, onOpenNotification }: Props) {
-  if (!open) return null
-
+export default function NotificationsSheet({
+  items,
+  state,
+  onOpenNotification,
+  onMarkAll,
+  onRetry,
+  onSignIn,
+  signedIn,
+}: {
+  items: AppNotification[]
+  state: string
+  onOpenNotification: (n: AppNotification) => void
+  onMarkAll: () => void
+  onRetry: () => void
+  onSignIn: () => void
+  signedIn: boolean
+}) {
   return (
-    <div className="absolute inset-0 z-40 flex items-end sm:items-center sm:justify-center">
-      <div className="sheet-backdrop absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="sheet-panel relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl max-h-[80%] flex flex-col">
-        <div className="px-5 pt-4 pb-3 border-b border-gray-100 flex items-center">
-          <h2 className="flex-1 text-lg font-bold text-gray-900">Notifications</h2>
-          <button onClick={onClose} className="text-gray-400 text-xl px-2" aria-label="Close">
-            ✕
+    <section className="max-w-3xl mx-auto px-4 sm:px-8 py-8">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <h1 className="text-3xl font-bold">Inbox</h1>
+        {signedIn && items.some((i) => !i.read_at) && (
+          <button className="secondary text-sm" onClick={onMarkAll}>
+            Mark all read
+          </button>
+        )}
+      </div>
+      <p className="text-gray-600 mb-6">Requests, plan updates, messages and reminders.</p>
+      {!signedIn ? (
+        <button className="primary" onClick={onSignIn}>
+          Sign in to see your inbox
+        </button>
+      ) : state === 'loading' ? (
+        <p role="status">Loading your inbox…</p>
+      ) : state === 'error' ? (
+        <div role="alert">
+          <p>Couldn’t refresh your inbox.</p>
+          <button className="secondary mt-3" onClick={onRetry}>
+            Try again
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto">
-          {items.length === 0 && (
-            <p className="text-center text-sm text-gray-400 py-12">
-              Nothing yet — post a plan and they'll start rolling in 🔔
-            </p>
-          )}
+      ) : items.length === 0 ? (
+        <div className="py-12 text-center">
+          <p className="text-3xl mb-4" aria-hidden="true">
+            🔔
+          </p>
+          <h2 className="font-bold text-xl">You’re all caught up</h2>
+          <p className="text-gray-600 mt-2">Updates appear here when you post or join a plan.</p>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-gray-200 overflow-hidden">
           {items.map((n) => (
             <button
               key={n.id}
               onClick={() => onOpenNotification(n)}
-              className={`w-full text-left px-5 py-3.5 border-b border-gray-50 flex items-start gap-3 ${
-                n.read_at ? 'bg-white' : 'bg-indigo-50/60'
-              }`}
+              className={`w-full text-left p-4 border-b last:border-0 border-gray-100 flex items-start gap-3 ${n.read_at ? 'bg-white' : 'bg-indigo-50'}`}
             >
-              <span className="text-xl shrink-0">{ICONS[n.type]}</span>
-              <span className="flex-1 min-w-0">
-                <span className="block text-sm text-gray-800">{n.body}</span>
-                <span className="block text-xs text-gray-400 mt-0.5">{timeAgo(n.created_at)} ago</span>
+              <span className="text-xl" aria-hidden="true">
+                {ICONS[n.type] ?? '🔔'}
               </span>
-              {!n.read_at && <span className="w-2 h-2 rounded-full bg-indigo-500 mt-1.5 shrink-0" />}
+              <span className="flex-1 min-w-0">
+                <span className="block text-sm font-medium">{n.body}</span>
+                <span className="block text-xs text-gray-600 mt-1">
+                  {new Date(n.created_at).toLocaleString('en-IN', {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                    timeZone: 'Asia/Kolkata',
+                  })}{' '}
+                  IST
+                </span>
+              </span>
+              {!n.read_at && <span className="text-xs font-bold text-indigo-700">New</span>}
             </button>
           ))}
         </div>
-      </div>
-    </div>
+      )}
+      <p className="text-xs text-gray-500 mt-6">
+        Reminders appear here while you use Plann’d. Add a plan to your calendar for alerts outside
+        the app.
+      </p>
+    </section>
   )
 }

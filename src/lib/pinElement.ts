@@ -6,7 +6,7 @@ export function createPinEl(activityKey: ActivityKey, selected: boolean): HTMLEl
   const el = document.createElement('div')
   el.className = 'intent-pin'
   el.style.cssText = `
-    width: ${selected ? 44 : 36}px; height: ${selected ? 44 : 36}px;
+    width: ${selected ? 48 : 44}px; height: ${selected ? 48 : 44}px;
     border-radius: 50% 50% 50% 4px;
     background: ${activity.color};
     border: 2.5px solid white;

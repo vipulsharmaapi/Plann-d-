@@ -13,7 +13,7 @@ import { useNotifications, type AppNotification } from './hooks/useNotifications
 import { supabase } from './lib/supabase'
 import { GOOGLE_MAPS_KEY } from './lib/googleMaps'
 import type { LatLng } from './lib/geo'
-import { humanDay, type Intent, type ActivityKey } from './types'
+import { humanDay, type Intent, type ActivityKey, type VenueDraft } from './types'
 const MapView = lazy(() => import('./components/MapView'))
 const GoogleMapView = lazy(() => import('./components/GoogleMapView'))
 const AuthSheet = lazy(() => import('./components/AuthSheet'))
@@ -36,6 +36,7 @@ export default function App() {
     [helpOpen, setHelpOpen] = useState(false)
   const [editing, setEditing] = useState<Intent | null>(null),
     [template, setTemplate] = useState<Intent | null>(null),
+    [venuePrefill, setVenuePrefill] = useState<VenueDraft | null>(null),
     [peek, setPeek] = useState<string | null>(null),
     [chat, setChat] = useState<Intent | null>(null)
   const [userLoc, setUserLoc] = useState<LatLng | null>(null),
@@ -133,6 +134,14 @@ export default function App() {
   function post() {
     setEditing(null)
     setTemplate(null)
+    setVenuePrefill(null)
+    if (auth.session) setPostOpen(true)
+    else signIn('post')
+  }
+  function postAtVenue(draft: VenueDraft) {
+    setEditing(null)
+    setTemplate(null)
+    setVenuePrefill(draft)
     if (auth.session) setPostOpen(true)
     else signIn('post')
   }
@@ -263,6 +272,7 @@ export default function App() {
             onRequestLocation={locate}
             activity={activity}
             onActivity={setActivity}
+            onVenuePost={postAtVenue}
           />
         )}
         {view === 'plans' && (
@@ -433,6 +443,7 @@ export default function App() {
             firstName={auth.firstName}
             editing={editing}
             template={template}
+            venuePrefill={venuePrefill}
             onClose={() => setPostOpen(false)}
             onPosted={() => {
               setPostOpen(false)
@@ -462,6 +473,7 @@ export default function App() {
               setProfileOpen(false)
               setEditing(null)
               setTemplate(i)
+              setVenuePrefill(null)
               setPostOpen(true)
             }}
           />

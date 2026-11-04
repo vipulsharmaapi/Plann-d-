@@ -6,7 +6,7 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { GOOGLE_MAP_ID, loadGoogleMaps, onGoogleAuthFailure } from '../lib/googleMaps'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
-import { ACTIVITIES, type ActivityKey, type Intent } from '../types'
+import { ACTIVITIES, type ActivityKey, type Intent, type VenueDraft } from '../types'
 
 interface Props {
   open: boolean
@@ -15,6 +15,7 @@ interface Props {
   editing?: Intent | null
   /** Prefill from a past post but create a new one ("post again") */
   template?: Intent | null
+  venuePrefill?: VenueDraft | null
   onClose: () => void
   onPosted: () => void
 }
@@ -142,7 +143,15 @@ const defaultTimes = () => {
   }
 }
 
-export default function PostSheet({ open, session, editing, template, onClose, onPosted }: Props) {
+export default function PostSheet({
+  open,
+  session,
+  editing,
+  template,
+  venuePrefill,
+  onClose,
+  onPosted,
+}: Props) {
   const [activity, setActivity] = useState<ActivityKey>('badminton')
   const [title, setTitle] = useState('')
   const [note, setNote] = useState('')
@@ -271,7 +280,7 @@ export default function PostSheet({ open, session, editing, template, onClose, o
     } else {
       setLinkLoading(false)
       const t = defaultTimes()
-      setActivity(template?.activity ?? 'badminton')
+      setActivity(template?.activity ?? venuePrefill?.activity ?? 'badminton')
       setTitle(template?.title ?? '')
       setNote(template?.note ?? '')
       setDate(todayIST())
@@ -280,22 +289,23 @@ export default function PostSheet({ open, session, editing, template, onClose, o
       setSpots(template?.spotsNeeded ?? 2)
       setWomenOnly(template?.womenOnly ?? false)
       setWhatsapp('')
-      setVenueName(template?.venueName ?? '')
-      setGooglePlaceId(template?.googlePlaceId ?? null)
+      setVenueName(template?.venueName ?? venuePrefill?.venueName ?? '')
+      setGooglePlaceId(template?.googlePlaceId ?? venuePrefill?.googlePlaceId ?? null)
       setMenuUrl(template?.venueMenuUrl ?? '')
-      setPin(template ? { lat: template.lat, lng: template.lng } : null)
+      const venue = template ?? venuePrefill
+      setPin(venue ? { lat: venue.lat, lng: venue.lng } : null)
     }
     setError(null)
     return () => {
       active = false
     }
-  }, [open, editing, template])
+  }, [open, editing, template, venuePrefill])
 
   useEffect(() => {
     if (!open || !mapDivRef.current) return
     let cancelled = false
     let mlMap: maplibregl.Map | null = null
-    const prefill = editing ?? template ?? null
+    const prefill = editing ?? template ?? venuePrefill ?? null
 
     const initMapLibre = () => {
       if (cancelled || !mapDivRef.current) return
@@ -396,7 +406,7 @@ export default function PostSheet({ open, session, editing, template, onClose, o
       gMapRef.current = null
       mlMap?.remove()
     }
-  }, [open, editing, template])
+  }, [open, editing, template, venuePrefill])
 
   if (!open) return null
 
@@ -461,6 +471,12 @@ export default function PostSheet({ open, session, editing, template, onClose, o
         <h2 className="text-lg font-bold text-gray-900">
           {editing ? 'Edit your post' : 'Post an activity'}
         </h2>
+        {venuePrefill && !editing && !template && (
+          <p className="text-sm text-gray-600">
+            Venue selected. Add a title, time and group size. Posting a plan doesn’t reserve the
+            venue.
+          </p>
+        )}
 
         <label className="block text-sm text-gray-600">
           What's the plan?
@@ -500,8 +516,8 @@ export default function PostSheet({ open, session, editing, template, onClose, o
           />
         </label>
 
-        <div className="flex items-center gap-3">
-          <label className="flex-1 text-sm text-gray-600">
+        <div className="grid grid-cols-1 min-[380px]:grid-cols-2 sm:grid-cols-3 items-end gap-3">
+          <label className="min-w-0 text-sm text-gray-600">
             From
             <input
               type="time"
@@ -510,7 +526,7 @@ export default function PostSheet({ open, session, editing, template, onClose, o
               onChange={(e) => setStartTime(e.target.value)}
             />
           </label>
-          <label className="flex-1 text-sm text-gray-600">
+          <label className="min-w-0 text-sm text-gray-600">
             Till
             <input
               type="time"
@@ -519,7 +535,7 @@ export default function PostSheet({ open, session, editing, template, onClose, o
               onChange={(e) => setEndTime(e.target.value)}
             />
           </label>
-          <label className="w-24 text-sm text-gray-600">
+          <label className="min-[380px]:col-span-2 sm:col-span-1 min-w-0 text-sm text-gray-600">
             Need
             <select
               className={`${inputCls} mt-1`}

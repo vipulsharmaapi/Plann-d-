@@ -46,6 +46,16 @@ Hostinger's edge can return a bot-verification page before a request reaches the
 
 Supabase SQL Editor verification and mobile/desktop screenshots are retained in the local audit directory. No production auth tokens, email addresses, private contacts or chat contents are included in repository fixtures or release artifacts.
 
+## Venue discovery
+
+Explore → Find a place lets visitors browse Jaipur venues by activity, including football and cafés, without signing in. Searches use the existing Places API (New) key and request 12 results at a time, with user-triggered pagination up to five pages. Each category change cancels the previous search; requests time out after 12 seconds and offer retry. Photos load lazily. Discovery is a separate lazy-loaded frontend chunk and needs no new database migration.
+
+Highest rated and Most reviewed sort only the fetched results; Google relevance preserves the search order. Closed venues, missing coordinates and results outside the existing Jaipur posting area are excluded. This is not a complete venue directory, live booking inventory or a curated endorsement. Venue operators must confirm access, opening times, prices and reservations. Attribution stays with Google content, including photo authors and any supplied providers. Live Google content is not copied into a persistent discovery cache.
+
+Make a plan here retains activity, venue name, place ID and coordinates while a guest completes the in-app sign-in flow, then prefills the existing editor. It does not publish or reserve anything automatically. The host still supplies a title, date, time and group size. A full page reload resets this venue selection; the existing email-code checkpoint is separate. The existing `save_plan` RPC persists the resulting host-confirmed plan.
+
+The Google key's production-origin restriction remains in place; local fixture checks do not establish that production search or photos work. Verify real football and café listings, a photo, rating sort and editor prefill on the deployed domain after release. Search requests and photo views consume the project's existing Google Maps quotas and billing; monitor those before scaling acquisition.
+
 ## Shared hosting worker budget
 
 This hosting account shares a 120-process/thread limit across its websites. During the Express rollout, baseline usage was already around 108–109 and rose to the limit, causing 503 responses and repeated Node restarts. Plann’d uses `UV_THREADPOOL_SIZE=1` and `NODE_OPTIONS=--v8-pool-size=1` in Hostinger to reduce its worker count. Keep these runtime settings when redeploying. Do not stop all account processes as routine maintenance; that interrupts unrelated sites. Review the account's Max Processes graph if errors return.

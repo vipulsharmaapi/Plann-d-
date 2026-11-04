@@ -150,9 +150,11 @@ export function renderPreview(data) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630"><rect width="1200" height="630" fill="#f7f8fc"/><g font-family="Manrope" fill="#181c2a"><text x="72" y="90" font-size="38" font-weight="800">Plann’d</text><text x="1128" y="88" text-anchor="end" font-size="24" fill="#5143a8">Jaipur</text>${title}<text x="76" y="397" font-size="25" font-weight="600" fill="#5143a8">${escapeHtml(data.when)}</text>${venue}<path d="M72 529H1128" stroke="#d8dbe5"/><text x="76" y="579" font-size="25" font-weight="700">${escapeHtml(data.status)}</text><text x="1128" y="579" text-anchor="end" font-size="24">Who’s in?</text></g></svg>`
   return new Resvg(svg, {
     font: {
-      fontFiles: [400, 600, 800].map((w) =>
-        fileURLToPath(new URL(`./assets/Manrope-${w}.ttf`, import.meta.url)),
-      ),
+      fontFiles: [
+        ...[400, 600, 800].map((w) => `Manrope-${w}.ttf`),
+        ...[400, 800].map((w) => `NotoSansDevanagari-${w}.ttf`),
+        'NotoSansSymbols2-Regular.ttf',
+      ].map((name) => fileURLToPath(new URL(`./assets/${name}`, import.meta.url))),
       loadSystemFonts: false,
       defaultFontFamily: 'Manrope',
     },

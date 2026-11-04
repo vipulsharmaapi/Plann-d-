@@ -33,3 +33,7 @@ The Google browser key must permit the production domain and the Places API (New
 Do not switch Hostinger back to a static Vite preset: that removes the server preview routes. Use Express, npm, entry `server.js`, Node 22 and the existing environment settings. `/healthz` confirms process health; also check a real plan's HTML and image after redeployment.
 
 Supabase SQL Editor verification and mobile/desktop screenshots are retained in the local audit directory. No production auth tokens, email addresses, private contacts or chat contents are included in repository fixtures or release artifacts.
+
+## Shared hosting worker budget
+
+This hosting account shares a 120-process/thread limit across its websites. During the Express rollout, baseline usage was already around 108–109 and rose to the limit, causing 503 responses and repeated Node restarts. Plann’d uses `UV_THREADPOOL_SIZE=1` and `NODE_OPTIONS=--v8-pool-size=1` in Hostinger to reduce its worker count. Keep these runtime settings when redeploying. Do not stop all account processes as routine maintenance; that interrupts unrelated sites. Review the account's Max Processes graph if errors return.

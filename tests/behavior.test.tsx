@@ -3,6 +3,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import Explore from '../src/components/Explore'
+import ConfirmAction from '../src/components/ConfirmAction'
 import { createCalendar, foldCalendarLine } from '../src/lib/calendar'
 import { mergeMessages, type Message } from '../src/lib/messages'
 import type { Intent } from '../src/types'
@@ -25,6 +26,32 @@ const plan: Intent = {
   womenOnly: false,
 }
 afterEach(cleanup)
+test('a destructive action is not run on open or dismissal, only explicit confirmation', async () => {
+  // jsdom has no modal implementation. Browser focus/Escape are checked separately.
+  HTMLDialogElement.prototype.showModal = function () {
+    this.open = true
+  }
+  HTMLDialogElement.prototype.close = function () {
+    this.open = false
+  }
+  const user = userEvent.setup()
+  const action = vi.fn(),
+    close = vi.fn()
+  const confirmation = {
+    title: 'Leave this plan?',
+    description: 'Your spot will be released.',
+    label: 'Leave plan',
+    action,
+  }
+  render(<ConfirmAction confirmation={confirmation} onClose={close} />)
+  expect(screen.getByRole('dialog', { name: 'Leave this plan?' })).toBeTruthy()
+  expect(action).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('button', { name: 'Go back' }))
+  expect(close).toHaveBeenCalledOnce()
+  expect(action).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('button', { name: 'Leave plan', exact: true }))
+  expect(action).toHaveBeenCalledOnce()
+})
 describe('discovery states', () => {
   const props = {
     intents: [],

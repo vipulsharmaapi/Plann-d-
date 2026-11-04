@@ -81,30 +81,34 @@ export default function VenueDetails({ intent }: { intent: Intent }) {
                   <span>Google Maps contributors</span>
                 )}
               </figcaption>
-              {photos.length > 1 && (
-                <div className="flex gap-2 mt-2" aria-label="Venue photos">
-                  {photos.map((_, i) => (
-                    <button
-                      key={i}
-                      aria-label={`Show venue photo ${i + 1}`}
-                      aria-pressed={i === photoIndex}
-                      onClick={() => {
-                        setPhotoIndex(i)
-                        setImageFailed(false)
-                      }}
-                      className={`w-11 h-11 rounded-lg text-sm font-semibold ${i === photoIndex ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'}`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                </div>
-              )}
             </figure>
           ) : (
             <p className="flex items-center gap-2 text-sm text-gray-600 my-4">
               <ImageOff size={18} aria-hidden="true" />
-              {failed ? 'Venue details could not load.' : 'No venue photo available.'}
+              {failed
+                ? 'Venue details could not load.'
+                : imageFailed
+                  ? 'This photo could not load. Try another photo or open Google Maps.'
+                  : 'No venue photo available.'}
             </p>
+          )}
+          {photos.length > 1 && (
+            <div className="flex gap-2 mt-2" aria-label="Venue photos">
+              {photos.map((_, i) => (
+                <button
+                  key={i}
+                  aria-label={`Show venue photo ${i + 1}`}
+                  aria-pressed={i === photoIndex}
+                  onClick={() => {
+                    setPhotoIndex(i)
+                    setImageFailed(false)
+                  }}
+                  className={`w-11 h-11 rounded-lg text-sm font-semibold ${i === photoIndex ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'}`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
           )}
           {place && (
             <div className="mt-3 space-y-2 text-sm">

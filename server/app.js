@@ -43,7 +43,7 @@ export function createApp({
     res.set('Referrer-Policy', 'strict-origin-when-cross-origin')
     next()
   })
-  app.get('/healthz', (_req, res) => res.json({ ok: true }))
+  app.get('/healthz', (_req, res) => res.set('Cache-Control', 'no-store').json({ ok: true }))
   app.get('/og/site.png', (_req, res) =>
     res
       .type('png')

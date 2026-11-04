@@ -65,7 +65,7 @@ export function previewData(plan, now = Date.now()) {
     venue,
     when,
     status,
-    description: `${when} · ${venue} · ${status}. Request to join on Plann’d.`,
+    description: `${when} · ${venue} · ${status}. View this plan on Plann’d.`,
     url: `${SITE_URL}/?p=${plan.id}`,
     image: `${SITE_URL}/og/plans/${plan.id}.png?v=${version}`,
   }

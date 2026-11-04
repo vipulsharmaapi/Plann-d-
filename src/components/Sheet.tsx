@@ -35,6 +35,8 @@ export default function Sheet({
       className={`modal-sheet ${className}`}
       onKeyDown={(e) => {
         if (e.key !== 'Tab') return
+        // Portaled sheets remain nested in React's event tree.
+        e.stopPropagation()
         const controls = Array.from(
           e.currentTarget.querySelectorAll<HTMLElement>(
             'button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]',
@@ -52,6 +54,7 @@ export default function Sheet({
       }}
       onCancel={(e) => {
         e.preventDefault()
+        e.stopPropagation()
         onClose()
       }}
       onClick={(e) => {

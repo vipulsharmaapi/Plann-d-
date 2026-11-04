@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import Explore from '../src/components/Explore'
 import ConfirmAction from '../src/components/ConfirmAction'
+import Sheet from '../src/components/Sheet'
 import { createCalendar, foldCalendarLine } from '../src/lib/calendar'
 import { mergeMessages, type Message } from '../src/lib/messages'
 import type { Intent } from '../src/types'
@@ -25,15 +26,32 @@ const plan: Intent = {
   posterJoinCount: 0,
   womenOnly: false,
 }
+// jsdom has no modal implementation. Browser focus/Escape are checked separately.
+HTMLDialogElement.prototype.showModal = function () {
+  this.open = true
+}
+HTMLDialogElement.prototype.close = function () {
+  this.open = false
+}
 afterEach(cleanup)
+test('cancelling a nested confirmation does not dismiss its parent plan', () => {
+  const parentClose = vi.fn(),
+    childClose = vi.fn()
+  render(
+    <Sheet title="Plan details" onClose={parentClose}>
+      <Sheet title="Leave this plan?" onClose={childClose}>
+        Confirm membership change
+      </Sheet>
+    </Sheet>,
+  )
+  fireEvent(
+    screen.getByRole('dialog', { name: 'Leave this plan?' }),
+    new Event('cancel', { cancelable: true }),
+  )
+  expect(childClose).toHaveBeenCalledOnce()
+  expect(parentClose).not.toHaveBeenCalled()
+})
 test('a destructive action is not run on open or dismissal, only explicit confirmation', async () => {
-  // jsdom has no modal implementation. Browser focus/Escape are checked separately.
-  HTMLDialogElement.prototype.showModal = function () {
-    this.open = true
-  }
-  HTMLDialogElement.prototype.close = function () {
-    this.open = false
-  }
   const user = userEvent.setup()
   const action = vi.fn(),
     close = vi.fn()

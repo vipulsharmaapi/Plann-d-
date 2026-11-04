@@ -14,7 +14,13 @@ interface Props {
   userLoc?: LatLng | null
 }
 
-export default function GoogleMapView({ intents, selectedId, onSelect, onFallback, userLoc }: Props) {
+export default function GoogleMapView({
+  intents,
+  selectedId,
+  onSelect,
+  onFallback,
+  userLoc,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<google.maps.Map | null>(null)
   const markersRef = useRef<Map<string, google.maps.marker.AdvancedMarkerElement>>(new Map())
@@ -23,6 +29,7 @@ export default function GoogleMapView({ intents, selectedId, onSelect, onFallbac
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
+    const markers = markersRef.current
     let cancelled = false
     const offAuthFailure = onGoogleAuthFailure(() => {
       if (!cancelled) onFallback()
@@ -50,7 +57,7 @@ export default function GoogleMapView({ intents, selectedId, onSelect, onFallbac
       cancelled = true
       offAuthFailure()
       mapRef.current = null
-      markersRef.current.clear()
+      markers.clear()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -69,6 +76,7 @@ export default function GoogleMapView({ intents, selectedId, onSelect, onFallbac
         position: { lat: intent.lat, lng: intent.lng },
         content: el,
         gmpClickable: true,
+        title: intent.title,
       })
       marker.addEventListener('gmp-click', () => onSelectRef.current(intent.id))
       markersRef.current.set(intent.id, marker)

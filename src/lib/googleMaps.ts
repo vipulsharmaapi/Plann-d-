@@ -3,7 +3,8 @@ import { importLibrary, setOptions } from '@googlemaps/js-api-loader'
 export const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined
 // AdvancedMarkerElement needs a map ID; DEMO_MAP_ID is Google's sanctioned
 // default. Set VITE_GOOGLE_MAP_ID for a custom-styled map later.
-export const GOOGLE_MAP_ID = (import.meta.env.VITE_GOOGLE_MAP_ID as string | undefined) || 'DEMO_MAP_ID'
+export const GOOGLE_MAP_ID =
+  (import.meta.env.VITE_GOOGLE_MAP_ID as string | undefined) || 'DEMO_MAP_ID'
 
 // Auth-class failures (API not enabled, referrer blocked, bad key) surface
 // asynchronously AFTER the script loads — Google reports them only via the

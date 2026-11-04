@@ -46,6 +46,9 @@ export const humanDay = (date: string): string => {
 }
 
 export interface Intent {
+  status?: 'open' | 'full' | 'cancelled' | 'expired'
+  startsAtIso?: string
+  endsAtIso?: string
   id: string
   userId?: string | null
   activity: ActivityKey

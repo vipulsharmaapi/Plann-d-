@@ -1,5 +1,7 @@
+import Sheet from './Sheet'
 import { useEffect, useRef, useState } from 'react'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
 import { GOOGLE_MAP_ID, loadGoogleMaps, onGoogleAuthFailure } from '../lib/googleMaps'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
@@ -19,7 +21,7 @@ interface Props {
 const JAIPUR_CENTER: [number, number] = [75.7873, 26.8905]
 
 // Only real WhatsApp URLs — blocks javascript: and lookalike links
-const WHATSAPP_LINK_RE = /^https:\/\/(chat\.whatsapp\.com|wa\.me)\/.+/i
+const WHATSAPP_LINK_RE = /^https:\/\/(chat\.whatsapp\.com|wa\.me)\/[A-Za-z0-9?=&+_-]+$/
 
 interface VenueResult {
   name: string
@@ -56,11 +58,13 @@ async function searchVenuesGoogle(q: string): Promise<VenueResult[]> {
   })
   if (!res.ok) throw new Error(`places ${res.status}`)
   const json = await res.json()
-  return ((json.places ?? []) as Array<{
-    displayName?: { text?: string }
-    formattedAddress?: string
-    location: { latitude: number; longitude: number }
-  }>)
+  return (
+    (json.places ?? []) as Array<{
+      displayName?: { text?: string }
+      formattedAddress?: string
+      location: { latitude: number; longitude: number }
+    }>
+  )
     .map((p) => ({
       name: p.displayName?.text || q,
       label: (p.formattedAddress ?? '').split(',').slice(0, 2).join(',').trim(),
@@ -85,17 +89,19 @@ async function searchVenues(q: string): Promise<VenueResult[]> {
   if (!res.ok) return []
   const json = await res.json()
   return (json.features ?? [])
-    .map((f: { properties: Record<string, string>; geometry: { coordinates: [number, number] } }) => {
-      const p = f.properties
-      const [lng, lat] = f.geometry.coordinates
-      const area = [p.district, p.city, p.state].filter(Boolean).slice(0, 2).join(', ')
-      return {
-        name: p.name || p.street || q,
-        label: area,
-        lat,
-        lng,
-      }
-    })
+    .map(
+      (f: { properties: Record<string, string>; geometry: { coordinates: [number, number] } }) => {
+        const p = f.properties
+        const [lng, lat] = f.geometry.coordinates
+        const area = [p.district, p.city, p.state].filter(Boolean).slice(0, 2).join(', ')
+        return {
+          name: p.name || p.street || q,
+          label: area,
+          lat,
+          lng,
+        }
+      },
+    )
     .filter(
       (v: VenueResult) =>
         Math.abs(v.lat - JAIPUR_CENTER[1]) < 0.55 && Math.abs(v.lng - JAIPUR_CENTER[0]) < 0.55,
@@ -132,15 +138,7 @@ const defaultTimes = () => {
   }
 }
 
-export default function PostSheet({
-  open,
-  session,
-  firstName,
-  editing,
-  template,
-  onClose,
-  onPosted,
-}: Props) {
+export default function PostSheet({ open, session, editing, template, onClose, onPosted }: Props) {
   const [activity, setActivity] = useState<ActivityKey>('badminton')
   const [title, setTitle] = useState('')
   const [note, setNote] = useState('')
@@ -154,6 +152,8 @@ export default function PostSheet({
   const [pin, setPin] = useState<{ lat: number; lng: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [linkLoading, setLinkLoading] = useState(false)
+  const draftId = useRef<string>(crypto.randomUUID())
 
   const mapDivRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -168,20 +168,26 @@ export default function PostSheet({
   useEffect(() => {
     const q = venueQuery.trim()
     if (q.length < 3) {
+      setSearching(false)
       setVenueResults([])
       return
     }
+    let active = true
     setSearching(true)
     const t = setTimeout(async () => {
       try {
-        setVenueResults(await searchVenues(q))
+        const results = await searchVenues(q)
+        if (active) setVenueResults(results)
       } catch {
-        setVenueResults([])
+        if (active) setVenueResults([])
       } finally {
-        setSearching(false)
+        if (active) setSearching(false)
       }
     }, 400)
-    return () => clearTimeout(t)
+    return () => {
+      active = false
+      clearTimeout(t)
+    }
   }, [venueQuery])
 
   const placePin = (lat: number, lng: number) => {
@@ -203,7 +209,9 @@ export default function PostSheet({
     const map = mapRef.current
     if (!map) return
     if (!markerRef.current) {
-      markerRef.current = new maplibregl.Marker({ color: '#111827' }).setLngLat([lng, lat]).addTo(map)
+      markerRef.current = new maplibregl.Marker({ color: '#111827' })
+        .setLngLat([lng, lat])
+        .addTo(map)
     } else {
       markerRef.current.setLngLat([lng, lat])
     }
@@ -220,6 +228,8 @@ export default function PostSheet({
   // Populate (or reset) the form each time the sheet opens
   useEffect(() => {
     if (!open) return
+    let active = true
+    draftId.current = editing?.id ?? crypto.randomUUID()
     if (editing) {
       setActivity(editing.activity)
       setTitle(editing.title)
@@ -230,6 +240,7 @@ export default function PostSheet({
       setSpots(editing.spotsNeeded)
       setWomenOnly(editing.womenOnly)
       setWhatsapp('')
+      setLinkLoading(true)
       setVenueName(editing.venueName)
       setPin({ lat: editing.lat, lng: editing.lng })
       // Group link lives in a participant-only table
@@ -238,8 +249,17 @@ export default function PostSheet({
         .select('whatsapp_link')
         .eq('intent_id', editing.id)
         .maybeSingle()
-        .then(({ data }) => setWhatsapp(data?.whatsapp_link ?? ''))
+        .then(({ data, error }) => {
+          if (active) {
+            setLinkLoading(false)
+            if (error) {
+              setError('Could not load the saved group link. Reopen this editor before saving.')
+              setLinkLoading(true)
+            } else setWhatsapp(data?.whatsapp_link ?? '')
+          }
+        })
     } else {
+      setLinkLoading(false)
       const t = defaultTimes()
       setActivity(template?.activity ?? 'badminton')
       setTitle(template?.title ?? '')
@@ -254,6 +274,9 @@ export default function PostSheet({
       setPin(template ? { lat: template.lat, lng: template.lng } : null)
     }
     setError(null)
+    return () => {
+      active = false
+    }
   }, [open, editing, template])
 
   useEffect(() => {
@@ -280,7 +303,7 @@ export default function PostSheet({
         },
         center: prefill ? [prefill.lng, prefill.lat] : JAIPUR_CENTER,
         zoom: prefill ? 13 : 10.8,
-        attributionControl: false,
+        attributionControl: { compact: true },
       })
       if (prefill) {
         markerRef.current = new maplibregl.Marker({ color: '#111827' })
@@ -314,7 +337,9 @@ export default function PostSheet({
       .then((g) => {
         if (cancelled || !mapDivRef.current) return
         const map = new g.maps.Map(mapDivRef.current, {
-          center: prefill ? { lat: prefill.lat, lng: prefill.lng } : { lat: JAIPUR_CENTER[1], lng: JAIPUR_CENTER[0] },
+          center: prefill
+            ? { lat: prefill.lat, lng: prefill.lng }
+            : { lat: JAIPUR_CENTER[1], lng: JAIPUR_CENTER[0] },
           zoom: prefill ? 13 : 10.8,
           mapId: GOOGLE_MAP_ID,
           disableDefaultUI: true,
@@ -360,7 +385,7 @@ export default function PostSheet({
   if (!open) return null
 
   const submit = async () => {
-    if (!session) return
+    if (!session || busy || linkLoading) return
     setError(null)
     if (title.trim().length < 3) return setError('Give it a short title (3+ characters).')
     if (!pin) return setError('Tap the map to drop a pin where you’ll meet.')
@@ -387,32 +412,21 @@ export default function PostSheet({
       spots_needed: spots,
       women_only: womenOnly,
     }
-    let intentId = editing?.id ?? null
-    let err: { message: string } | null = null
-    if (editing) {
-      ;({ error: err } = await supabase.from('intents').update(values).eq('id', editing.id))
-    } else {
-      const { data, error } = await supabase
-        .from('intents')
-        .insert({ ...values, user_id: session.user.id, poster_name: firstName || 'Someone' })
-        .select('id')
-        .single()
-      err = error
-      intentId = data?.id ?? null
-    }
-    if (!err && intentId) {
-      if (link) {
-        ;({ error: err } = await supabase
-          .from('intent_links')
-          .upsert({ intent_id: intentId, whatsapp_link: link }))
-      } else if (editing) {
-        await supabase.from('intent_links').delete().eq('intent_id', intentId)
+    try {
+      const { error: err } = await supabase.rpc('save_plan', {
+        p_id: draftId.current,
+        p_plan: values,
+        p_whatsapp_link: link || null,
+      })
+      if (err) {
+        setError(err.message)
+        return
       }
-    }
-    setBusy(false)
-    if (err) {
-      setError(err.message)
+    } catch {
+      setError('Could not save your plan. Your draft is still here; try again.')
       return
+    } finally {
+      setBusy(false)
     }
     onPosted()
   }
@@ -421,8 +435,7 @@ export default function PostSheet({
     'w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-gray-900'
 
   return (
-    <div className="absolute inset-0 z-30 flex items-end sm:items-center sm:justify-center">
-      <div className="sheet-backdrop absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
+    <Sheet title="Plan editor" onClose={onClose}>
       <div className="sheet-panel relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl max-h-[92%] overflow-y-auto p-5 pb-8 space-y-4">
         <div className="w-10 h-1 rounded-full bg-gray-300 mx-auto sm:hidden" />
         <h2 className="text-lg font-bold text-gray-900">
@@ -444,13 +457,16 @@ export default function PostSheet({
           </select>
         </label>
 
-        <input
-          className={inputCls}
-          placeholder="Title — e.g. Badminton doubles, need 2"
-          value={title}
-          maxLength={80}
-          onChange={(e) => setTitle(e.target.value)}
-        />
+        <label className="field">
+          Plan title
+          <input
+            className={inputCls}
+            placeholder="Title — e.g. Badminton doubles, need 2"
+            value={title}
+            maxLength={80}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </label>
 
         <label className="block text-sm text-gray-600">
           When?
@@ -504,12 +520,15 @@ export default function PostSheet({
             Where? <span className="text-gray-400">Search a venue or tap the map</span>
           </p>
           <div className="relative mb-2">
-            <input
-              className={inputCls}
-              placeholder="🔍 Search venue — e.g. Central Park"
-              value={venueQuery}
-              onChange={(e) => setVenueQuery(e.target.value)}
-            />
+            <label className="field">
+              Search venues in Jaipur
+              <input
+                className={inputCls}
+                placeholder="🔍 Search venue — e.g. Central Park"
+                value={venueQuery}
+                onChange={(e) => setVenueQuery(e.target.value)}
+              />
+            </label>
             {(venueResults.length > 0 || searching || venueQuery.trim().length >= 3) && (
               <div className="absolute top-full inset-x-0 z-10 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
                 {searching && venueResults.length === 0 && (
@@ -536,28 +555,37 @@ export default function PostSheet({
           <div ref={mapDivRef} className="h-44 rounded-xl overflow-hidden border border-gray-200" />
         </div>
 
-        <input
-          className={inputCls}
-          placeholder="Venue name — e.g. Central Park, C-Scheme"
-          value={venueName}
-          maxLength={80}
-          onChange={(e) => setVenueName(e.target.value)}
-        />
+        <label className="field">
+          Meeting venue
+          <input
+            className={inputCls}
+            placeholder="Venue name — e.g. Central Park, C-Scheme"
+            value={venueName}
+            maxLength={80}
+            onChange={(e) => setVenueName(e.target.value)}
+          />
+        </label>
 
-        <input
-          className={inputCls}
-          placeholder="Note (optional) — skill level, cost split…"
-          value={note}
-          maxLength={280}
-          onChange={(e) => setNote(e.target.value)}
-        />
+        <label className="field">
+          Note (optional)
+          <input
+            className={inputCls}
+            placeholder="Note (optional) — skill level, cost split…"
+            value={note}
+            maxLength={280}
+            onChange={(e) => setNote(e.target.value)}
+          />
+        </label>
 
-        <input
-          className={inputCls}
-          placeholder="WhatsApp group link (optional) — https://chat.whatsapp.com/…"
-          value={whatsapp}
-          onChange={(e) => setWhatsapp(e.target.value)}
-        />
+        <label className="field">
+          WhatsApp group link (optional)
+          <input
+            className={inputCls}
+            placeholder="WhatsApp group link (optional) — https://chat.whatsapp.com/…"
+            value={whatsapp}
+            onChange={(e) => setWhatsapp(e.target.value)}
+          />
+        </label>
 
         <label className="flex items-center gap-2.5 text-sm font-medium text-gray-700">
           <input
@@ -566,19 +594,29 @@ export default function PostSheet({
             checked={womenOnly}
             onChange={(e) => setWomenOnly(e.target.checked)}
           />
-          Women only
+          Women only (self-declared gender)
         </label>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-red-600">
+            {error}
+          </p>
+        )}
 
         <button
           onClick={submit}
-          disabled={busy}
+          disabled={busy || linkLoading}
           className="w-full bg-gray-900 text-white rounded-xl py-3 font-semibold disabled:opacity-40"
         >
-          {busy ? 'Saving…' : editing ? 'Save changes' : 'Post it 🙌'}
+          {linkLoading
+            ? 'Loading saved details…'
+            : busy
+              ? 'Saving…'
+              : editing
+                ? 'Save changes'
+                : 'Post it 🙌'}
         </button>
       </div>
-    </div>
+    </Sheet>
   )
 }

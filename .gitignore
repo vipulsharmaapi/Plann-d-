@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local configuration (publishable browser keys still belong in deployment settings)
+.env
+.env.*
+!.env.example
+coverage

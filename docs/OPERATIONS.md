@@ -32,6 +32,8 @@ The Google browser key must permit the production domain and the Places API (New
 
 Do not switch Hostinger back to a static Vite preset: that removes the server preview routes. Use Express, npm, entry `server.js`, Node 22 and the existing environment settings. `/healthz` confirms process health; also check a real plan's HTML and image after redeployment.
 
+Hostinger's edge can return a bot-verification page before a request reaches the app, including for health probes. Inspect HTTP status and content type rather than treating any response as application health. A Facebook-style metadata request passed during verification; some other synthetic crawler requests were challenged. If a real social platform fails to show a preview, inspect its debugger/cache and Hostinger bot logs before changing the application. Preserve hosting security protections and make only a targeted, reviewed configuration change if required.
+
 Supabase SQL Editor verification and mobile/desktop screenshots are retained in the local audit directory. No production auth tokens, email addresses, private contacts or chat contents are included in repository fixtures or release artifacts.
 
 ## Shared hosting worker budget

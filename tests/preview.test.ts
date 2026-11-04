@@ -18,11 +18,12 @@ const servers: Server[] = []
 afterEach(async () => {
   await Promise.all(servers.splice(0).map((s) => new Promise<void>((r) => s.close(() => r()))))
 })
-async function serve(fetchImpl: typeof fetch) {
+async function serve(fetchImpl: typeof fetch, renderImage = renderPreview) {
   const app = createApp({
     html: '<html><head><title>Old title</title><meta property="og:title" content="Old" /></head><body><div id="root"></div></body></html>',
     env: { VITE_SUPABASE_URL: 'https://example.supabase.co', VITE_SUPABASE_ANON_KEY: 'public-key' },
     fetchImpl,
+    renderImage,
   })
   const server = app.listen(0, '127.0.0.1')
   servers.push(server)
@@ -88,4 +89,54 @@ test('cancelled, ended and full plans never advertise available spots in a share
     'Full',
   )
   expect(renderPreview(previewData(null)).length).toBeGreaterThan(10000)
+})
+
+test('concurrent shares coalesce database lookups and cache repeated PNG rendering', async () => {
+  const lookup = vi.fn(async () => {
+    await new Promise((r) => setTimeout(r, 30))
+    return new Response(JSON.stringify([plan]))
+  })
+  const renderImage = vi.fn(renderPreview)
+  const base = await serve(lookup, renderImage)
+  const responses = await Promise.all(
+    Array.from({ length: 30 }, (_, i) =>
+      fetch(base + (i % 2 ? `/?p=${plan.id}` : `/og/plans/${plan.id}.png`)),
+    ),
+  )
+  await Promise.all(responses.map((r) => r.arrayBuffer()))
+  expect(responses.every((r) => r.status === 200)).toBe(true)
+  expect(lookup).toHaveBeenCalledOnce()
+  expect(renderImage).toHaveBeenCalledOnce()
+  await Promise.all(Array.from({ length: 10 }, () => fetch(base + '/og/site.png')))
+  expect(renderImage).toHaveBeenCalledTimes(2)
+})
+
+test('failed preview lookups release their slot so the next visit can recover', async () => {
+  const lookup = vi
+    .fn()
+    .mockResolvedValueOnce(new Response('Down', { status: 503 }))
+    .mockResolvedValueOnce(new Response(JSON.stringify([plan])))
+  const base = await serve(lookup)
+  expect((await fetch(`${base}/?p=${plan.id}`)).status).toBe(503)
+  expect((await fetch(`${base}/?p=${plan.id}`)).status).toBe(200)
+})
+
+test('a refreshed plan invalidates its rendered image when availability changes', async () => {
+  const now = Date.now()
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(now)
+  try {
+    const lookup = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify([plan])))
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ ...plan, status: 'cancelled' }])))
+    const renderImage = vi.fn(renderPreview)
+    const base = await serve(lookup, renderImage)
+    await (await fetch(`${base}/og/plans/${plan.id}.png`)).arrayBuffer()
+    clock.mockReturnValue(now + 16000)
+    await (await fetch(`${base}/og/plans/${plan.id}.png`)).arrayBuffer()
+    expect(renderImage).toHaveBeenCalledTimes(2)
+    expect(renderImage.mock.calls[1][0].status).toBe('Cancelled')
+  } finally {
+    clock.mockRestore()
+  }
 })

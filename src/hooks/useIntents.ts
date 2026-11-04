@@ -12,6 +12,8 @@ export interface IntentRow {
   lat: number
   lng: number
   venue_name: string
+  google_place_id?: string | null
+  venue_menu_url?: string | null
   starts_at: string
   ends_at: string
   spots_needed: number
@@ -29,7 +31,7 @@ const istTime = (iso: string) =>
   })
 
 export const INTENT_COLUMNS =
-  'id, user_id, poster_name, activity, title, note, lat, lng, venue_name, starts_at, ends_at, spots_needed, spots_filled, women_only, status'
+  'id, user_id, poster_name, activity, title, note, lat, lng, venue_name, starts_at, ends_at, spots_needed, spots_filled, women_only, status, google_place_id, venue_menu_url'
 
 export const rowToIntent = (row: IntentRow): Intent => ({
   id: row.id,
@@ -44,6 +46,8 @@ export const rowToIntent = (row: IntentRow): Intent => ({
   lat: row.lat,
   lng: row.lng,
   venueName: row.venue_name,
+  googlePlaceId: row.google_place_id,
+  venueMenuUrl: row.venue_menu_url,
   startsAt: istTime(row.starts_at),
   endsAt: istTime(row.ends_at),
   spotsNeeded: row.spots_needed,

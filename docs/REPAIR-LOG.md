@@ -33,3 +33,9 @@ Production browser checks verified the live plan list, Google Maps and its real 
 Supabase verification confirmed both migration versions, private block events excluded from Realtime, and successful latest runs of both minutely jobs. Actual email delivery and a complete two-account browser session remain untested. The operations guide records the static-site limitation for per-plan crawler previews.
 
 The release follow-up makes Help, privacy & safety available directly inside every sign-in/signup step, preserving the form while users read it.
+
+## Social previews and venue details
+
+The follow-up adds an Express server for crawler-readable plan metadata and 1200 × 630 PNG previews, including availability and cancelled/ended states. Preview requests select only public plan fields. Venue details add fresh Google photos with attribution, rating/review links, website/maps links and an optional host-supplied HTTPS menu URL. Migration 003 was tested twice locally, dry-run with rollback in production, then applied successfully.
+
+Both owner-authorized test aliases received production SMTP verification codes and completed profile creation. Full interaction and hosted deployment verification are recorded below after completion. Automated checks currently cover 17 tests, including preview responses/escaping/private-field exclusion, venue matching/link validation and transactional venue metadata updates.

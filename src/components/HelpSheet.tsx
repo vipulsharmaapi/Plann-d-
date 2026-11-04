@@ -107,8 +107,28 @@ export default function HelpSheet({ userId, onClose }: { userId?: string; onClos
           <p className="mt-2">
             Location permission is optional and used in your browser for nearby sorting. Map and
             venue-search providers (Google Maps, OpenStreetMap and Photon) receive requests needed
-            to show maps or search places. Uploaded avatars are public. Browser storage keeps your
-            sign-in session. Signing out clears the app session.
+            to show maps, search places and display venue photos and ratings. Ratings and photos are
+            loaded from Google when you open a plan; menu links are supplied by hosts. Uploaded
+            avatars are public. Browser storage keeps your sign-in session. Signing out clears the
+            app session. Google Maps is subject to{' '}
+            <a
+              href="https://www.google.com/intl/en_us/help/terms_maps/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+            >
+              Google’s terms
+            </a>{' '}
+            and{' '}
+            <a
+              href="https://policies.google.com/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+            >
+              privacy policy
+            </a>
+            .
           </p>
           <p className="mt-2">
             Reports and correction requests are visible to you and the project’s administrators. For

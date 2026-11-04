@@ -77,6 +77,8 @@ beforeAll(async () => {
   await db.exec(read('supabase/migrations/202611040002_private_block_events.sql'))
   await db.exec(read('supabase/migrations/202611040003_venue_details.sql'))
   await db.exec(read('supabase/migrations/202611040003_venue_details.sql'))
+  await db.exec(read('supabase/migrations/202611040004_join_first.sql'))
+  await db.exec(read('supabase/migrations/202611040004_join_first.sql'))
 }, 30000)
 afterAll(() => db.close())
 
@@ -139,6 +141,52 @@ describe.sequential('database integrity and authorization', () => {
     expect((await db.query(`select venue_menu_url from intents where id='${plan}'`)).rows).toEqual([
       { venue_menu_url: 'https://example.com/menu.pdf' },
     ])
+  })
+  test('join details are atomic, validated, visible, and retained by older clients', async () => {
+    const details = {
+      venue_area: 'Vaishali Nagar',
+      expected_cost: 150.5,
+      skill_level: 'beginner',
+      booking_status: 'needed',
+      meeting_instructions: 'Meet at reception.',
+    }
+    const payload = JSON.stringify({ ...JSON.parse(values()), ...details })
+    await asUser(
+      host,
+      `select save_plan('${plan}','${payload}','https://chat.whatsapp.com/TestInvite')`,
+    )
+    await asUser(
+      host,
+      `select save_plan('${plan}','${values()}','https://chat.whatsapp.com/TestInvite')`,
+    )
+    expect(
+      (
+        await db.query(
+          `select venue_area,expected_cost::float8,skill_level,booking_status,meeting_instructions from intents where id='${plan}'`,
+        )
+      ).rows[0],
+    ).toEqual(details)
+    for (const invalid of [
+      { expected_cost: -1 },
+      { expected_cost: 'NaN' },
+      { skill_level: 'verified' },
+      { booking_status: 'guaranteed' },
+      { meeting_instructions: 'x'.repeat(281) },
+    ]) {
+      const bad = JSON.stringify({ ...JSON.parse(values()), ...invalid })
+      await expect(asUser(host, `select save_plan('${plan}','${bad}',null)`)).rejects.toThrow()
+    }
+    await asUser(
+      host,
+      `update profiles set bio='I enjoy beginner-friendly games.' where id='${host}'`,
+    )
+    await asUser(alice, `update profiles set bio='Not my profile' where id='${host}'`)
+    expect((await db.query(`select bio from profiles where id='${host}'`)).rows[0]).toEqual({
+      bio: 'I enjoy beginner-friendly games.',
+    })
+    await expect(
+      asUser(host, `update profiles set bio='${'x'.repeat(241)}' where id='${host}'`),
+    ).rejects.toThrow(/profiles_bio_length/)
   })
   test('new requests must be pending and cannot self-join', async () => {
     await expect(

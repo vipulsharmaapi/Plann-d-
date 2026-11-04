@@ -22,6 +22,7 @@ export type ActivityKey = (typeof ACTIVITIES)[number]['key']
 export interface VenueDraft {
   activity: ActivityKey
   venueName: string
+  venueArea?: string
   googlePlaceId: string
   lat: number
   lng: number
@@ -66,8 +67,13 @@ export interface Intent {
   lat: number
   lng: number
   venueName: string
+  venueArea?: string
   googlePlaceId?: string | null
   venueMenuUrl?: string | null
+  expectedCost?: number | null
+  skillLevel?: 'all' | 'beginner' | 'intermediate' | 'advanced' | null
+  bookingStatus?: 'not_needed' | 'needed' | 'confirmed' | null
+  meetingInstructions?: string | null
   date: string // "2026-07-14" (IST)
   startsAt: string // "19:00"
   endsAt: string // "21:00"

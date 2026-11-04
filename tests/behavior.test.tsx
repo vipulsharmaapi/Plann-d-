@@ -33,7 +33,10 @@ HTMLDialogElement.prototype.showModal = function () {
 HTMLDialogElement.prototype.close = function () {
   this.open = false
 }
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  history.replaceState(null, '', '/')
+})
 test('cancelling a nested confirmation does not dismiss its parent plan', () => {
   const parentClose = vi.fn(),
     childClose = vi.fn()
@@ -97,6 +100,7 @@ describe('discovery states', () => {
     await user.click(screen.getByRole('button', { name: 'Post the first plan' }))
     expect(props.onPost).toHaveBeenCalledOnce()
     rerender(<Explore {...props} intents={[plan]} source="live" />)
+    await user.click(screen.getByRole('button', { name: 'Search & filters' }))
     await user.type(screen.getByRole('searchbox'), 'missing venue')
     expect(screen.getByText('No plans match yet')).toBeTruthy()
     await user.click(screen.getAllByRole('button', { name: 'Clear filters' })[0])

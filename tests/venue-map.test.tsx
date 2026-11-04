@@ -123,6 +123,8 @@ beforeEach(() => {
 })
 afterEach(() => {
   cleanup()
+  history.replaceState(null, '', '/')
+  sessionStorage.clear()
   vi.resetAllMocks()
   vi.useRealTimers()
 })
@@ -166,7 +168,7 @@ test('map failure is recoverable without discarding venue selection', async () =
   vi.mocked(loadGoogleMaps).mockRejectedValueOnce(new Error('network'))
   render(<VenueMap places={[turf]} selectedId={turf.id} onSelect={vi.fn()} onPost={vi.fn()} />)
   expect((await screen.findByRole('alert')).textContent).toContain(
-    'You can still browse every venue below',
+    'Choose List to browse every venue',
   )
   fireEvent.click(screen.getByRole('button', { name: 'Retry map' }))
   await screen.findByRole('button', { name: '1. Test turf' })
@@ -211,7 +213,7 @@ test('pagination adds every unique venue to the map; card actions reopen it and 
   await screen.findByRole('button', { name: '2. Test café' })
   expect(pins).toHaveLength(2)
   expect(screen.getAllByRole('article')).toHaveLength(2)
-  await user.click(screen.getByRole('button', { name: 'Hide map' }))
+  await user.click(screen.getByRole('button', { name: 'List', exact: true }))
   expect(pins.every((pin) => pin.map === null)).toBe(true)
   await user.click(screen.getByRole('button', { name: 'Show Test café on map' }))
   await screen.findByRole('button', { name: '2. Test café' })

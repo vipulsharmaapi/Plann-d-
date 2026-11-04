@@ -79,6 +79,23 @@ export default function HelpSheet({ userId, onClose }: { userId?: string; onClos
     <Sheet title="Help, privacy and safety" onClose={onClose}>
       <div className="p-6 pt-16 space-y-6 text-sm leading-relaxed">
         <h2 className="text-2xl font-bold">Help, privacy & safety</h2>
+        <section className="border-b border-slate-200 pb-5">
+          <h3 className="font-bold text-base mb-2">Can’t sign in or need account help?</h3>
+          <p>
+            Email us from an address where you can receive a reply. Include what happened and the
+            email on your account, but never your password or sign-in code.
+          </p>
+          <a
+            className="inline-flex items-center min-h-11 font-semibold underline break-all"
+            href="mailto:vipulsharma86481@gmail.com?subject=Plann%E2%80%99d%20account%20help"
+          >
+            vipulsharma86481@gmail.com
+          </a>
+          <p className="text-xs text-gray-600">
+            You don’t need to sign in. Requests are reviewed manually; this is not emergency
+            support.
+          </p>
+        </section>
         <section>
           <h3 className="font-bold text-base mb-2">How plans work</h3>
           <p>
@@ -132,8 +149,9 @@ export default function HelpSheet({ userId, onClose }: { userId?: string; onClos
           </p>
           <p className="mt-2">
             Reports and correction requests are visible to you and the project’s administrators. For
-            an account or data-removal request, submit a private request below. The team reviews
-            requests manually; no response time is guaranteed.
+            an account or data-removal request, use the support email above or, when signed in,
+            submit a private request below. The team reviews requests manually; no response time is
+            guaranteed.
           </p>
         </section>
         {userId && (

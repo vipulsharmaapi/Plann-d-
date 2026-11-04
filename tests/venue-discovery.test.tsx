@@ -26,6 +26,8 @@ const cafe: DiscoverableVenue = {
 }
 afterEach(() => {
   cleanup()
+  history.replaceState(null, '', '/')
+  sessionStorage.clear()
   vi.resetAllMocks()
 })
 

@@ -71,7 +71,7 @@ test('untrusted titles are escaped; unavailable plans and source/config files ar
   expect(html).not.toContain('<script>alert(1)</script>')
   expect(html).not.toContain('<img src=x')
   expect(html).toContain('&lt;script&gt;')
-  for (const path of ['/?p=invalid', '/.env', '/server.js', '/server/assets/Manrope.ttf'])
+  for (const path of ['/?p=invalid', '/.env', '/server.js', '/server/assets/Manrope-400.ttf'])
     expect((await fetch(base + path)).status).toBe(404)
   const empty = await serve(async () => new Response('[]'))
   expect((await fetch(empty + '/?p=' + plan.id)).status).toBe(404)

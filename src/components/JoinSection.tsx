@@ -4,6 +4,7 @@ import type { Auth } from '../hooks/useAuth'
 import type { Intent } from '../types'
 import PlanTools from './PlanTools'
 import SafetySheet from './SafetySheet'
+import ConfirmAction, { type Confirmation } from './ConfirmAction'
 interface Props {
   intent: Intent
   auth: Auth
@@ -37,6 +38,7 @@ export default function JoinSection({
     [safety, setSafety] = useState(false),
     [blocked, setBlocked] = useState(false),
     [cancelled, setCancelled] = useState(false)
+  const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
   const load = useCallback(async () => {
     if (!userId) {
       setRequests([])
@@ -121,6 +123,7 @@ export default function JoinSection({
     if (busy) return
     setBusy(true)
     setError('')
+    setMessage('')
     try {
       const { error } = await action()
       if (error) throw error
@@ -137,12 +140,10 @@ export default function JoinSection({
       onRequestAuth()
       return
     }
-    void run(
-      () =>
-        supabase
-          .from('join_requests')
-          .insert({ intent_id: intent.id, user_id: userId, status: 'pending' }),
-      'Request sent. The host will review it.',
+    void run(() =>
+      supabase
+        .from('join_requests')
+        .insert({ intent_id: intent.id, user_id: userId, status: 'pending' }),
     )
   }
   function respond(r: RequestRow, status: 'accepted' | 'declined') {
@@ -189,7 +190,14 @@ export default function JoinSection({
     }
   }
   function cancel() {
-    if (!confirm('Cancel this plan? Members will receive an inbox update.')) return
+    setConfirmation({
+      title: 'Cancel this plan?',
+      description: 'Members will receive an inbox update and new join requests will close.',
+      label: 'Yes, cancel plan',
+      action: cancelConfirmed,
+    })
+  }
+  function cancelConfirmed() {
     void run(async () => {
       const result = await supabase
         .from('intents')
@@ -200,16 +208,20 @@ export default function JoinSection({
     }, 'Plan cancelled. Members have been notified.')
   }
   function withdraw() {
-    if (
-      !mine ||
-      !confirm(
+    if (!mine) return
+    setConfirmation({
+      title: mine.status === 'accepted' ? 'Leave this plan?' : 'Withdraw this request?',
+      description:
         mine.status === 'accepted'
-          ? 'Leave this plan? Your spot will be released and chat access will end.'
-          : 'Withdraw this request?',
-      )
-    )
-      return
-    void run(() => supabase.from('join_requests').delete().eq('id', mine.id), 'Request removed.')
+          ? 'Your spot will be released and chat access will end.'
+          : 'The host will no longer see your pending request.',
+      label: mine.status === 'accepted' ? 'Leave plan' : 'Withdraw request',
+      action: () =>
+        void run(
+          () => supabase.from('join_requests').delete().eq('id', mine.id),
+          'Request removed.',
+        ),
+    })
   }
   return (
     <div className="mt-4 space-y-4">
@@ -310,10 +322,14 @@ export default function JoinSection({
                   <button
                     className="secondary text-xs !text-red-700"
                     disabled={busy}
-                    onClick={() => {
-                      if (confirm(`Remove ${r.name}? Their spot and chat access will be released.`))
-                        respond(r, 'declined')
-                    }}
+                    onClick={() =>
+                      setConfirmation({
+                        title: `Remove ${r.name}?`,
+                        description: 'Their spot and chat access will be released.',
+                        label: 'Remove member',
+                        action: () => respond(r, 'declined'),
+                      })
+                    }
                   >
                     Remove
                   </button>
@@ -411,6 +427,9 @@ export default function JoinSection({
             load()
           }}
         />
+      )}
+      {confirmation && (
+        <ConfirmAction confirmation={confirmation} onClose={() => setConfirmation(null)} />
       )}
     </div>
   )

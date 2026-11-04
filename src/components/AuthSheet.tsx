@@ -8,11 +8,12 @@ interface Props {
   open: boolean
   onClose: () => void
   onSignedIn: () => void
+  onHelp: () => void
 }
 
 type Step = 'email' | 'code' | 'pw' | 'pw-code' | 'pw-forgot' | 'pw-reset' | 'name'
 
-export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
+export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp }: Props) {
   const [step, setStep] = useState<Step>('email')
   const [pwMode, setPwMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
@@ -444,6 +445,10 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn }: Props) {
             </button>
           </>
         )}
+
+        <button type="button" onClick={onHelp} className="secondary w-full text-sm">
+          Help, privacy & safety
+        </button>
 
         {error && (
           <p role="alert" className="text-sm text-red-600">

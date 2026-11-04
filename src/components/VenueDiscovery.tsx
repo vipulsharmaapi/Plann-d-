@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ExternalLink, ImageOff, MapPin, Star } from 'lucide-react'
 import {
   discoverVenues,
@@ -13,6 +13,7 @@ import {
   type VenueSearch,
 } from '../lib/venues'
 import type { ActivityKey, VenueDraft } from '../types'
+const VenueMap = lazy(() => import('./VenueMap'))
 
 interface Props {
   activity: ActivityKey
@@ -69,11 +70,25 @@ export function VenueResults({
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
   const [pagesLoaded, setPagesLoaded] = useState(0)
+  const [mapOpen, setMapOpen] = useState(true)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const mapSection = useRef<HTMLDivElement>(null)
   const category = VENUE_CATEGORIES.find((c) => c.activity === activity)
   const query = search?.query ?? '',
     area = search?.area ?? ''
   const heading = search ? `Results for “${query}”` : `${category!.label} in Jaipur`
   const sorted = useMemo(() => sortVenues(places, sort), [places, sort])
+  function postAt(place: DiscoverableVenue) {
+    onPost(venueDraft(place, activity ?? venueActivity(place, query)))
+  }
+  function showOnMap(id: string) {
+    setMapOpen(true)
+    setSelectedId(id)
+    requestAnimationFrame(() => {
+      mapSection.current?.scrollIntoView({ block: 'start', behavior: 'instant' })
+      mapSection.current?.focus({ preventScroll: true })
+    })
+  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -137,7 +152,7 @@ export function VenueResults({
               : 'Ordered by Google’s relevance to this activity.'}{' '}
         Check prices, timings and bookings with the venue before posting.
       </p>
-      <p role="status" className="text-sm text-gray-600 mb-4">
+      <p role="status" aria-label="Venue results" className="text-sm text-gray-600 mb-4">
         {loading
           ? places.length
             ? 'Loading more places…'
@@ -169,13 +184,54 @@ export function VenueResults({
           </p>
         </div>
       )}
+      {!!sorted.length && (
+        <div
+          ref={mapSection}
+          tabIndex={-1}
+          className="mb-6 scroll-mt-24"
+          aria-label="Venues on the map"
+        >
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h3 className="font-bold text-lg">Venues on the map</h3>
+            <button
+              className="secondary text-sm"
+              aria-expanded={mapOpen}
+              aria-controls="venue-results-map"
+              onClick={() => setMapOpen(!mapOpen)}
+            >
+              {mapOpen ? 'Hide map' : 'Show map'}
+            </button>
+          </div>
+          {mapOpen && (
+            <div id="venue-results-map">
+              <Suspense
+                fallback={
+                  <p role="status" className="rounded-2xl bg-slate-100 p-5">
+                    Loading venue map…
+                  </p>
+                }
+              >
+                <VenueMap
+                  places={sorted}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
+                  onPost={postAt}
+                />
+              </Suspense>
+            </div>
+          )}
+        </div>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {sorted.map((place) => (
+        {sorted.map((place, index) => (
           <VenueCard
             key={place.id}
             place={place}
             highlight={search ? `${query} ${area}` : ''}
-            onPost={() => onPost(venueDraft(place, activity ?? venueActivity(place, query)))}
+            number={index + 1}
+            selected={place.id === selectedId}
+            onMap={() => showOnMap(place.id)}
+            onPost={() => postAt(place)}
           />
         ))}
       </div>
@@ -206,10 +262,16 @@ export function VenueResults({
 function VenueCard({
   place,
   highlight,
+  number,
+  selected,
+  onMap,
   onPost,
 }: {
   place: DiscoverableVenue
   highlight?: string
+  number: number
+  selected: boolean
+  onMap: () => void
   onPost: () => void
 }) {
   const [imageFailed, setImageFailed] = useState(false)
@@ -220,7 +282,9 @@ function VenueCard({
     `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.displayName.text)}&query_place_id=${encodeURIComponent(place.id)}`
   const website = safeExternalUrl(place.websiteUri)
   return (
-    <article className="rounded-2xl border border-gray-200 bg-white overflow-hidden flex flex-col min-w-0">
+    <article
+      className={`rounded-2xl border ${selected ? 'border-indigo-600' : 'border-gray-200'} bg-white overflow-hidden flex flex-col min-w-0`}
+    >
       <div className="aspect-[3/2] bg-slate-100 relative overflow-hidden shrink-0">
         {image && !imageFailed ? (
           <>
@@ -267,6 +331,7 @@ function VenueCard({
       </div>
       <div className="p-4 flex flex-col gap-3 flex-1">
         <h3 className="font-bold text-lg leading-snug break-words">
+          <span className="text-slate-600 tabular-nums">{number}. </span>
           <MatchedText text={place.displayName.text} query={highlight} />
         </h3>
         <div className="text-sm flex flex-wrap items-center gap-1.5">
@@ -313,13 +378,20 @@ function VenueCard({
           </p>
         )}
         <div className="flex flex-wrap gap-x-4 mt-auto">
+          <button
+            className="text-sm font-semibold inline-flex items-center gap-1.5 min-h-11 underline underline-offset-4"
+            aria-label={`Show ${place.displayName.text} on map`}
+            onClick={onMap}
+          >
+            <MapPin size={15} aria-hidden="true" />
+            Show on map
+          </button>
           <a
             href={mapUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm font-semibold inline-flex items-center gap-1.5 min-h-11 underline underline-offset-4"
           >
-            <MapPin size={15} aria-hidden="true" />
             View on Maps
           </a>
           {website && (

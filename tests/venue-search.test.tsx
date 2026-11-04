@@ -6,6 +6,8 @@ import VenueSearch from '../src/components/VenueSearch'
 import Explore from '../src/components/Explore'
 import { discoverVenues, type DiscoverableVenue } from '../src/lib/venues'
 
+vi.mock('../src/components/VenueMap', () => ({ default: () => null }))
+
 vi.mock('../src/lib/venues', async (original) => ({
   ...(await original<typeof import('../src/lib/venues')>()),
   discoverVenues: vi.fn(),
@@ -49,14 +51,12 @@ test('Explore exposes a separate search action without triggering a category loo
 })
 
 test('only submission searches; area and keywords survive pagination and the chosen branch becomes a café plan', async () => {
-  search
-    .mockResolvedValueOnce({ places: [cafe], nextPageToken: 'page2' })
-    .mockResolvedValueOnce({
-      places: [
-        cafe,
-        { ...cafe, id: 'ChIJsearchcafe456', displayName: { text: 'Second café' }, rating: 5 },
-      ],
-    })
+  search.mockResolvedValueOnce({ places: [cafe], nextPageToken: 'page2' }).mockResolvedValueOnce({
+    places: [
+      cafe,
+      { ...cafe, id: 'ChIJsearchcafe456', displayName: { text: 'Second café' }, rating: 5 },
+    ],
+  })
   const user = userEvent.setup(),
     post = vi.fn()
   render(<VenueSearch onPost={post} />)
@@ -79,7 +79,9 @@ test('only submission searches; area and keywords survive pagination and the cho
   expect(search.mock.calls[1][0]).toEqual({ query: 'Roastery', area: 'Vaishali Nagar' })
   expect(search.mock.calls[1][2]).toBe('page2')
   expect(screen.getAllByRole('article')).toHaveLength(2)
-  expect(screen.getAllByRole('heading', { level: 3 })[0].textContent).toBe('Roastery Café')
+  expect(screen.getAllByRole('article')[0].querySelector('h3')?.textContent).toBe(
+    '1. Roastery Café',
+  )
   await user.click(screen.getByRole('button', { name: 'Make a plan at Roastery Café' }))
   expect(post).toHaveBeenCalledWith({
     activity: 'coffee',

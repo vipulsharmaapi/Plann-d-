@@ -45,6 +45,7 @@ class TestMap {
   setCenter = vi.fn()
   setZoom = vi.fn()
   panTo = vi.fn()
+  getZoom = vi.fn(() => 12)
   addListener = vi.fn(() => ({ remove: vi.fn() }))
   constructor(public element: HTMLElement) {
     views.push(this)
@@ -255,7 +256,8 @@ test('a cluster gives explicit choices even when two venues share a location; ch
   view.rerender(
     <VenueMap places={[turf, coincident]} selectedId={cafe.id} onSelect={select} onPost={post} />,
   )
-  expect(cluster.members).toEqual([pins[0]])
+  expect(cluster.members).toEqual([pins[0], pins[1]])
+  expect(views[0].setZoom).toHaveBeenLastCalledWith(16)
   expect(pins[1].map).toBe(views[0])
   expect(pins[1].zIndex).toBe(10000)
   fireEvent.click(screen.getByRole('button', { name: 'Make a plan at Test café from map' }))

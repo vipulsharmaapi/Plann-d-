@@ -183,19 +183,19 @@ export default function VenueMap({ places, selectedId, onSelect, onPost }: Props
     if (!ready || !clusters.current) return
     clusters.current.clearMarkers(true)
     clusters.current.addMarkers(
-      [...markers.current].filter(([id]) => id !== selectedId).map(([, entry]) => entry.marker),
+      [...markers.current.values()].map((entry) => entry.marker),
       true,
     )
     clusters.current.render()
     for (const [id, entry] of markers.current) {
       entry.pin.dataset.selected = String(id === selectedId)
       entry.marker.zIndex = id === selectedId ? 10000 : 1
-      if (id === selectedId) entry.marker.map = map.current
     }
     const place = places.find((venue) => venue.id === selectedId)
     if (place && map.current) {
       setGroupIds([])
       map.current.panTo({ lat: place.location.latitude, lng: place.location.longitude })
+      map.current.setZoom(Math.max(map.current.getZoom() ?? 11, 16))
     }
   }, [selectedId, places, ready])
 

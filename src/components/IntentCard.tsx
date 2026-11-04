@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { formatTimeRange } from '../lib/time'
 import { formatKm, haversineKm, type LatLng } from '../lib/geo'
 import { activityByKey, humanDay, todayIST, type Intent } from '../types'
 
@@ -47,11 +48,11 @@ export default function IntentCard({ intent, selected, onClick, userLoc, childre
           <p className="text-sm text-gray-600 truncate">{intent.venueName}</p>
           {intent.venueArea && <p className="text-xs text-gray-600 mt-1">{intent.venueArea}</p>}
           <div className="flex items-center flex-wrap gap-1.5 mt-2 text-xs">
-            <span className="font-semibold text-gray-700 bg-gray-100 rounded-full px-2 py-0.5">
+            <span className="inline-flex flex-wrap items-center gap-x-1 font-semibold text-gray-700 bg-gray-100 rounded-xl px-2 py-0.5">
               {intent.date !== todayIST() && (
                 <span className="text-indigo-700">{humanDay(intent.date)} · </span>
               )}
-              🕐 {intent.startsAt}–{intent.endsAt}
+              <span className="whitespace-nowrap">🕐 {formatTimeRange(intent.startsAt, intent.endsAt)}</span>
             </span>
             <span
               className={`font-semibold rounded-full px-2 py-0.5 ${

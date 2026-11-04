@@ -1,4 +1,5 @@
 import Sheet from './Sheet'
+import { formatTimeRange } from '../lib/time'
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Auth, Gender } from '../hooks/useAuth'
@@ -447,7 +448,7 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
                     {intent.title}
                   </p>
                   <p className="text-xs text-gray-400">
-                    {humanDay(intent.date)} · {intent.startsAt}–{intent.endsAt}
+                    {humanDay(intent.date)} · {formatTimeRange(intent.startsAt, intent.endsAt)}
                     {status === 'cancelled' && ' · cancelled'}
                     {!live && status !== 'cancelled' && ' · over'}
                   </p>
@@ -492,7 +493,7 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
                     {intent.title}
                   </p>
                   <p className="text-xs text-gray-400">
-                    {humanDay(intent.date)} · {intent.startsAt}–{intent.endsAt} · by{' '}
+                    {humanDay(intent.date)} · {formatTimeRange(intent.startsAt, intent.endsAt)} · by{' '}
                     {intent.posterName}
                   </p>
                 </div>

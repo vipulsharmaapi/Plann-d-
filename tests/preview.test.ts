@@ -41,7 +41,7 @@ test('a crawler receives plan-specific metadata and PNG without JavaScript or au
   expect(response.status).toBe(200)
   expect(html).toContain('Coffee &amp; conversation | Plann’d')
   expect(html).toContain('2 Jan, 2027')
-  expect(html).toContain('15:00–17:00 IST')
+  expect(html).toContain('3:00 PM to 5:00 PM IST')
   expect(html).toContain('1 spot available')
   expect(html).toContain(`${SITE_URL}/og/plans/${plan.id}.png`)
   expect(html.match(/property="og:title"/g)).toHaveLength(1)

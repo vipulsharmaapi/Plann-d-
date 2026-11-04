@@ -416,7 +416,13 @@ export default function App() {
         }
       >
         {authOpen && (
-          <AuthSheet auth={auth} open onClose={() => setAuthOpen(false)} onSignedIn={signedIn} />
+          <AuthSheet
+            auth={auth}
+            open
+            onClose={() => setAuthOpen(false)}
+            onSignedIn={signedIn}
+            onHelp={() => setHelpOpen(true)}
+          />
         )}
         {postOpen && (
           <PostSheet

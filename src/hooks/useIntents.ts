@@ -14,6 +14,11 @@ export interface IntentRow {
   venue_name: string
   google_place_id?: string | null
   venue_menu_url?: string | null
+  venue_area?: string | null
+  expected_cost?: number | null
+  skill_level?: Intent['skillLevel']
+  booking_status?: Intent['bookingStatus']
+  meeting_instructions?: string | null
   starts_at: string
   ends_at: string
   spots_needed: number
@@ -31,7 +36,7 @@ const istTime = (iso: string) =>
   })
 
 export const INTENT_COLUMNS =
-  'id, user_id, poster_name, activity, title, note, lat, lng, venue_name, starts_at, ends_at, spots_needed, spots_filled, women_only, status, google_place_id, venue_menu_url'
+  'id, user_id, poster_name, activity, title, note, lat, lng, venue_name, starts_at, ends_at, spots_needed, spots_filled, women_only, status, google_place_id, venue_menu_url, venue_area, expected_cost, skill_level, booking_status, meeting_instructions'
 
 export const rowToIntent = (row: IntentRow): Intent => ({
   id: row.id,
@@ -46,6 +51,11 @@ export const rowToIntent = (row: IntentRow): Intent => ({
   lat: row.lat,
   lng: row.lng,
   venueName: row.venue_name,
+  venueArea: row.venue_area ?? undefined,
+  expectedCost: row.expected_cost,
+  skillLevel: row.skill_level,
+  bookingStatus: row.booking_status,
+  meetingInstructions: row.meeting_instructions,
   googlePlaceId: row.google_place_id,
   venueMenuUrl: row.venue_menu_url,
   startsAt: istTime(row.starts_at),

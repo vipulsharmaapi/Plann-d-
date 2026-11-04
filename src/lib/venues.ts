@@ -146,10 +146,15 @@ export function sortVenues(places: DiscoverableVenue[], sort: VenueSort) {
   )
 }
 
-export function venueDraft(place: DiscoverableVenue, activity: ActivityKey): VenueDraft {
+export function venueDraft(
+  place: DiscoverableVenue,
+  activity: ActivityKey,
+  area?: string,
+): VenueDraft {
   return {
     activity,
     venueName: place.displayName.text.slice(0, 80),
+    ...(area?.trim() ? { venueArea: area.trim().slice(0, 100) } : {}),
     googlePlaceId: place.id,
     lat: place.location.latitude,
     lng: place.location.longitude,

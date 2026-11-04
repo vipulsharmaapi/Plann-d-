@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import type { Auth } from '../hooks/useAuth'
 import type { Intent } from '../types'
 import PlanTools from './PlanTools'
+import PlanContext from './PlanContext'
 import SafetySheet from './SafetySheet'
 import ConfirmAction, { type Confirmation } from './ConfirmAction'
 interface Props {
@@ -225,14 +226,8 @@ export default function JoinSection({
   }
   return (
     <div className="mt-4 space-y-4">
+      <PlanContext intent={intent} onProfile={onViewProfile} />
       <div className="flex items-center flex-wrap gap-2 text-sm">
-        <button
-          className="mr-auto text-left underline"
-          disabled={!intent.userId}
-          onClick={() => intent.userId && onViewProfile(intent.userId)}
-        >
-          Hosted by {intent.posterName}
-        </button>
         <button className="secondary text-xs" onClick={share}>
           Share
         </button>

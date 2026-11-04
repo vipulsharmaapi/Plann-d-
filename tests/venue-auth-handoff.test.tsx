@@ -67,6 +67,8 @@ vi.mock('../src/components/PostSheet', () => ({
 }))
 afterEach(() => {
   cleanup()
+  history.replaceState(null, '', '/')
+  sessionStorage.clear()
   auth.session = null
 })
 

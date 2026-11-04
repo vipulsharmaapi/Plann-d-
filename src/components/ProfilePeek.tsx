@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import Sheet from './Sheet'
 interface Profile {
+  bio?: string | null
   first_name: string
   emoji: string
   avatar_url: string | null
@@ -21,7 +22,7 @@ export default function ProfilePeek({
     if (userId)
       supabase
         .from('profiles')
-        .select('first_name,emoji,avatar_url,created_at')
+        .select('first_name,emoji,avatar_url,created_at,bio')
         .eq('id', userId)
         .maybeSingle()
         .then(({ data, error }) => {
@@ -63,6 +64,7 @@ export default function ProfilePeek({
                 </p>
               </div>
             </div>
+            {profile.bio && <p className="mt-5 text-sm text-gray-700 break-words">{profile.bio}</p>}
             <p className="mt-5 text-sm text-gray-600">
               Profile details are self-declared. Meet in a public place and confirm arrangements in
               the group chat.

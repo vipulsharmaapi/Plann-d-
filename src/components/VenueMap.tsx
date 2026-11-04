@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { LocateFixed, Star, X } from 'lucide-react'
 import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer'
 import { GOOGLE_MAP_ID, loadGoogleMaps, onGoogleAuthFailure } from '../lib/googleMaps'
@@ -9,6 +9,7 @@ interface Props {
   selectedId: string | null
   onSelect: (id: string | null) => void
   onPost: (place: DiscoverableVenue) => void
+  renderPlans?: (place: DiscoverableVenue) => ReactNode
 }
 type MarkerEntry = {
   marker: google.maps.marker.AdvancedMarkerElement
@@ -16,7 +17,7 @@ type MarkerEntry = {
   click: () => void
 }
 
-export default function VenueMap({ places, selectedId, onSelect, onPost }: Props) {
+export default function VenueMap({ places, selectedId, onSelect, onPost, renderPlans }: Props) {
   const container = useRef<HTMLDivElement>(null)
   const map = useRef<google.maps.Map | null>(null)
   const api = useRef<typeof google | null>(null)
@@ -232,7 +233,7 @@ export default function VenueMap({ places, selectedId, onSelect, onPost }: Props
         <div role="alert" className="p-5 bg-slate-50">
           <h4 className="font-bold">The map couldn’t load</h4>
           <p className="text-sm text-slate-600 mt-2 mb-3">
-            You can still browse every venue below or open its Google Maps link.
+            Choose List to browse every venue or open its Google Maps link.
           </p>
           <button
             className="secondary text-sm"
@@ -247,7 +248,7 @@ export default function VenueMap({ places, selectedId, onSelect, onPost }: Props
       )}
       {selected ? (
         <div
-          className="p-4 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center gap-3"
+          className="p-4 border-t border-slate-200 flex flex-col gap-3"
           aria-label="Selected map venue"
         >
           <div className="min-w-0 flex-1" aria-live="polite">
@@ -263,6 +264,7 @@ export default function VenueMap({ places, selectedId, onSelect, onPost }: Props
             </p>
             <p className="text-sm text-slate-600 mt-1 break-words">{selected.formattedAddress}</p>
           </div>
+          {renderPlans?.(selected)}
           <div className="flex items-center gap-2 shrink-0">
             <button
               className="primary text-sm flex-1"

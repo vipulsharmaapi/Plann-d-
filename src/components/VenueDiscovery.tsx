@@ -1,4 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { navigate, useUrlValue } from '../lib/navigation'
+import { plansAtVenue } from '../lib/planDiscovery'
+import { humanDay } from '../types'
 import { ChevronDown, ExternalLink, ImageOff, MapPin, Star } from 'lucide-react'
 import {
   discoverVenues,
@@ -12,16 +15,24 @@ import {
   type VenueSort,
   type VenueSearch,
 } from '../lib/venues'
-import type { ActivityKey, VenueDraft } from '../types'
+import type { ActivityKey, VenueDraft, Intent } from '../types'
 const VenueMap = lazy(() => import('./VenueMap'))
 
 interface Props {
   activity: ActivityKey
   onActivity: (activity: ActivityKey) => void
   onPost: (draft: VenueDraft) => void
+  intents?: Intent[]
+  onOpenPlan?: (plan: Intent) => void
 }
 
-export default function VenueDiscovery({ activity, onActivity, onPost }: Props) {
+export default function VenueDiscovery({
+  activity,
+  onActivity,
+  onPost,
+  intents,
+  onOpenPlan,
+}: Props) {
   const [expanded, setExpanded] = useState(false)
   const categories = VENUE_CATEGORIES.filter(
     (category, index) => expanded || index < 6 || category.activity === activity,
@@ -48,7 +59,13 @@ export default function VenueDiscovery({ activity, onActivity, onPost }: Props) 
           <ChevronDown size={16} aria-hidden="true" className={expanded ? 'rotate-180' : ''} />
         </button>
       </div>
-      <VenueResults key={activity} activity={activity} onPost={onPost} />
+      <VenueResults
+        key={activity}
+        activity={activity}
+        onPost={onPost}
+        intents={intents}
+        onOpenPlan={onOpenPlan}
+      />
     </div>
   )
 }
@@ -57,29 +74,45 @@ export function VenueResults({
   activity,
   search,
   onPost,
+  intents = [],
+  onOpenPlan,
 }: {
   activity?: ActivityKey
   search?: VenueSearch
   onPost: Props['onPost']
+  intents?: Intent[]
+  onOpenPlan?: (plan: Intent) => void
 }) {
   const [places, setPlaces] = useState<DiscoverableVenue[]>([])
-  const [sort, setSort] = useState<VenueSort>(search ? 'relevance' : 'rating')
+  const [sortValue, setSort] = useUrlValue('vsort', search ? 'relevance' : 'rating')
+  const sort: VenueSort = ['rating', 'reviews', 'relevance'].includes(sortValue)
+    ? (sortValue as VenueSort)
+    : 'relevance'
   const [pageToken, setPageToken] = useState<string>()
   const [nextPageToken, setNextPageToken] = useState<string>()
   const [retry, setRetry] = useState(0)
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
   const [pagesLoaded, setPagesLoaded] = useState(0)
-  const [mapOpen, setMapOpen] = useState(true)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [layout, setLayout] = useUrlValue('vlayout', window.innerWidth >= 1024 ? 'map' : 'list')
+  const mapOpen = layout === 'map'
+  const setMapOpen = (value: boolean) => setLayout(value ? 'map' : 'list')
+  const [pin, setPin] = useUrlValue('pin')
+  const selectedId = pin || null
+  const setSelectedId = (value: string | null) => setPin(value ?? '')
+  const [restorePages] = useState(() =>
+    Math.min(5, Math.max(1, Number(new URLSearchParams(location.search).get('vpages')) || 1)),
+  )
+  const loadedCount = useRef(0)
   const mapSection = useRef<HTMLDivElement>(null)
+  const cardsSection = useRef<HTMLDivElement>(null)
   const category = VENUE_CATEGORIES.find((c) => c.activity === activity)
   const query = search?.query ?? '',
     area = search?.area ?? ''
   const heading = search ? `Results for “${query}”` : `${category!.label} in Jaipur`
   const sorted = useMemo(() => sortVenues(places, sort), [places, sort])
   function postAt(place: DiscoverableVenue) {
-    onPost(venueDraft(place, activity ?? venueActivity(place, query)))
+    onPost(venueDraft(place, activity ?? venueActivity(place, query), area))
   }
   function showOnMap(id: string) {
     setMapOpen(true)
@@ -101,7 +134,10 @@ export function VenueResults({
         if (!active) return
         setPlaces((previous) => (pageToken ? [...previous, ...result.places] : result.places))
         setNextPageToken(result.nextPageToken)
-        setPagesLoaded((count) => (pageToken ? count + 1 : 1))
+        loadedCount.current = pageToken ? loadedCount.current + 1 : 1
+        setPagesLoaded(loadedCount.current)
+        if (result.nextPageToken && loadedCount.current < restorePages)
+          setPageToken(result.nextPageToken)
       })
       .catch(() => {
         if (active) setFailed(true)
@@ -115,7 +151,7 @@ export function VenueResults({
       clearTimeout(timeout)
       controller.abort()
     }
-  }, [activity, query, area, pageToken, retry])
+  }, [activity, query, area, pageToken, retry, restorePages])
 
   return (
     <section
@@ -130,7 +166,7 @@ export function VenueResults({
               ? area
                 ? `In and around ${area}, Jaipur`
                 : 'Across Jaipur'
-              : 'Find a place, then invite people along.'}
+              : 'Join a plan here, or invite people to your own.'}
           </p>
         </div>
         <label className="field w-full min-[480px]:w-44 shrink-0">
@@ -185,55 +221,84 @@ export function VenueResults({
         </div>
       )}
       {!!sorted.length && (
-        <div
-          ref={mapSection}
-          tabIndex={-1}
-          className="mb-6 scroll-mt-24"
-          aria-label="Venues on the map"
-        >
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <h3 className="font-bold text-lg">Venues on the map</h3>
-            <button
-              className="secondary text-sm"
-              aria-expanded={mapOpen}
-              aria-controls="venue-results-map"
-              onClick={() => setMapOpen(!mapOpen)}
-            >
-              {mapOpen ? 'Hide map' : 'Show map'}
-            </button>
-          </div>
-          {mapOpen && (
-            <div id="venue-results-map">
-              <Suspense
-                fallback={
-                  <p role="status" className="rounded-2xl bg-slate-100 p-5">
-                    Loading venue map…
-                  </p>
-                }
-              >
-                <VenueMap
-                  places={sorted}
-                  selectedId={selectedId}
-                  onSelect={setSelectedId}
-                  onPost={postAt}
-                />
-              </Suspense>
-            </div>
-          )}
+        <div className="flex items-center gap-2 mb-4" role="group" aria-label="Venue result view">
+          <button
+            className={`${!mapOpen ? 'primary' : 'secondary'} text-sm`}
+            aria-pressed={!mapOpen}
+            onClick={() => setMapOpen(false)}
+          >
+            List
+          </button>
+          <button
+            className={`${mapOpen ? 'primary' : 'secondary'} text-sm`}
+            aria-pressed={mapOpen}
+            onClick={() => setMapOpen(true)}
+          >
+            <span className="lg:hidden">Map</span>
+            <span className="hidden lg:inline">List + map</span>
+          </button>
         </div>
       )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {sorted.map((place, index) => (
-          <VenueCard
-            key={place.id}
-            place={place}
-            highlight={search ? `${query} ${area}` : ''}
-            number={index + 1}
-            selected={place.id === selectedId}
-            onMap={() => showOnMap(place.id)}
-            onPost={() => postAt(place)}
-          />
-        ))}
+      <div
+        className={
+          mapOpen ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-5 items-start' : ''
+        }
+      >
+        {mapOpen && !!sorted.length && (
+          <div
+            ref={mapSection}
+            tabIndex={-1}
+            className="mb-5 lg:col-start-2 lg:row-start-1 lg:sticky lg:top-24 scroll-mt-24 min-w-0"
+            aria-label="Venues on the map"
+          >
+            <h3 className="font-bold mb-3">Venues on the map</h3>
+            <button
+              className="sr-only focus:not-sr-only secondary"
+              onClick={() => {
+                setMapOpen(false)
+                requestAnimationFrame(() => cardsSection.current?.focus())
+              }}
+            >
+              Skip map to venues
+            </button>
+            <Suspense
+              fallback={
+                <p role="status" className="bg-slate-100 p-5">
+                  Loading venue map…
+                </p>
+              }
+            >
+              <VenueMap
+                places={sorted}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                onPost={postAt}
+                renderPlans={(place) => (
+                  <VenuePlans plans={plansAtVenue(intents, place.id)} onOpen={onOpenPlan} />
+                )}
+              />
+            </Suspense>
+          </div>
+        )}
+        <div
+          ref={cardsSection}
+          tabIndex={-1}
+          className={`${mapOpen ? 'hidden lg:grid lg:col-start-1 lg:row-start-1 grid-cols-1' : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'} gap-5 min-w-0`}
+        >
+          {sorted.map((place, index) => (
+            <VenueCard
+              key={place.id}
+              place={place}
+              highlight={search ? `${query} ${area}` : ''}
+              number={index + 1}
+              selected={place.id === selectedId}
+              onMap={() => showOnMap(place.id)}
+              onPost={() => postAt(place)}
+              plans={plansAtVenue(intents, place.id)}
+              onOpenPlan={onOpenPlan}
+            />
+          ))}
+        </div>
       </div>
       {nextPageToken && pagesLoaded < 5 && !failed && (
         <div className="mt-6 text-center">
@@ -242,6 +307,7 @@ export function VenueResults({
             disabled={loading}
             onClick={() => {
               setLoading(true)
+              navigate({ vpages: String(pagesLoaded + 1) }, 'replace')
               setPageToken(nextPageToken)
             }}
           >
@@ -266,6 +332,8 @@ function VenueCard({
   selected,
   onMap,
   onPost,
+  plans,
+  onOpenPlan,
 }: {
   place: DiscoverableVenue
   highlight?: string
@@ -273,6 +341,8 @@ function VenueCard({
   selected: boolean
   onMap: () => void
   onPost: () => void
+  plans: Intent[]
+  onOpenPlan?: (plan: Intent) => void
 }) {
   const [imageFailed, setImageFailed] = useState(false)
   const photo = place.photos?.[0]
@@ -354,9 +424,14 @@ function VenueCard({
           </span>
         </div>
         {place.formattedAddress && (
-          <p className="text-sm text-gray-600 leading-relaxed break-words">
-            <MatchedText text={place.formattedAddress} query={highlight} />
-          </p>
+          <details className="text-sm text-gray-600">
+            <summary className="min-h-11 flex items-center cursor-pointer underline">
+              Address & directions
+            </summary>
+            <p className="leading-relaxed break-words">
+              <MatchedText text={place.formattedAddress} query={highlight} />
+            </p>
+          </details>
         )}
         {!!place.attributions?.length && (
           <p className="text-xs text-gray-600">
@@ -406,8 +481,9 @@ function VenueCard({
             </a>
           )}
         </div>
+        <VenuePlans plans={plans} onOpen={onOpenPlan} />
         <button
-          className="primary w-full text-sm"
+          className={`${plans.length ? 'secondary' : 'primary'} w-full text-sm`}
           aria-label={`Make a plan at ${place.displayName.text}`}
           onClick={onPost}
         >
@@ -434,5 +510,36 @@ function MatchedText({ text, query = '' }: { text: string; query?: string }) {
     ) : (
       part
     ),
+  )
+}
+
+export function VenuePlans({
+  plans,
+  onOpen,
+}: {
+  plans: Intent[]
+  onOpen?: (plan: Intent) => void
+}) {
+  if (!plans.length || !onOpen) return null
+  return (
+    <div className="border-t border-slate-200 pt-3 space-y-2">
+      <h4 className="font-bold text-sm">Upcoming plans here</h4>
+      {plans.map((plan) => (
+        <button
+          key={plan.id}
+          className="w-full text-left min-h-11 py-2 text-indigo-900 underline underline-offset-4"
+          onClick={() => onOpen(plan)}
+          aria-label={`View plan: ${plan.title}`}
+        >
+          <span className="block font-semibold text-sm">{plan.title}</span>
+          <span className="block text-xs mt-1 text-slate-600">
+            {humanDay(plan.date)} · {plan.startsAt} ·{' '}
+            {plan.spotsNeeded > plan.spotsFilled
+              ? `${plan.spotsNeeded - plan.spotsFilled} spots left`
+              : 'Full'}
+          </span>
+        </button>
+      ))}
+    </div>
   )
 }

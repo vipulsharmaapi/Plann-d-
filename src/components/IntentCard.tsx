@@ -44,7 +44,8 @@ export default function IntentCard({ intent, selected, onClick, userLoc, childre
               </span>
             )}
           </div>
-          <p className="text-sm text-gray-500 truncate">{intent.venueName}</p>
+          <p className="text-sm text-gray-600 truncate">{intent.venueName}</p>
+          {intent.venueArea && <p className="text-xs text-gray-600 mt-1">{intent.venueArea}</p>}
           <div className="flex items-center flex-wrap gap-1.5 mt-2 text-xs">
             <span className="font-semibold text-gray-700 bg-gray-100 rounded-full px-2 py-0.5">
               {intent.date !== todayIST() && (
@@ -68,7 +69,18 @@ export default function IntentCard({ intent, selected, onClick, userLoc, childre
                 📍 {formatKm(haversineKm(userLoc, intent))}
               </span>
             )}
-            <span className="text-gray-400 px-1">{intent.posterName}</span>
+            <span className="text-gray-600 px-1">{intent.posterName}</span>
+            {intent.expectedCost != null && (
+              <span className="text-gray-600">
+                ·{' '}
+                {intent.expectedCost === 0
+                  ? 'Free'
+                  : `About ₹${Number(intent.expectedCost).toLocaleString('en-IN')} each`}
+              </span>
+            )}
+            {intent.skillLevel === 'beginner' && (
+              <span className="text-gray-600">· Beginner friendly</span>
+            )}
           </div>
         </div>
       </Header>

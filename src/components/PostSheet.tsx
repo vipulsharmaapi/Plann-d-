@@ -162,6 +162,11 @@ export default function PostSheet({
   const [womenOnly, setWomenOnly] = useState(false)
   const [whatsapp, setWhatsapp] = useState('')
   const [venueName, setVenueName] = useState('')
+  const [venueArea, setVenueArea] = useState('')
+  const [expectedCost, setExpectedCost] = useState('')
+  const [skillLevel, setSkillLevel] = useState('')
+  const [bookingStatus, setBookingStatus] = useState('')
+  const [meetingInstructions, setMeetingInstructions] = useState('')
   const [googlePlaceId, setGooglePlaceId] = useState<string | null>(null)
   const [menuUrl, setMenuUrl] = useState('')
   const [pin, setPin] = useState<{ lat: number; lng: number } | null>(null)
@@ -236,6 +241,7 @@ export default function PostSheet({
   const chooseVenue = (v: VenueResult) => {
     setGooglePlaceId(v.placeId ?? null)
     setMenuUrl('')
+    setVenueArea('')
     placePin(v.lat, v.lng)
     setVenueName(v.label ? `${v.name}, ${v.label.split(',')[0]}` : v.name)
     setVenueQuery('')
@@ -295,6 +301,12 @@ export default function PostSheet({
       const venue = template ?? venuePrefill
       setPin(venue ? { lat: venue.lat, lng: venue.lng } : null)
     }
+    const details = editing ?? template
+    setVenueArea(details?.venueArea ?? venuePrefill?.venueArea ?? '')
+    setExpectedCost(details?.expectedCost == null ? '' : String(details.expectedCost))
+    setSkillLevel(details?.skillLevel ?? '')
+    setBookingStatus(editing?.bookingStatus ?? '')
+    setMeetingInstructions(details?.meetingInstructions ?? '')
     setError(null)
     return () => {
       active = false
@@ -415,6 +427,15 @@ export default function PostSheet({
     setError(null)
     if (title.trim().length < 3) return setError('Give it a short title (3+ characters).')
     if (!pin) return setError('Tap the map to drop a pin where you’ll meet.')
+    if (venueArea.trim() && venueArea.trim().length < 2)
+      return setError('Use at least 2 characters for the neighbourhood.')
+    if (
+      expectedCost !== '' &&
+      (!Number.isFinite(Number(expectedCost)) ||
+        Number(expectedCost) < 0 ||
+        Number(expectedCost) > 100000)
+    )
+      return setError('Enter an expected cost between ₹0 and ₹1,00,000.')
     if (!venueName.trim()) return setError('Name the venue so people know where to go.')
     if (endTime <= startTime) return setError('End time must be after start time.')
     if (date < todayIST() || date > maxDateIST())
@@ -435,6 +456,11 @@ export default function PostSheet({
       lat: pin.lat,
       lng: pin.lng,
       venue_name: venueName.trim(),
+      venue_area: venueArea.trim() || null,
+      expected_cost: expectedCost === '' ? null : Number(expectedCost),
+      skill_level: skillLevel || null,
+      booking_status: bookingStatus || null,
+      meeting_instructions: meetingInstructions.trim() || null,
       google_place_id: googlePlaceId,
       venue_menu_url: menuUrl.trim() || null,
       starts_at: toIsoIST(date, startTime),
@@ -605,6 +631,70 @@ export default function PostSheet({
             }}
           />
         </label>
+        <label className="field">
+          Neighbourhood in Jaipur (optional)
+          <input
+            value={venueArea}
+            onChange={(e) => setVenueArea(e.target.value)}
+            maxLength={100}
+            placeholder="e.g. Vaishali Nagar"
+          />
+          <span className="text-xs text-gray-600">Helps people find your plan by area.</span>
+        </label>
+        <fieldset className="border-t border-slate-200 pt-5 space-y-4">
+          <legend className="font-bold text-base">Before people join</legend>
+          <p className="text-sm text-gray-600">
+            Optional details to help people decide. These are shared publicly as information from
+            you.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <label className="field">
+              Expected cost per person (₹)
+              <input
+                type="number"
+                min="0"
+                max="100000"
+                step="0.01"
+                inputMode="decimal"
+                value={expectedCost}
+                onChange={(e) => setExpectedCost(e.target.value)}
+                placeholder="Leave blank if undecided"
+              />
+              <span className="text-xs text-gray-600">
+                An estimate, not a payment. Enter 0 for free.
+              </span>
+            </label>
+            <label className="field">
+              Skill level
+              <select value={skillLevel} onChange={(e) => setSkillLevel(e.target.value)}>
+                <option value="">Not specified</option>
+                <option value="all">All levels welcome</option>
+                <option value="beginner">Beginner friendly</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+              </select>
+            </label>
+          </div>
+          <label className="field">
+            Venue booking
+            <select value={bookingStatus} onChange={(e) => setBookingStatus(e.target.value)}>
+              <option value="">Not specified</option>
+              <option value="not_needed">No booking needed</option>
+              <option value="needed">Still to be arranged</option>
+              <option value="confirmed">Booked by me</option>
+            </select>
+          </label>
+          <label className="field">
+            Where to meet and what to expect
+            <textarea
+              rows={2}
+              maxLength={280}
+              value={meetingInstructions}
+              onChange={(e) => setMeetingInstructions(e.target.value)}
+              placeholder="e.g. Meet at the front desk. Bring your racket."
+            />
+          </label>
+        </fieldset>
 
         <label className="field">
           Venue menu link (optional)

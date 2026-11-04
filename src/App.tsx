@@ -1,4 +1,5 @@
 import VenueDetails from './components/VenueDetails'
+import { navigate, useUrlParams, readAuthIntent, rememberAuthIntent } from './lib/navigation'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { CalendarDays, Compass, Map, Inbox, MapPin, Plus, HelpCircle, User } from 'lucide-react'
 import Explore from './components/Explore'
@@ -13,7 +14,7 @@ import { useNotifications, type AppNotification } from './hooks/useNotifications
 import { supabase } from './lib/supabase'
 import { GOOGLE_MAPS_KEY } from './lib/googleMaps'
 import type { LatLng } from './lib/geo'
-import { humanDay, type Intent, type ActivityKey, type VenueDraft } from './types'
+import { ACTIVITIES, humanDay, type Intent, type ActivityKey, type VenueDraft } from './types'
 const MapView = lazy(() => import('./components/MapView'))
 const GoogleMapView = lazy(() => import('./components/GoogleMapView'))
 const AuthSheet = lazy(() => import('./components/AuthSheet'))
@@ -27,16 +28,34 @@ export default function App() {
   const auth = useAuth(),
     { intents, source, refresh } = useIntents(auth.session?.user.id),
     notifications = useNotifications(auth.session)
-  const [view, setView] = useState<View>('explore'),
-    [activity, setActivity] = useState<ActivityKey | null>(null),
-    [selected, setSelected] = useState<Intent | null>(null)
+  const route = useUrlParams()
+  const view = (
+    ['map', 'plans', 'inbox'].includes(route.get('view') ?? '') ? route.get('view') : 'explore'
+  ) as View
+  const activity = ACTIVITIES.find((a) => a.key === route.get('activity'))?.key ?? null
+  const setActivity = (value: ActivityKey | null) => navigate({ activity: value }, 'replace')
+  const [selected, setSelected] = useState<Intent | null>(null)
+  const scrollPositions = useRef<Record<string, number>>({})
+  const previousView = useRef(view)
+  function setView(next: View) {
+    scrollPositions.current[view] = window.scrollY
+    navigate({ view: next === 'explore' ? null : next, p: null })
+  }
+  useEffect(() => {
+    if (previousView.current !== view) {
+      previousView.current = view
+      requestAnimationFrame(() => window.scrollTo(0, scrollPositions.current[view] ?? 0))
+    }
+  }, [view])
   const [authOpen, setAuthOpen] = useState(false),
     [postOpen, setPostOpen] = useState(false),
     [profileOpen, setProfileOpen] = useState(false),
     [helpOpen, setHelpOpen] = useState(false)
   const [editing, setEditing] = useState<Intent | null>(null),
     [template, setTemplate] = useState<Intent | null>(null),
-    [venuePrefill, setVenuePrefill] = useState<VenueDraft | null>(null),
+    [venuePrefill, setVenuePrefill] = useState<VenueDraft | null>(
+      () => readAuthIntent()?.venue ?? null,
+    ),
     [peek, setPeek] = useState<string | null>(null),
     [chat, setChat] = useState<Intent | null>(null)
   const [userLoc, setUserLoc] = useState<LatLng | null>(null),
@@ -44,55 +63,59 @@ export default function App() {
     [notice, setNotice] = useState(''),
     [linkLoading, setLinkLoading] = useState(false)
   const [provider, setProvider] = useState(GOOGLE_MAPS_KEY ? 'google' : 'maplibre')
-  const afterAuth = useRef<'post' | 'plan' | null>(null),
-    deepLink = useRef(new URLSearchParams(location.search).get('p'))
+  const [afterAuth, setAfterAuth] = useState<'post' | 'plan' | null>(
+    () => readAuthIntent()?.action ?? null,
+  )
   const [planKey, setPlanKey] = useState(0)
   const openPlan = useCallback((intent: Intent) => {
     setSelected(intent)
     setNotice('')
-    history.replaceState(null, '', `/?p=${intent.id}`)
+    navigate({ p: intent.id }, 'push', { planndPlan: true })
   }, [])
   function closePlan() {
-    setSelected(null)
-    history.replaceState(null, '', location.pathname)
+    if (history.state?.planndPlan) history.back()
+    else navigate({ p: null }, 'replace')
   }
-  const fetchPlan = useCallback(
-    async (id: string) => {
-      setLinkLoading(true)
-      try {
-        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
-          setNotice('This plan link is invalid. Browse upcoming plans below.')
-          return null
-        }
-        const { data, error } = await supabase
-          .from('intents')
-          .select(INTENT_COLUMNS)
-          .eq('id', id)
-          .maybeSingle()
-        if (error) throw error
-        if (!data) {
-          setNotice('This plan is no longer available. Browse upcoming plans below.')
-          return null
-        }
-        const intent = rowToIntent(data as IntentRow)
-        openPlan(intent)
-        return intent
-      } catch {
-        setNotice('Couldn’t open this plan. Check your connection and try the link again.')
+  const fetchPlan = useCallback(async (id: string) => {
+    setLinkLoading(true)
+    try {
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+        setNotice('This plan link is invalid. Browse upcoming plans below.')
         return null
-      } finally {
-        setLinkLoading(false)
       }
-    },
-    [openPlan],
-  )
-  useEffect(() => {
-    if (deepLink.current) {
-      const id = deepLink.current
-      deepLink.current = null
-      fetchPlan(id)
+      const { data, error } = await supabase
+        .from('intents')
+        .select(INTENT_COLUMNS)
+        .eq('id', id)
+        .maybeSingle()
+      if (error) throw error
+      if (!data) {
+        setNotice('This plan is no longer available. Browse upcoming plans below.')
+        return null
+      }
+      const intent = rowToIntent(data as IntentRow)
+      return intent
+    } catch {
+      setNotice('Couldn’t open this plan. Check your connection and try the link again.')
+      return null
+    } finally {
+      setLinkLoading(false)
     }
-  }, [fetchPlan])
+  }, [])
+  const routePlan = route.get('p')
+  useEffect(() => {
+    let active = true
+    if (!routePlan) setSelected(null)
+    else if (selected?.id !== routePlan) {
+      setSelected(null)
+      void fetchPlan(routePlan).then((plan) => {
+        if (active && plan) setSelected(plan)
+      })
+    }
+    return () => {
+      active = false
+    }
+  }, [routePlan, fetchPlan, selected?.id])
   useEffect(() => {
     setSelected((previous) =>
       previous ? (intents.find((i) => i.id === previous.id) ?? previous) : null,
@@ -128,7 +151,8 @@ export default function App() {
       void notifications.markChatRead(chat.id)
   }, [chat, notifications])
   function signIn(action?: 'post' | 'plan') {
-    afterAuth.current = action ?? null
+    setAfterAuth(action ?? readAuthIntent()?.action ?? null)
+    if (action) rememberAuthIntent(action, action === 'post' ? venuePrefill : null)
     setAuthOpen(true)
   }
   function post() {
@@ -136,21 +160,30 @@ export default function App() {
     setTemplate(null)
     setVenuePrefill(null)
     if (auth.session) setPostOpen(true)
-    else signIn('post')
+    else {
+      setAfterAuth('post')
+      rememberAuthIntent('post')
+      setAuthOpen(true)
+    }
   }
   function postAtVenue(draft: VenueDraft) {
     setEditing(null)
     setTemplate(null)
     setVenuePrefill(draft)
     if (auth.session) setPostOpen(true)
-    else signIn('post')
+    else {
+      setAfterAuth('post')
+      rememberAuthIntent('post', draft)
+      setAuthOpen(true)
+    }
   }
   function signedIn() {
     setAuthOpen(false)
-    if (afterAuth.current === 'post') setPostOpen(true)
-    if (afterAuth.current === 'plan')
+    if (afterAuth === 'post') setPostOpen(true)
+    if (afterAuth === 'plan')
       setNotice('You’re signed in. Review the plan, then send your join request.')
-    afterAuth.current = null
+    setAfterAuth(null)
+    rememberAuthIntent(null)
   }
   function locate() {
     if (!navigator.geolocation) {
@@ -179,14 +212,15 @@ export default function App() {
       const i = await fetchPlan(n.intent_id)
       if (i && n.type === 'chat_message' && i.status !== 'cancelled') {
         setSelected(null)
+        navigate({ p: null }, 'replace')
         setChat(i)
-      }
+      } else if (i) openPlan(i)
     }
   }
   const mapIntents = intents.filter((i) => !activity || i.activity === activity)
   const nav = [
     { key: 'explore' as View, label: 'Explore', icon: Compass },
-    { key: 'map' as View, label: 'Map', icon: Map },
+    { key: 'map' as View, label: 'Plans map', icon: Map },
     { key: 'plans' as View, label: 'My plans', icon: CalendarDays },
     { key: 'inbox' as View, label: 'Inbox', icon: Inbox },
   ]
@@ -261,7 +295,7 @@ export default function App() {
         </div>
       )}
       <main id="main-content" className="flex-1 min-w-0">
-        {view === 'explore' && (
+        <div hidden={view !== 'explore'}>
           <Explore
             intents={intents}
             source={source}
@@ -274,7 +308,7 @@ export default function App() {
             onActivity={setActivity}
             onVenuePost={postAtVenue}
           />
-        )}
+        </div>
         {view === 'plans' && (
           <MyPlans
             key={`${planKey}-${auth.session?.user.id ?? 'guest'}`}
@@ -431,6 +465,13 @@ export default function App() {
           <AuthSheet
             auth={auth}
             open
+            context={
+              afterAuth === 'plan' && selected
+                ? `Request to join “${selected.title}” after signing in. The host will review your request.`
+                : venuePrefill
+                  ? `Continue your plan at ${venuePrefill.venueName} after signing in.`
+                  : undefined
+            }
             onClose={() => setAuthOpen(false)}
             onSignedIn={signedIn}
             onHelp={() => setHelpOpen(true)}
@@ -448,6 +489,7 @@ export default function App() {
             onPosted={() => {
               setPostOpen(false)
               setSelected(null)
+              rememberAuthIntent(null)
               refresh()
               setPlanKey((k) => k + 1)
               setView('plans')

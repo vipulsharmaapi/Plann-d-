@@ -23,6 +23,8 @@ const cafe: DiscoverableVenue = {
 }
 afterEach(() => {
   cleanup()
+  history.replaceState(null, '', '/')
+  sessionStorage.clear()
   vi.resetAllMocks()
 })
 
@@ -72,6 +74,7 @@ test('only submission searches; area and keywords survive pagination and the cho
     'Vaishali',
     'Nagar',
   ])
+  await user.click(screen.getByRole('button', { name: 'Edit search' }))
   await user.clear(screen.getByLabelText('Venue or activity'))
   await user.type(screen.getByLabelText('Venue or activity'), 'football')
   await user.click(screen.getByRole('button', { name: 'Show more places' }))
@@ -86,6 +89,7 @@ test('only submission searches; area and keywords survive pagination and the cho
   expect(post).toHaveBeenCalledWith({
     activity: 'coffee',
     venueName: 'Roastery Café',
+    venueArea: 'Vaishali Nagar',
     googlePlaceId: cafe.id,
     lat: 26.9,
     lng: 75.8,
@@ -106,6 +110,7 @@ test('a new submitted search aborts and ignores an old response', async () => {
   render(<VenueSearch onPost={vi.fn()} />)
   await user.click(screen.getByRole('button', { name: 'Football · Mansarovar' }))
   const oldSignal = search.mock.calls[0][1]
+  await user.click(screen.getByRole('button', { name: 'Edit search' }))
   await user.click(screen.getByRole('button', { name: 'Roastery', exact: true }))
   await screen.findByRole('button', { name: 'Make a plan at Roastery Café' })
   await act(async () =>

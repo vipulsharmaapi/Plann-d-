@@ -51,6 +51,9 @@ const EMOJIS = [
 export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepost }: Props) {
   const { session } = auth
   const [name, setName] = useState('')
+  const [bio, setBio] = useState('')
+  const [bioStatus, setBioStatus] = useState('')
+  const [bioLoaded, setBioLoaded] = useState(false)
   const [stats, setStats] = useState<{ posts: number; joins: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -68,6 +71,17 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
   useEffect(() => {
     if (!open || !session) return
     setName(auth.firstName)
+    supabase
+      .from('profiles')
+      .select('bio')
+      .eq('id', session.user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (!error) {
+          setBio(data?.bio ?? '')
+          setBioLoaded(true)
+        } else setBioStatus('Could not load your introduction. Reopen your profile to try again.')
+      })
     setError(null)
     setSaved(false)
     Promise.all([
@@ -286,6 +300,52 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
           </div>
         </label>
 
+        <div className="space-y-2">
+          <label className="field">
+            Short introduction (optional)
+            <textarea
+              rows={3}
+              maxLength={240}
+              value={bio}
+              onChange={(e) => {
+                setBio(e.target.value)
+                setBioStatus('')
+              }}
+              placeholder="What do you enjoy doing? What can people expect when they join you?"
+            />
+          </label>
+          <p className="text-xs text-gray-600">
+            Public on your profile and plans. Leave out contact details.
+          </p>
+          <button
+            className="secondary text-sm"
+            disabled={busy || !bioLoaded}
+            onClick={async () => {
+              if (!session || busy || !bioLoaded) return
+              setBusy(true)
+              try {
+                const { error } = await supabase
+                  .from('profiles')
+                  .update({ bio: bio.trim() || null })
+                  .eq('id', session.user.id)
+                setBioStatus(
+                  error ? 'Could not save your introduction. Try again.' : 'Introduction saved.',
+                )
+              } catch {
+                setBioStatus('Could not connect. Try again.')
+              } finally {
+                setBusy(false)
+              }
+            }}
+          >
+            Save introduction
+          </button>
+          {bioStatus && (
+            <p role="status" className="text-sm">
+              {bioStatus}
+            </p>
+          )}
+        </div>
         <div>
           <p className="text-sm font-medium text-gray-600 mb-1.5">
             Your emoji <span className="text-gray-400">— shown when you have no photo</span>

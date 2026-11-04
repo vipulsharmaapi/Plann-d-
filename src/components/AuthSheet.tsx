@@ -14,12 +14,13 @@ interface Props {
   open: boolean
   onClose: () => void
   onSignedIn: () => void
+  context?: string
   onHelp: () => void
 }
 
 type Step = 'email' | 'code' | 'pw' | 'pw-code' | 'pw-forgot' | 'pw-reset' | 'name' | 'profile'
 
-export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp }: Props) {
+export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, context }: Props) {
   const [pending] = useState(readPendingAuth)
   const [step, setStep] = useState<Step>(pending?.step ?? 'email')
   const [pwMode, setPwMode] = useState<'signin' | 'signup'>('signin')
@@ -195,6 +196,9 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp }: P
             <h2 className="text-lg font-bold text-gray-900">
               {step === 'pw' && pwMode === 'signup' ? 'Create your account' : "Sign in to Plann'd"}
             </h2>
+            {context && (
+              <p className="text-sm text-indigo-900 bg-indigo-50 p-3 rounded-xl">{context}</p>
+            )}
             {tabBar}
           </>
         )}

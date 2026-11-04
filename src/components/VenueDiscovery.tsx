@@ -186,7 +186,7 @@ function VenueCard({ place, onPost }: { place: DiscoverableVenue; onPost: () => 
   const website = safeExternalUrl(place.websiteUri)
   return (
     <article className="rounded-2xl border border-gray-200 bg-white overflow-hidden flex flex-col min-w-0">
-      <div className="aspect-[3/2] bg-slate-100 relative">
+      <div className="aspect-[3/2] bg-slate-100 relative overflow-hidden shrink-0">
         {image && !imageFailed ? (
           <>
             <img
@@ -194,7 +194,7 @@ function VenueCard({ place, onPost }: { place: DiscoverableVenue; onPost: () => 
               alt={place.displayName.text}
               loading="lazy"
               referrerPolicy="strict-origin-when-cross-origin"
-              className="w-full h-full object-cover"
+              className="absolute inset-0 w-full h-full object-cover"
               onError={() => setImageFailed(true)}
             />
             {!!photo?.authorAttributions?.length && (

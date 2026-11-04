@@ -113,6 +113,13 @@ test('a venue result opens an existing plan without creating another', async () 
   expect(open).toHaveBeenCalledWith(plan)
   expect(post).not.toHaveBeenCalled()
 })
+test('legacy plans need both the full venue name and a point within 100 metres', () => {
+  const legacy = { ...plan, googlePlaceId: undefined, venueName: 'Public café, 96' }
+  expect(plansAtVenue([legacy], place.id, place)).toEqual([legacy])
+  expect(plansAtVenue([{ ...legacy, lat: plan.lat + 0.02 }], place.id, place)).toEqual([])
+  expect(plansAtVenue([{ ...legacy, venueName: 'Public café other branch' }], place.id, place)).toEqual([])
+  expect(plansAtVenue([{ ...legacy, googlePlaceId: 'ChIJotherbranch' }], place.id, place)).toEqual([])
+})
 test('search, sort and result cards survive main navigation without a second venue request', async () => {
   discover.mockResolvedValue({ places: [place] })
   const user = userEvent.setup()

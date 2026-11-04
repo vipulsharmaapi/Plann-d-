@@ -1,4 +1,5 @@
 import type { AppNotification } from '../hooks/useNotifications'
+import { formatTimestamp } from '../lib/time'
 const ICONS: Record<string, string> = {
   join_request: '🙋',
   request_accepted: '🎉',
@@ -70,12 +71,10 @@ export default function NotificationsSheet({
               <span className="flex-1 min-w-0">
                 <span className="block text-sm font-medium">{n.body}</span>
                 <span className="block text-xs text-gray-600 mt-1">
-                  {new Date(n.created_at).toLocaleString('en-IN', {
+                  {new Date(n.created_at).toLocaleDateString('en-IN', {
                     dateStyle: 'medium',
-                    timeStyle: 'short',
                     timeZone: 'Asia/Kolkata',
-                  })}{' '}
-                  IST
+                  })} · {formatTimestamp(n.created_at)} IST
                 </span>
               </span>
               {!n.read_at && <span className="text-xs font-bold text-indigo-700">New</span>}

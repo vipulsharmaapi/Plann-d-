@@ -29,10 +29,10 @@ const date = (iso) =>
 const time = (iso) =>
   new Intl.DateTimeFormat('en-IN', {
     timeZone: 'Asia/Kolkata',
-    hour: '2-digit',
+    hour: 'numeric',
     minute: '2-digit',
-    hour12: false,
-  }).format(new Date(iso))
+    hour12: true,
+  }).format(new Date(iso)).replace(/\s+/g, ' ').toUpperCase()
 
 export function previewData(plan, now = Date.now()) {
   if (!plan)
@@ -55,7 +55,7 @@ export function previewData(plan, now = Date.now()) {
           : `${Math.max(0, plan.spots_needed - plan.spots_filled)} ${plan.spots_needed - plan.spots_filled === 1 ? 'spot' : 'spots'} available`
   const title = clean(plan.title, 120),
     venue = clean(plan.venue_name, 160)
-  const when = `${date(plan.starts_at)} · ${time(plan.starts_at)}–${time(plan.ends_at)} IST`
+  const when = `${date(plan.starts_at)} · ${time(plan.starts_at)} to ${time(plan.ends_at)} IST`
   const version = createHash('sha256')
     .update(JSON.stringify([title, venue, when, status]))
     .digest('hex')

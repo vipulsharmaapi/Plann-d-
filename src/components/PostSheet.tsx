@@ -1,4 +1,5 @@
 import Sheet from './Sheet'
+import { formatTimeRange } from '../lib/time'
 import { safeExternalUrl } from '../lib/venues'
 import { useEffect, useRef, useState } from 'react'
 import * as maplibregl from 'maplibre-gl'
@@ -547,6 +548,7 @@ export default function PostSheet({
             From
             <input
               type="time"
+              aria-describedby="plan-time-preview"
               className={`${inputCls} mt-1`}
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
@@ -556,6 +558,7 @@ export default function PostSheet({
             Till
             <input
               type="time"
+              aria-describedby="plan-time-preview"
               className={`${inputCls} mt-1`}
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
@@ -578,6 +581,9 @@ export default function PostSheet({
         </div>
 
         <div>
+          <p id="plan-time-preview" className="text-sm text-gray-600 mb-3">
+            {startTime && endTime ? formatTimeRange(startTime, endTime) : 'Choose times in India Standard Time (IST).'}
+          </p>
           <p className="text-sm text-gray-600 mb-1.5">
             Where? <span className="text-gray-400">Search a venue or tap the map</span>
           </p>

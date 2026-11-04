@@ -1,4 +1,5 @@
 import { mergeMessages, type Message } from '../lib/messages'
+import { formatTimestamp } from '../lib/time'
 import Sheet from './Sheet'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
@@ -258,14 +259,6 @@ export default function ChatSheet({ intent, auth, onClose }: Props) {
   }
 
   const activity = activityByKey(intent.activity)
-  const istTime = (iso: string) =>
-    new Date(iso).toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-      timeZone: 'Asia/Kolkata',
-    })
-
   const senderName = (userId: string) =>
     userId === session.user.id ? 'You' : (senders.get(userId)?.name ?? '…')
 
@@ -353,7 +346,7 @@ export default function ChatSheet({ intent, auth, onClose }: Props) {
                     </button>
                   </div>
                   <p className="text-[10px] text-gray-300 mt-0.5 px-1">
-                    {istTime(m.created_at)}
+                    {formatTimestamp(m.created_at)} IST
                     {seenNames.length > 0 && (
                       <span className="text-blue-400 font-semibold">
                         {' '}

@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { navigate, useUrlValue } from '../lib/navigation'
 import { plansAtVenue } from '../lib/planDiscovery'
+import { formatTimeRange } from '../lib/time'
 import { humanDay } from '../types'
 import { ChevronDown, ExternalLink, ImageOff, MapPin, Star } from 'lucide-react'
 import {
@@ -535,7 +536,7 @@ export function VenuePlans({
         >
           <span className="block font-semibold text-sm">{plan.title}</span>
           <span className="block text-xs mt-1 text-slate-600">
-            {humanDay(plan.date)} · {plan.startsAt} ·{' '}
+            {humanDay(plan.date)} · {formatTimeRange(plan.startsAt, plan.endsAt)} ·{' '}
             {plan.spotsNeeded > plan.spotsFilled
               ? `${plan.spotsNeeded - plan.spotsFilled} ${plan.spotsNeeded - plan.spotsFilled === 1 ? 'spot' : 'spots'} left`
               : 'Full'}

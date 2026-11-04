@@ -31,6 +31,8 @@ export interface VenueDetails {
   googleMapsLinks?: { placeUri?: string; reviewsUri?: string; photosUri?: string }
   attributions?: { provider: string; providerUri?: string }[]
   businessStatus?: string
+  primaryType?: string
+  types?: string[]
 }
 
 export const VENUE_CATEGORIES: { activity: ActivityKey; label: string; query: string }[] = [
@@ -56,6 +58,56 @@ export type DiscoverableVenue = VenueDetails & {
   location: { latitude: number; longitude: number }
 }
 export type VenueSort = 'rating' | 'reviews' | 'relevance'
+export interface VenueSearch {
+  query: string
+  area: string
+}
+
+export function venueSearchText(search: VenueSearch): string {
+  const query = search.query.trim().replace(/\s+/g, ' ').slice(0, 120)
+  const area = search.area.trim().replace(/\s+/g, ' ').slice(0, 80)
+  if (!query) throw new Error('Enter a venue or activity to search')
+  return `${query}${area ? ` near ${area}` : ''}, Jaipur, Rajasthan, India`
+}
+
+// A search can span categories. Prefer the activity the person asked for,
+// then the venue's name and type; the host can change it in the plan editor.
+export function venueActivity(place: VenueDetails, query: string): ActivityKey {
+  const patterns: [ActivityKey, RegExp][] = [
+    ['boardgames', /\bboard\s*games?\b/i],
+    ['football', /\b(football|soccer|futsal)\b/i],
+    ['badminton', /\bbadminton\b/i],
+    ['cricket', /\bcricket\b/i],
+    ['basketball', /\bbasketball\b/i],
+    ['tennis', /\btennis\b/i],
+    ['swimming', /\b(swim(ming)?|pools?)\b/i],
+    ['cycling', /\b(cycling|bicycl\w*)\b/i],
+    ['running', /\b(running|jogging)\b/i],
+    ['trekking', /\b(trekking|hiking|trails?)\b/i],
+    ['gym', /\b(gyms?|fitness)\b/i],
+    ['movies', /\b(movies?|cinemas?|theat(er|re)s?)\b/i],
+    ['coffee', /\b(cafes?|coffee|roastery)\b/i],
+    ['food', /\b(restaurants?|food|dining)\b/i],
+  ]
+  for (const text of [query, place.displayName?.text ?? '']) {
+    const normalized = text.normalize('NFD').replace(/\p{M}/gu, '')
+    const match = patterns.find(([, pattern]) => pattern.test(normalized))
+    if (match) return match[0]
+  }
+  const types = [place.primaryType, ...(place.types ?? [])]
+  for (const [type, activity] of Object.entries({
+    cafe: 'coffee',
+    coffee_shop: 'coffee',
+    restaurant: 'food',
+    gym: 'gym',
+    movie_theater: 'movies',
+    swimming_pool: 'swimming',
+    hiking_area: 'trekking',
+  } as const)) {
+    if (types.includes(type)) return activity
+  }
+  return 'other'
+}
 
 // Text-search location bias alone is not a boundary. Keep every selectable
 // result in the same Jaipur area supported by the existing posting form.
@@ -63,6 +115,18 @@ export function isDiscoverableVenue(place: VenueDetails): place is DiscoverableV
   return !!(
     /^[A-Za-z0-9_-]{10,255}$/.test(place.id) &&
     place.displayName?.text?.trim() &&
+    ![
+      'locality',
+      'sublocality',
+      'neighborhood',
+      'postal_code',
+      'route',
+      'street_address',
+      'country',
+      'administrative_area_level_1',
+      'administrative_area_level_2',
+    ].includes(place.primaryType ?? '') &&
+    !(place.types?.includes('political') && !place.types.includes('point_of_interest')) &&
     place.location &&
     Number.isFinite(place.location.latitude) &&
     Number.isFinite(place.location.longitude) &&
@@ -93,18 +157,21 @@ export function venueDraft(place: DiscoverableVenue, activity: ActivityKey): Ven
 }
 
 export async function discoverVenues(
-  activity: ActivityKey,
+  selection: ActivityKey | VenueSearch,
   signal: AbortSignal,
   pageToken?: string,
 ): Promise<{ places: DiscoverableVenue[]; nextPageToken?: string }> {
   if (!key) throw new Error('Venue search is not configured')
-  const category = VENUE_CATEGORIES.find((c) => c.activity === activity)!
+  const textQuery =
+    typeof selection === 'string'
+      ? `${VENUE_CATEGORIES.find((c) => c.activity === selection)!.query} in Jaipur, Rajasthan, India`
+      : venueSearchText(selection)
   const result = (await request(
     'places:searchText',
-    'places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.photos,places.websiteUri,places.googleMapsUri,places.attributions,places.businessStatus,nextPageToken',
+    'places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.photos,places.websiteUri,places.googleMapsUri,places.attributions,places.businessStatus,places.primaryType,places.types,nextPageToken',
     signal,
     {
-      textQuery: `${category.query} in Jaipur, Rajasthan, India`,
+      textQuery,
       locationBias: {
         circle: { center: { latitude: 26.8905, longitude: 75.7873 }, radius: 35000 },
       },

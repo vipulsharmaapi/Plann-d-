@@ -6,9 +6,11 @@ import {
   safeExternalUrl,
   sortVenues,
   venueDraft,
+  venueActivity,
   VENUE_CATEGORIES,
   type DiscoverableVenue,
   type VenueSort,
+  type VenueSearch,
 } from '../lib/venues'
 import type { ActivityKey, VenueDraft } from '../types'
 
@@ -50,16 +52,27 @@ export default function VenueDiscovery({ activity, onActivity, onPost }: Props) 
   )
 }
 
-function VenueResults({ activity, onPost }: Pick<Props, 'activity' | 'onPost'>) {
+export function VenueResults({
+  activity,
+  search,
+  onPost,
+}: {
+  activity?: ActivityKey
+  search?: VenueSearch
+  onPost: Props['onPost']
+}) {
   const [places, setPlaces] = useState<DiscoverableVenue[]>([])
-  const [sort, setSort] = useState<VenueSort>('rating')
+  const [sort, setSort] = useState<VenueSort>(search ? 'relevance' : 'rating')
   const [pageToken, setPageToken] = useState<string>()
   const [nextPageToken, setNextPageToken] = useState<string>()
   const [retry, setRetry] = useState(0)
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
   const [pagesLoaded, setPagesLoaded] = useState(0)
-  const category = VENUE_CATEGORIES.find((c) => c.activity === activity)!
+  const category = VENUE_CATEGORIES.find((c) => c.activity === activity)
+  const query = search?.query ?? '',
+    area = search?.area ?? ''
+  const heading = search ? `Results for “${query}”` : `${category!.label} in Jaipur`
   const sorted = useMemo(() => sortVenues(places, sort), [places, sort])
 
   useEffect(() => {
@@ -68,7 +81,7 @@ function VenueResults({ activity, onPost }: Pick<Props, 'activity' | 'onPost'>) 
     const timeout = setTimeout(() => controller.abort(), 12000)
     setLoading(true)
     setFailed(false)
-    discoverVenues(activity, controller.signal, pageToken)
+    discoverVenues(activity ?? { query, area }, controller.signal, pageToken)
       .then((result) => {
         if (!active) return
         setPlaces((previous) => (pageToken ? [...previous, ...result.places] : result.places))
@@ -87,21 +100,30 @@ function VenueResults({ activity, onPost }: Pick<Props, 'activity' | 'onPost'>) 
       clearTimeout(timeout)
       controller.abort()
     }
-  }, [activity, pageToken, retry])
+  }, [activity, query, area, pageToken, retry])
 
   return (
-    <section aria-label={`${category.label} venues in Jaipur`} aria-busy={loading}>
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 mb-3">
-        <div>
-          <h2 className="text-lg sm:text-xl font-bold">{category.label} in Jaipur</h2>
-          <p className="text-sm text-gray-600 mt-1">Find a place, then invite people along.</p>
+    <section
+      aria-label={search ? 'Venue search results' : `${category!.label} venues in Jaipur`}
+      aria-busy={loading}
+    >
+      <div className="flex flex-col min-[480px]:flex-row min-[480px]:items-end justify-between gap-3 mb-3">
+        <div className="min-w-0">
+          <h2 className="text-lg sm:text-xl font-bold break-words">{heading}</h2>
+          <p className="text-sm text-gray-600 mt-1 break-words">
+            {search
+              ? area
+                ? `In and around ${area}, Jaipur`
+                : 'Across Jaipur'
+              : 'Find a place, then invite people along.'}
+          </p>
         </div>
-        <label className="field w-40 sm:w-auto">
+        <label className="field w-full min-[480px]:w-44 shrink-0">
           Sort places
           <select value={sort} onChange={(e) => setSort(e.target.value as VenueSort)}>
             <option value="rating">Highest rated</option>
             <option value="reviews">Most reviewed</option>
-            <option value="relevance">Google relevance</option>
+            <option value="relevance">{search ? 'Best match' : 'Google relevance'}</option>
           </select>
         </label>
       </div>
@@ -110,7 +132,9 @@ function VenueResults({ activity, onPost }: Pick<Props, 'activity' | 'onPost'>) 
           ? 'Sorted by Google rating within these results.'
           : sort === 'reviews'
             ? 'Sorted by number of Google reviews within these results.'
-            : 'Ordered by Google’s relevance to this activity.'}{' '}
+            : search
+              ? 'Ordered by Google’s relevance to your search. Nearby areas may also appear.'
+              : 'Ordered by Google’s relevance to this activity.'}{' '}
         Check prices, timings and bookings with the venue before posting.
       </p>
       <p role="status" className="text-sm text-gray-600 mb-4">
@@ -139,7 +163,9 @@ function VenueResults({ activity, onPost }: Pick<Props, 'activity' | 'onPost'>) 
         <div className="py-10 text-center">
           <h3 className="font-bold text-lg">No matching venues found</h3>
           <p className="text-gray-600 mt-2">
-            Try another activity, or use “Post a plan” to choose your own meeting spot.
+            {search
+              ? 'Try a different name or activity, or remove the area to search across Jaipur.'
+              : 'Try another activity, or use “Post a plan” to choose your own meeting spot.'}
           </p>
         </div>
       )}
@@ -148,7 +174,8 @@ function VenueResults({ activity, onPost }: Pick<Props, 'activity' | 'onPost'>) 
           <VenueCard
             key={place.id}
             place={place}
-            onPost={() => onPost(venueDraft(place, activity))}
+            highlight={search ? `${query} ${area}` : ''}
+            onPost={() => onPost(venueDraft(place, activity ?? venueActivity(place, query)))}
           />
         ))}
       </div>
@@ -176,7 +203,15 @@ function VenueResults({ activity, onPost }: Pick<Props, 'activity' | 'onPost'>) 
   )
 }
 
-function VenueCard({ place, onPost }: { place: DiscoverableVenue; onPost: () => void }) {
+function VenueCard({
+  place,
+  highlight,
+  onPost,
+}: {
+  place: DiscoverableVenue
+  highlight?: string
+  onPost: () => void
+}) {
   const [imageFailed, setImageFailed] = useState(false)
   const photo = place.photos?.[0]
   const image = photo ? photoUrl(photo) : null
@@ -231,7 +266,9 @@ function VenueCard({ place, onPost }: { place: DiscoverableVenue; onPost: () => 
         )}
       </div>
       <div className="p-4 flex flex-col gap-3 flex-1">
-        <h3 className="font-bold text-lg leading-snug break-words">{place.displayName.text}</h3>
+        <h3 className="font-bold text-lg leading-snug break-words">
+          <MatchedText text={place.displayName.text} query={highlight} />
+        </h3>
         <div className="text-sm flex flex-wrap items-center gap-1.5">
           <Star size={16} className="text-amber-700" aria-hidden="true" />
           {typeof place.rating === 'number' ? (
@@ -253,7 +290,7 @@ function VenueCard({ place, onPost }: { place: DiscoverableVenue; onPost: () => 
         </div>
         {place.formattedAddress && (
           <p className="text-sm text-gray-600 leading-relaxed break-words">
-            {place.formattedAddress}
+            <MatchedText text={place.formattedAddress} query={highlight} />
           </p>
         )}
         {!!place.attributions?.length && (
@@ -306,5 +343,24 @@ function VenueCard({ place, onPost }: { place: DiscoverableVenue; onPost: () => 
         </button>
       </div>
     </article>
+  )
+}
+
+function MatchedText({ text, query = '' }: { text: string; query?: string }) {
+  const normalize = (value: string) => value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+  const ignored = new Set(['in', 'near', 'at', 'and', 'the', 'jaipur'])
+  const tokens = new Set(
+    (normalize(query).match(/[\p{L}\p{N}]+/gu) ?? []).filter(
+      (word) => word.length > 1 && !ignored.has(word),
+    ),
+  )
+  return text.split(/([\p{L}\p{N}\p{M}]+)/u).map((part, index) =>
+    tokens.has(normalize(part)) ? (
+      <mark key={index} className="bg-indigo-100 text-indigo-950 rounded-sm">
+        {part}
+      </mark>
+    ) : (
+      part
+    ),
   )
 }

@@ -12,6 +12,7 @@ import {
   type VenueDraft,
 } from '../types'
 const VenueDiscovery = lazy(() => import('./VenueDiscovery'))
+const VenueSearch = lazy(() => import('./VenueSearch'))
 export default function Explore({
   intents,
   source,
@@ -35,7 +36,7 @@ export default function Explore({
   onActivity: (a: ActivityKey | null) => void
   onVenuePost: (draft: VenueDraft) => void
 }) {
-  const [browse, setBrowse] = useState<'plans' | 'places'>('plans')
+  const [browse, setBrowse] = useState<'plans' | 'places' | 'search'>('plans')
   const [venueActivity, setVenueActivity] = useState<ActivityKey>('football')
   function findPlaces(nextActivity: ActivityKey = activity ?? venueActivity) {
     setVenueActivity(nextActivity)
@@ -99,13 +100,17 @@ export default function Explore({
   return (
     <section className="max-w-5xl mx-auto px-4 sm:px-8 py-6 sm:py-10">
       <div
-        className={`flex ${browse === 'places' ? 'flex-row' : 'flex-col sm:flex-row'} items-start justify-between gap-4 mb-6`}
+        className={`flex ${browse !== 'plans' ? 'flex-row' : 'flex-col sm:flex-row'} items-start justify-between gap-4 mb-6`}
       >
         <div>
           <h1
-            className={`${browse === 'places' ? 'text-2xl' : 'text-3xl'} sm:text-4xl font-extrabold tracking-tight`}
+            className={`${browse !== 'plans' ? 'text-2xl' : 'text-3xl'} sm:text-4xl font-extrabold tracking-tight`}
           >
-            {browse === 'places' ? 'Find a place in Jaipur.' : 'Make time for a plan.'}
+            {browse === 'search'
+              ? 'Search Jaipur.'
+              : browse === 'places'
+                ? 'Find a place in Jaipur.'
+                : 'Make time for a plan.'}
           </h1>
           {browse === 'plans' && (
             <p className="text-gray-600 mt-3 max-w-xl">
@@ -114,7 +119,7 @@ export default function Explore({
           )}
         </div>
         <button
-          className={`${browse === 'places' ? 'secondary' : 'primary'} shrink-0 text-sm`}
+          className={`${browse !== 'plans' ? 'secondary' : 'primary'} shrink-0 text-sm`}
           onClick={onPost}
         >
           + Post a plan
@@ -126,21 +131,36 @@ export default function Explore({
         aria-label="Explore Jaipur"
       >
         <button
-          className={`${browse === 'plans' ? 'primary' : 'secondary'} flex-1 sm:flex-none text-sm`}
+          className={`${browse === 'plans' ? 'primary' : 'secondary'} flex-1 sm:flex-none text-xs min-[380px]:text-sm !px-2 sm:!px-4`}
           aria-pressed={browse === 'plans'}
           onClick={() => setBrowse('plans')}
         >
           Join a plan
         </button>
         <button
-          className={`${browse === 'places' ? 'primary' : 'secondary'} flex-1 sm:flex-none text-sm`}
+          className={`${browse === 'places' ? 'primary' : 'secondary'} flex-1 sm:flex-none text-xs min-[380px]:text-sm !px-2 sm:!px-4`}
           aria-pressed={browse === 'places'}
           onClick={() => findPlaces()}
         >
           Find a place
         </button>
+        <button
+          className={`${browse === 'search' ? 'primary' : 'secondary'} flex-1 sm:flex-none text-xs min-[380px]:text-sm !px-2 sm:!px-4`}
+          aria-label="Search venues"
+          aria-pressed={browse === 'search'}
+          onClick={() => setBrowse('search')}
+        >
+          <Search size={16} aria-hidden="true" className="hidden sm:block" />
+          <span>
+            Search<span className="hidden sm:inline"> venues</span>
+          </span>
+        </button>
       </div>
-      {browse === 'places' ? (
+      {browse === 'search' ? (
+        <Suspense fallback={<p role="status">Loading venue search…</p>}>
+          <VenueSearch onPost={onVenuePost} />
+        </Suspense>
+      ) : browse === 'places' ? (
         <Suspense fallback={<p role="status">Loading place discovery…</p>}>
           <VenueDiscovery
             activity={venueActivity}

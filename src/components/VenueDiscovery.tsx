@@ -274,7 +274,7 @@ export function VenueResults({
                 onSelect={setSelectedId}
                 onPost={postAt}
                 renderPlans={(place) => (
-                  <VenuePlans plans={plansAtVenue(intents, place.id)} onOpen={onOpenPlan} />
+                  <VenuePlans plans={plansAtVenue(intents, place.id, place)} onOpen={onOpenPlan} />
                 )}
               />
             </Suspense>
@@ -294,7 +294,7 @@ export function VenueResults({
               selected={place.id === selectedId}
               onMap={() => showOnMap(place.id)}
               onPost={() => postAt(place)}
-              plans={plansAtVenue(intents, place.id)}
+              plans={plansAtVenue(intents, place.id, place)}
               onOpenPlan={onOpenPlan}
             />
           ))}
@@ -523,7 +523,9 @@ export function VenuePlans({
   if (!plans.length || !onOpen) return null
   return (
     <div className="border-t border-slate-200 pt-3 space-y-2">
-      <h4 className="font-bold text-sm">Upcoming plans here</h4>
+      <h4 className="font-bold text-sm">
+        {plans.some((plan) => !plan.googlePlaceId) ? 'Upcoming plans here or nearby' : 'Upcoming plans here'}
+      </h4>
       {plans.map((plan) => (
         <button
           key={plan.id}
@@ -535,9 +537,14 @@ export function VenuePlans({
           <span className="block text-xs mt-1 text-slate-600">
             {humanDay(plan.date)} · {plan.startsAt} ·{' '}
             {plan.spotsNeeded > plan.spotsFilled
-              ? `${plan.spotsNeeded - plan.spotsFilled} spots left`
+              ? `${plan.spotsNeeded - plan.spotsFilled} ${plan.spotsNeeded - plan.spotsFilled === 1 ? 'spot' : 'spots'} left`
               : 'Full'}
           </span>
+          {!plan.googlePlaceId && (
+            <span className="block text-xs mt-1 text-slate-600">
+              Matched by name and nearby location. Check the meeting point in the plan.
+            </span>
+          )}
         </button>
       ))}
     </div>

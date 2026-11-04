@@ -75,6 +75,8 @@ beforeAll(async () => {
   await db.exec(migration)
   await db.exec(migration) // Must be safely re-runnable.
   await db.exec(read('supabase/migrations/202611040002_private_block_events.sql'))
+  await db.exec(read('supabase/migrations/202611040003_venue_details.sql'))
+  await db.exec(read('supabase/migrations/202611040003_venue_details.sql'))
 }, 30000)
 afterAll(() => db.close())
 
@@ -106,6 +108,37 @@ describe.sequential('database integrity and authorization', () => {
     await expect(asUser(alice, `select save_plan('${plan}','${payload}',null)`)).rejects.toThrow(
       /Only the host/,
     )
+  })
+  test('venue IDs and menu links are atomic, validated and survive older-client saves', async () => {
+    const payload = JSON.stringify({
+      ...JSON.parse(values()),
+      google_place_id: 'ChIJTestPlaceId',
+      venue_menu_url: 'https://example.com/menu.pdf',
+    })
+    await asUser(
+      host,
+      `select save_plan('${plan}','${payload}','https://chat.whatsapp.com/TestInvite')`,
+    )
+    await asUser(
+      host,
+      `select save_plan('${plan}','${values()}','https://chat.whatsapp.com/TestInvite')`,
+    )
+    expect(
+      (await db.query(`select google_place_id,venue_menu_url from intents where id='${plan}'`))
+        .rows,
+    ).toEqual([
+      { google_place_id: 'ChIJTestPlaceId', venue_menu_url: 'https://example.com/menu.pdf' },
+    ])
+    const invalid = JSON.stringify({
+      ...JSON.parse(values()),
+      venue_menu_url: 'javascript:alert(1)',
+    })
+    await expect(asUser(host, `select save_plan('${plan}','${invalid}',null)`)).rejects.toThrow(
+      /intents_menu_url_valid/,
+    )
+    expect((await db.query(`select venue_menu_url from intents where id='${plan}'`)).rows).toEqual([
+      { venue_menu_url: 'https://example.com/menu.pdf' },
+    ])
   })
   test('new requests must be pending and cannot self-join', async () => {
     await expect(

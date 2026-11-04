@@ -1,4 +1,5 @@
 import Sheet from './Sheet'
+import { safeExternalUrl } from '../lib/venues'
 import { useEffect, useRef, useState } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -25,6 +26,7 @@ const WHATSAPP_LINK_RE = /^https:\/\/(chat\.whatsapp\.com|wa\.me)\/[A-Za-z0-9?=&
 
 interface VenueResult {
   name: string
+  placeId?: string
   label: string
   lat: number
   lng: number
@@ -43,7 +45,7 @@ async function searchVenuesGoogle(q: string): Promise<VenueResult[]> {
     headers: {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': GOOGLE_KEY!,
-      'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location',
+      'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location',
     },
     body: JSON.stringify({
       textQuery: `${q}, Jaipur`,
@@ -60,12 +62,14 @@ async function searchVenuesGoogle(q: string): Promise<VenueResult[]> {
   const json = await res.json()
   return (
     (json.places ?? []) as Array<{
+      id: string
       displayName?: { text?: string }
       formattedAddress?: string
       location: { latitude: number; longitude: number }
     }>
   )
     .map((p) => ({
+      placeId: p.id,
       name: p.displayName?.text || q,
       label: (p.formattedAddress ?? '').split(',').slice(0, 2).join(',').trim(),
       lat: p.location.latitude,
@@ -149,6 +153,8 @@ export default function PostSheet({ open, session, editing, template, onClose, o
   const [womenOnly, setWomenOnly] = useState(false)
   const [whatsapp, setWhatsapp] = useState('')
   const [venueName, setVenueName] = useState('')
+  const [googlePlaceId, setGooglePlaceId] = useState<string | null>(null)
+  const [menuUrl, setMenuUrl] = useState('')
   const [pin, setPin] = useState<{ lat: number; lng: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -219,6 +225,8 @@ export default function PostSheet({ open, session, editing, template, onClose, o
   }
 
   const chooseVenue = (v: VenueResult) => {
+    setGooglePlaceId(v.placeId ?? null)
+    setMenuUrl('')
     placePin(v.lat, v.lng)
     setVenueName(v.label ? `${v.name}, ${v.label.split(',')[0]}` : v.name)
     setVenueQuery('')
@@ -242,6 +250,8 @@ export default function PostSheet({ open, session, editing, template, onClose, o
       setWhatsapp('')
       setLinkLoading(true)
       setVenueName(editing.venueName)
+      setGooglePlaceId(editing.googlePlaceId ?? null)
+      setMenuUrl(editing.venueMenuUrl ?? '')
       setPin({ lat: editing.lat, lng: editing.lng })
       // Group link lives in a participant-only table
       supabase
@@ -271,6 +281,8 @@ export default function PostSheet({ open, session, editing, template, onClose, o
       setWomenOnly(template?.womenOnly ?? false)
       setWhatsapp('')
       setVenueName(template?.venueName ?? '')
+      setGooglePlaceId(template?.googlePlaceId ?? null)
+      setMenuUrl(template?.venueMenuUrl ?? '')
       setPin(template ? { lat: template.lat, lng: template.lng } : null)
     }
     setError(null)
@@ -311,6 +323,8 @@ export default function PostSheet({ open, session, editing, template, onClose, o
           .addTo(map)
       }
       map.on('click', (e) => {
+        setGooglePlaceId(null)
+        setMenuUrl('')
         setPin({ lat: e.lngLat.lat, lng: e.lngLat.lng })
         if (!markerRef.current) {
           markerRef.current = new maplibregl.Marker({ color: '#111827' })
@@ -354,6 +368,8 @@ export default function PostSheet({ open, session, editing, template, onClose, o
           })
         }
         map.addListener('click', (e: google.maps.MapMouseEvent) => {
+          setGooglePlaceId(null)
+          setMenuUrl('')
           if (!e.latLng) return
           const lat = e.latLng.lat()
           const lng = e.latLng.lng()
@@ -399,6 +415,8 @@ export default function PostSheet({ open, session, editing, template, onClose, o
     if (link && !WHATSAPP_LINK_RE.test(link))
       return setError('Group link must look like https://chat.whatsapp.com/…')
 
+    if (menuUrl.trim() && !safeExternalUrl(menuUrl.trim()))
+      return setError('Use a complete https:// link for the venue menu.')
     setBusy(true)
     const values = {
       activity,
@@ -407,6 +425,8 @@ export default function PostSheet({ open, session, editing, template, onClose, o
       lat: pin.lat,
       lng: pin.lng,
       venue_name: venueName.trim(),
+      google_place_id: googlePlaceId,
+      venue_menu_url: menuUrl.trim() || null,
       starts_at: toIsoIST(date, startTime),
       ends_at: toIsoIST(date, endTime),
       spots_needed: spots,
@@ -562,8 +582,27 @@ export default function PostSheet({ open, session, editing, template, onClose, o
             placeholder="Venue name — e.g. Central Park, C-Scheme"
             value={venueName}
             maxLength={80}
-            onChange={(e) => setVenueName(e.target.value)}
+            onChange={(e) => {
+              setVenueName(e.target.value)
+              setGooglePlaceId(null)
+              setMenuUrl('')
+            }}
           />
+        </label>
+
+        <label className="field">
+          Venue menu link (optional)
+          <input
+            type="url"
+            className={inputCls}
+            placeholder="https://…"
+            value={menuUrl}
+            maxLength={2048}
+            onChange={(e) => setMenuUrl(e.target.value)}
+          />
+          <span className="text-xs text-gray-600">
+            Link the venue’s official menu. Members will see that you added it.
+          </span>
         </label>
 
         <label className="field">

@@ -1,3 +1,4 @@
+import VenueDetails from './components/VenueDetails'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { CalendarDays, Compass, Map, Inbox, MapPin, Plus, HelpCircle, User } from 'lucide-react'
 import Explore from './components/Explore'
@@ -397,6 +398,7 @@ export default function App() {
                 onOpenChat={setChat}
               />
             </IntentCard>
+            <VenueDetails key={selected.id} intent={selected} />
             {selected.womenOnly && (
               <p className="text-xs text-gray-600 mt-4">
                 Women-only eligibility uses self-declared gender. Plann’d does not verify identity.

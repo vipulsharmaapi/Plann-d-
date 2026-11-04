@@ -57,6 +57,8 @@ export interface Intent {
   lat: number
   lng: number
   venueName: string
+  googlePlaceId?: string | null
+  venueMenuUrl?: string | null
   date: string // "2026-07-14" (IST)
   startsAt: string // "19:00"
   endsAt: string // "21:00"

@@ -7,6 +7,15 @@ import VenueDiscovery from '../src/components/VenueDiscovery'
 import { loadGoogleMaps, onGoogleAuthFailure } from '../src/lib/googleMaps'
 import { discoverVenues, type DiscoverableVenue } from '../src/lib/venues'
 
+vi.mock('@googlemaps/markerclusterer', () => ({
+  MarkerClusterer: class {
+    constructor(options: ClusterOptions) {
+      return new TestCluster(options)
+    }
+  },
+  SuperClusterAlgorithm: class {},
+}))
+
 vi.mock('../src/lib/googleMaps', () => ({
   GOOGLE_MAP_ID: 'test',
   loadGoogleMaps: vi.fn(),
@@ -29,6 +38,7 @@ const cafe: DiscoverableVenue = {
   displayName: { text: 'Test café' },
   location: { latitude: 26.91, longitude: 75.79 },
 }
+let clusterers: TestCluster[]
 let views: TestMap[], pins: TestMarker[], offAuth: ReturnType<typeof vi.fn>
 class TestMap {
   fitBounds = vi.fn()
@@ -51,11 +61,12 @@ class TestMarker extends EventTarget {
   zIndex = 0
   private currentMap: TestMap | null = null
   position: unknown
-  constructor(options: { map: TestMap; content: HTMLElement; position: unknown }) {
+  constructor(options: { map?: TestMap; content: HTMLElement; position: unknown; title?: string }) {
     super()
     this.position = options.position
     this.button.append(options.content)
-    this.map = options.map
+    this.map = options.map ?? null
+    if (options.title) this.title = options.title
     this.button.addEventListener('click', () => this.dispatchEvent(new Event('gmp-click')))
     pins.push(this)
   }
@@ -71,7 +82,35 @@ class TestMarker extends EventTarget {
     return this.currentMap
   }
 }
+interface ClusterOptions {
+  map: TestMap
+  onClusterClick: (
+    event: unknown,
+    group: { markers: TestMarker[]; bounds: TestBounds },
+    view: TestMap,
+  ) => void
+  renderer: { render: (group: { count: number; position: unknown }) => TestMarker }
+}
+class TestCluster {
+  members: TestMarker[] = []
+  constructor(public options: ClusterOptions) {
+    clusterers.push(this)
+  }
+  clearMarkers() {
+    this.members = []
+  }
+  addMarkers(markers: TestMarker[]) {
+    this.members.push(...markers)
+  }
+  render() {
+    for (const pin of this.members) pin.map = this.options.map
+  }
+  setMap(value: TestMap | null) {
+    for (const pin of this.members) pin.map = value
+  }
+}
 beforeEach(() => {
+  clusterers = []
   views = []
   pins = []
   offAuth = vi.fn()
@@ -186,4 +225,39 @@ test('pagination adds every unique venue to the map; card actions reopen it and 
     lat: 26.91,
     lng: 75.79,
   })
+})
+
+test('a cluster gives explicit choices even when two venues share a location; choosing one preserves its identity', async () => {
+  const select = vi.fn(),
+    post = vi.fn(),
+    coincident = { ...cafe, location: turf.location }
+  const view = render(
+    <VenueMap places={[turf, coincident]} selectedId={null} onSelect={select} onPost={post} />,
+  )
+  await screen.findByRole('button', { name: '1. Test turf' })
+  const cluster = clusterers[0]
+  const groupMarker = cluster.options.renderer.render({
+    count: 2,
+    position: { lat: 26.9, lng: 75.8 },
+  })
+  expect(groupMarker.button.getAttribute('aria-label')).toBe('2 venues. Zoom in and choose a venue')
+  expect(groupMarker.button.textContent).toBe('2venues')
+  act(() =>
+    cluster.options.onClusterClick(
+      {},
+      { markers: pins.slice(0, 2), bounds: new TestBounds() },
+      views[0],
+    ),
+  )
+  expect(screen.getByRole('heading', { name: 'Choose from 2 nearby venues' })).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: 'Select Test café on map' }))
+  expect(select).toHaveBeenLastCalledWith(cafe.id)
+  view.rerender(
+    <VenueMap places={[turf, coincident]} selectedId={cafe.id} onSelect={select} onPost={post} />,
+  )
+  expect(cluster.members).toEqual([pins[0]])
+  expect(pins[1].map).toBe(views[0])
+  expect(pins[1].zIndex).toBe(10000)
+  fireEvent.click(screen.getByRole('button', { name: 'Make a plan at Test café from map' }))
+  expect(post).toHaveBeenCalledWith(coincident)
 })

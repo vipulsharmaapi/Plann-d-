@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { LocateFixed, Star, X } from 'lucide-react'
+import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer'
 import { GOOGLE_MAP_ID, loadGoogleMaps, onGoogleAuthFailure } from '../lib/googleMaps'
 import type { DiscoverableVenue } from '../lib/venues'
 
@@ -20,6 +21,7 @@ export default function VenueMap({ places, selectedId, onSelect, onPost }: Props
   const map = useRef<google.maps.Map | null>(null)
   const api = useRef<typeof google | null>(null)
   const markers = useRef(new Map<string, MarkerEntry>())
+  const clusters = useRef<MarkerClusterer | null>(null)
   const select = useRef(onSelect)
   const currentPlaces = useRef(places)
   useEffect(() => {
@@ -29,6 +31,8 @@ export default function VenueMap({ places, selectedId, onSelect, onPost }: Props
   const [ready, setReady] = useState(false)
   const [failed, setFailed] = useState(false)
   const [attempt, setAttempt] = useState(0)
+  const [groupIds, setGroupIds] = useState<string[]>([])
+  const group = places.filter((place) => groupIds.includes(place.id))
   const selected = places.find((place) => place.id === selectedId)
   const selectedNumber = places.findIndex((place) => place.id === selectedId) + 1
 
@@ -61,7 +65,40 @@ export default function VenueMap({ places, selectedId, onSelect, onPost }: Props
           gestureHandling: 'cooperative',
           maxZoom: 19,
         })
-        mapClick = map.current.addListener('click', () => select.current(null))
+        clusters.current = new MarkerClusterer({
+          map: map.current,
+          algorithm: new SuperClusterAlgorithm({ radius: 120, maxZoom: 20 }),
+          renderer: {
+            render: ({ count, position }) => {
+              const label = document.createElement('div')
+              label.className = 'venue-map-cluster'
+              const number = document.createElement('strong')
+              number.textContent = String(count)
+              const caption = document.createElement('span')
+              caption.textContent = 'venues'
+              label.append(number, caption)
+              return new g.maps.marker.AdvancedMarkerElement({
+                position,
+                content: label,
+                gmpClickable: true,
+                zIndex: 2000,
+                title: `${count} venues. Zoom in and choose a venue`,
+              })
+            },
+          },
+          onClusterClick: (_event, cluster, view) => {
+            select.current(null)
+            const grouped = new Set(cluster.markers)
+            setGroupIds(
+              [...entries].filter(([, entry]) => grouped.has(entry.marker)).map(([id]) => id),
+            )
+            if (cluster.bounds) view.fitBounds(cluster.bounds, 64)
+          },
+        })
+        mapClick = map.current.addListener('click', () => {
+          select.current(null)
+          setGroupIds([])
+        })
         clearTimeout(timeout)
         setReady(true)
       })
@@ -71,6 +108,8 @@ export default function VenueMap({ places, selectedId, onSelect, onPost }: Props
       clearTimeout(timeout)
       offAuthFailure()
       mapClick?.remove()
+      clusters.current?.setMap(null)
+      clusters.current = null
       for (const { marker, click } of entries.values()) {
         marker.removeEventListener('gmp-click', click)
         marker.map = null
@@ -122,12 +161,14 @@ export default function VenueMap({ places, selectedId, onSelect, onPost }: Props
         const pin = document.createElement('div')
         pin.className = 'venue-map-pin'
         const marker = new g.maps.marker.AdvancedMarkerElement({
-          map: view,
           position: { lat: place.location.latitude, lng: place.location.longitude },
           content: pin,
           gmpClickable: true,
         })
-        const click = () => select.current(place.id)
+        const click = () => {
+          setGroupIds([])
+          select.current(place.id)
+        }
         marker.addEventListener('gmp-click', click)
         entry = { marker, pin, click }
         markers.current.set(place.id, entry)
@@ -139,13 +180,21 @@ export default function VenueMap({ places, selectedId, onSelect, onPost }: Props
   }, [places, ready])
 
   useEffect(() => {
-    if (!ready) return
+    if (!ready || !clusters.current) return
+    clusters.current.clearMarkers(true)
+    clusters.current.addMarkers(
+      [...markers.current].filter(([id]) => id !== selectedId).map(([, entry]) => entry.marker),
+      true,
+    )
+    clusters.current.render()
     for (const [id, entry] of markers.current) {
       entry.pin.dataset.selected = String(id === selectedId)
-      entry.marker.zIndex = id === selectedId ? 1000 : 1
+      entry.marker.zIndex = id === selectedId ? 10000 : 1
+      if (id === selectedId) entry.marker.map = map.current
     }
     const place = places.find((venue) => venue.id === selectedId)
     if (place && map.current) {
+      setGroupIds([])
       map.current.panTo({ lat: place.location.latitude, lng: place.location.longitude })
     }
   }, [selectedId, places, ready])
@@ -154,7 +203,7 @@ export default function VenueMap({ places, selectedId, onSelect, onPost }: Props
     <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-x-3 px-4 py-2">
         <p className="text-sm text-slate-600">
-          {places.length} {places.length === 1 ? 'venue' : 'venues'} · Select a numbered pin
+          {places.length} {places.length === 1 ? 'venue' : 'venues'} · Tap a pin or group
         </p>
         <button
           className="text-sm font-semibold min-h-11 inline-flex items-center gap-1.5 disabled:opacity-50"
@@ -231,9 +280,43 @@ export default function VenueMap({ places, selectedId, onSelect, onPost }: Props
             </button>
           </div>
         </div>
+      ) : group.length ? (
+        <div className="border-t border-slate-200 p-4" aria-label="Venues in selected group">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <h4 className="font-bold">Choose from {group.length} nearby venues</h4>
+            <button
+              className="secondary min-h-11 min-w-11 !p-2"
+              aria-label="Close venue group"
+              onClick={() => setGroupIds([])}
+            >
+              <X size={18} aria-hidden="true" />
+            </button>
+          </div>
+          <ul className="max-h-52 overflow-y-auto divide-y divide-slate-200">
+            {group.map((place) => (
+              <li key={place.id}>
+                <button
+                  className="w-full text-left py-3 min-h-11 hover:bg-indigo-50 focus-visible:bg-indigo-50"
+                  aria-label={`Select ${place.displayName.text} on map`}
+                  onClick={() => {
+                    setGroupIds([])
+                    onSelect(place.id)
+                  }}
+                >
+                  <span className="block font-semibold text-sm break-words">
+                    {places.findIndex((item) => item.id === place.id) + 1}. {place.displayName.text}
+                  </span>
+                  <span className="block text-sm text-slate-600 mt-1 break-words">
+                    {place.formattedAddress}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : (
         <p className="px-4 py-3 text-sm text-slate-600 border-t border-slate-200">
-          Pin numbers match the cards below. Load more places to add them to the map.
+          Tap a group to zoom in or choose a venue. Individual pin numbers match the cards below.
         </p>
       )}
     </div>

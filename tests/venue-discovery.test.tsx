@@ -5,6 +5,8 @@ import userEvent from '@testing-library/user-event'
 import VenueDiscovery from '../src/components/VenueDiscovery'
 import { discoverVenues, type DiscoverableVenue } from '../src/lib/venues'
 
+vi.mock('../src/components/VenueMap', () => ({ default: () => null }))
+
 vi.mock('../src/lib/venues', async (original) => ({
   ...(await original<typeof import('../src/lib/venues')>()),
   discoverVenues: vi.fn(),
@@ -88,5 +90,9 @@ test('pagination retries keep existing venues and never duplicate a returned bra
   await screen.findByText('Test café')
   expect(screen.getAllByText('Test football turf')).toHaveLength(1)
   expect(search.mock.calls[2][2]).toBe('next')
-  await waitFor(() => expect(screen.getByRole('status').textContent).toBe('2 places found'))
+  await waitFor(() =>
+    expect(screen.getByRole('status', { name: 'Venue results' }).textContent).toBe(
+      '2 places found',
+    ),
+  )
 })

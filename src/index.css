@@ -240,3 +240,24 @@ button:disabled {
     scroll-behavior: auto !important;
   }
 }
+
+/* Venue result numbers link the map to its cards. */
+.venue-map-pin {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 2px solid white;
+  border-radius: 50% 50% 50% 4px;
+  background: #172033;
+  color: white;
+  font:
+    700 14px Manrope,
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+.venue-map-pin[data-selected='true'] {
+  background: #4f46e5;
+  outline: 3px solid #172033;
+  outline-offset: 2px;
+}

@@ -42,6 +42,7 @@ export default function VenueSearch({ onPost }: { onPost: (draft: VenueDraft) =>
           Venue or activity
           <input
             type="search"
+            className="placeholder:text-slate-600 placeholder:opacity-100"
             placeholder="Football, cafés, Roastery…"
             required
             maxLength={120}
@@ -60,7 +61,7 @@ export default function VenueSearch({ onPost }: { onPost: (draft: VenueDraft) =>
             />
             <input
               type="search"
-              className="!pl-10"
+              className="!pl-10 placeholder:text-slate-600 placeholder:opacity-100"
               placeholder="Neighbourhood or landmark"
               maxLength={80}
               value={area}

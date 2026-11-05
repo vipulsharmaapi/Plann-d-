@@ -208,7 +208,8 @@ export function VenuePlans({
             <strong>{plan.title}</strong>
             <small>
               {humanDay(plan.date)} · {formatTimeRange(plan.startsAt, plan.endsAt)} ·{' '}
-              {Math.max(0, plan.spotsNeeded - plan.spotsFilled)} spots open
+              {Math.max(0, plan.spotsNeeded - plan.spotsFilled)}{' '}
+              {plan.spotsNeeded - plan.spotsFilled === 1 ? 'spot' : 'spots'} open
             </small>
             {!plan.googlePlaceId && <small>Nearby name match. Confirm the meeting point.</small>}
             <span>View plan →</span>

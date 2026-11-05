@@ -2,6 +2,41 @@
 
 @theme {
   --font-sans: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Jaipur sandstone for actions and selection; warm plaster for surfaces. */
+  --color-brand-50: #fff0eb;
+  --color-brand-100: #f9ddd3;
+  --color-brand-200: #f2b7a8;
+  --color-brand-300: #df9784;
+  --color-brand-400: #cc765f;
+  --color-brand-500: #b95842;
+  --color-brand-600: #a14432;
+  --color-brand-700: #8b362a;
+  --color-brand-800: #722d26;
+  --color-brand-900: #54241f;
+  --color-brand-950: #341612;
+  --color-white: #fffdf9;
+  --color-gray-50: #fff8f2;
+  --color-gray-100: #f5eae2;
+  --color-gray-200: #e5d2c8;
+  --color-gray-300: #c9afa3;
+  --color-gray-400: #816960;
+  --color-gray-500: #745d55;
+  --color-gray-600: #665048;
+  --color-gray-700: #554038;
+  --color-gray-800: #44312b;
+  --color-gray-900: #382722;
+  --color-gray-950: #241915;
+  --color-slate-50: #fff8f2;
+  --color-slate-100: #f5eae2;
+  --color-slate-200: #e5d2c8;
+  --color-slate-300: #c9afa3;
+  --color-slate-400: #816960;
+  --color-slate-500: #745d55;
+  --color-slate-600: #665048;
+  --color-slate-700: #554038;
+  --color-slate-800: #44312b;
+  --color-slate-900: #382722;
+  --color-slate-950: #241915;
 }
 
 html,
@@ -72,35 +107,39 @@ button:active:not(:disabled) {
   animation: sheet-up 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Aurora mesh-gradient backdrop — fills empty space with soft color */
-.aurora {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(42% 55% at 10% 15%, rgba(99, 102, 241, 0.18), transparent 70%),
-    radial-gradient(38% 48% at 90% 10%, rgba(236, 72, 153, 0.13), transparent 70%),
-    radial-gradient(55% 65% at 75% 95%, rgba(56, 189, 248, 0.16), transparent 70%),
-    radial-gradient(42% 58% at 20% 90%, rgba(251, 146, 60, 0.13), transparent 70%);
-}
-
-/* Wordmark */
+/* A solid wordmark and sandstone masthead keep the city colour in the navigation. */
 .wordmark {
   font-weight: 800;
   letter-spacing: -0.03em;
-  background: linear-gradient(120deg, #111827 40%, #4f46e5);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--color-brand-900);
+}
+.site-header {
+  background: var(--color-brand-200);
+  border-bottom: 1px solid var(--color-brand-300);
+}
+.site-header nav button:not([aria-current]) {
+  color: var(--color-brand-900);
+}
+::selection {
+  background: var(--color-brand-200);
+  color: var(--color-brand-950);
+}
+input,
+textarea {
+  caret-color: var(--color-brand-700);
+}
+html,
+.modal-sheet {
+  scrollbar-color: var(--color-brand-300) var(--color-gray-50);
 }
 
 /* Accessible shared controls and modal behavior. */
 :root {
-  color: #172033;
-  background: #f8fafc;
+  color: var(--color-gray-900);
+  background: var(--color-gray-50);
 }
 :focus-visible {
-  outline: 3px solid #4f46e5;
+  outline: 3px solid var(--color-brand-700);
   outline-offset: 3px;
 }
 button,
@@ -130,13 +169,13 @@ button:disabled {
   width: min(100% - 2rem, 38rem);
   max-height: 90dvh;
   border-radius: 24px;
-  color: #172033;
-  background: white;
+  color: var(--color-gray-900);
+  background: var(--color-white);
   overflow: auto;
-  box-shadow: 0 24px 90px #17203340;
+  box-shadow: 0 24px 90px #38272240;
 }
 .modal-sheet::backdrop {
-  background: #0f172a80;
+  background: #38272280;
   backdrop-filter: blur(3px);
 }
 .modal-sheet .sheet-panel {
@@ -157,8 +196,8 @@ button:disabled {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--color-gray-100);
+  color: var(--color-gray-700);
 }
 .modal-sheet:has(.chat-panel) {
   height: 85dvh;
@@ -176,8 +215,8 @@ button:disabled {
     gap: 8px;
     border-radius: 12px;
     padding: 12px 18px;
-    background: #172033;
-    color: white;
+    background: var(--color-brand-700);
+    color: var(--color-white);
     font-weight: 700;
   }
   .secondary {
@@ -185,11 +224,11 @@ button:disabled {
     justify-content: center;
     align-items: center;
     gap: 8px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--color-gray-300);
     border-radius: 12px;
     padding: 10px 14px;
-    background: white;
-    color: #334155;
+    background: var(--color-white);
+    color: var(--color-gray-700);
     font-weight: 600;
   }
 }
@@ -198,26 +237,26 @@ button:disabled {
   gap: 6px;
   font-size: 14px;
   font-weight: 600;
-  color: #475569;
+  color: var(--color-gray-600);
 }
 .field input,
 .field select,
 .field textarea {
   min-width: 0;
   width: 100%;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-gray-300);
   border-radius: 12px;
   padding: 10px 12px;
-  background: white;
-  color: #172033;
+  background: var(--color-white);
+  color: var(--color-gray-900);
   font-weight: 400;
 }
-/* Existing secondary text remains readable on the original light surfaces. */
+/* Muted text stays readable on the cream and pink surfaces. */
 .text-gray-400 {
-  color: #667085;
+  color: var(--color-gray-500);
 }
 .text-gray-300:not(.bg-gray-900 *) {
-  color: #667085;
+  color: var(--color-gray-500);
 }
 @media (max-width: 640px) {
   .modal-sheet {
@@ -249,16 +288,16 @@ button:disabled {
   place-items: center;
   border: 2px solid white;
   border-radius: 50% 50% 50% 4px;
-  background: #172033;
-  color: white;
+  background: var(--color-gray-900);
+  color: var(--color-white);
   font:
     700 14px Manrope,
     sans-serif;
   font-variant-numeric: tabular-nums;
 }
 .venue-map-pin[data-selected='true'] {
-  background: #4f46e5;
-  outline: 3px solid #172033;
+  background: var(--color-brand-700);
+  outline: 3px solid var(--color-gray-900);
   outline-offset: 2px;
 }
 
@@ -269,10 +308,10 @@ button:disabled {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 2px solid #4f46e5;
+  border: 2px solid var(--color-brand-700);
   border-radius: 16px;
-  background: #eef2ff;
-  color: #312e81;
+  background: var(--color-brand-50);
+  color: var(--color-brand-900);
   font:
     600 11px Manrope,
     sans-serif;
@@ -280,4 +319,20 @@ button:disabled {
 .venue-map-cluster strong {
   font-size: 17px;
   line-height: 20px;
+}
+
+@media (hover: hover) {
+  .primary:hover:not(:disabled) {
+    background: var(--color-brand-800);
+  }
+  .secondary:hover:not(:disabled) {
+    background: var(--color-brand-50);
+    border-color: var(--color-brand-300);
+  }
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-gray-500);
+  opacity: 1;
 }

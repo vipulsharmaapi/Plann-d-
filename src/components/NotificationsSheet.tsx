@@ -63,7 +63,7 @@ export default function NotificationsSheet({
             <button
               key={n.id}
               onClick={() => onOpenNotification(n)}
-              className={`w-full text-left p-4 border-b last:border-0 border-gray-100 flex items-start gap-3 ${n.read_at ? 'bg-white' : 'bg-indigo-50'}`}
+              className={`w-full text-left p-4 border-b last:border-0 border-gray-100 flex items-start gap-3 ${n.read_at ? 'bg-white' : 'bg-brand-50'}`}
             >
               <span className="text-xl" aria-hidden="true">
                 {ICONS[n.type] ?? '🔔'}
@@ -77,7 +77,7 @@ export default function NotificationsSheet({
                   })} · {formatTimestamp(n.created_at)} IST
                 </span>
               </span>
-              {!n.read_at && <span className="text-xs font-bold text-indigo-700">New</span>}
+              {!n.read_at && <span className="text-xs font-bold text-brand-700">New</span>}
             </button>
           ))}
         </div>

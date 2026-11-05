@@ -159,8 +159,7 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
 
   const inputCls =
     'w-full rounded-xl border border-gray-300 px-4 py-3 text-base outline-none focus:border-gray-900'
-  const primaryCls =
-    'w-full bg-gray-900 text-white rounded-xl py-3 font-semibold disabled:opacity-40'
+  const primaryCls = 'primary w-full disabled:opacity-40'
   const codeInputCls = `${inputCls} tracking-[0.4em] text-center font-mono text-xl`
 
   const tabBar = (
@@ -171,7 +170,7 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
         }}
         className={`flex-1 rounded-lg py-2 ${step === 'email' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
       >
-        ✉️ Email code
+        Email code
       </button>
       <button
         onClick={() => {
@@ -181,7 +180,7 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
         }}
         className={`flex-1 rounded-lg py-2 ${step === 'pw' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
       >
-        🔑 Password
+        Password
       </button>
     </div>
   )
@@ -197,7 +196,7 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
               {step === 'pw' && pwMode === 'signup' ? 'Create your account' : "Sign in to Plann'd"}
             </h2>
             {context && (
-              <p className="text-sm text-indigo-900 bg-indigo-50 p-3 rounded-xl">{context}</p>
+              <p className="text-sm text-brand-900 bg-brand-50 p-3 rounded-xl">{context}</p>
             )}
             {tabBar}
           </>
@@ -206,7 +205,7 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
         {step === 'email' && (
           <>
             <p className="text-sm text-gray-600">
-              New here? This also creates your account. We'll email you a one-time code.
+              We'll email you a code to sign in or create an account.
             </p>
             <label className="field">
               Email address
@@ -495,7 +494,7 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
         {step === 'name' && (
           <>
             <h2 className="text-lg font-bold text-gray-900">Set up your profile</h2>
-            <p className="text-sm text-gray-500">First name only — it's shown on your posts.</p>
+            <p className="text-sm text-gray-500">Your first name is public.</p>
             <label className="field">
               First name
               <input
@@ -522,7 +521,7 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
                     onClick={() => setGender(key)}
                     className={`flex-1 rounded-xl py-2.5 text-sm font-semibold border ${
                       gender === key
-                        ? 'bg-gray-900 text-white border-gray-900'
+                        ? 'bg-brand-700 text-white border-brand-700'
                         : 'bg-white text-gray-700 border-gray-300'
                     }`}
                   >

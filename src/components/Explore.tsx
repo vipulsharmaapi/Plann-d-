@@ -137,17 +137,11 @@ export default function Explore({
             className={`${browse !== 'plans' ? 'text-2xl' : 'text-3xl'} sm:text-4xl font-extrabold tracking-tight`}
           >
             {browse === 'search'
-              ? 'Search Jaipur.'
+              ? 'Search Jaipur'
               : browse === 'places'
-                ? 'Find a place in Jaipur.'
-                : 'Join a plan in Jaipur.'}
+                ? 'Places in Jaipur'
+                : 'Join a plan in Jaipur'}
           </h1>
-          {browse === 'plans' && (
-            <p className="text-gray-600 mt-3 max-w-xl">
-              Find a game, a coffee or a little company. Request to join; the host confirms your
-              spot.
-            </p>
-          )}
         </div>
         <button className="secondary shrink-0 text-sm" onClick={onPost}>
           + Post a plan
@@ -265,7 +259,7 @@ export default function Explore({
         </div>
         {activity && (
           <button
-            className="text-sm text-indigo-800 font-semibold underline underline-offset-4 mb-3 text-left"
+            className="text-sm text-brand-800 font-semibold underline underline-offset-4 mb-3 text-left"
             onClick={() => findPlaces(activity)}
           >
             Find{' '}
@@ -283,7 +277,7 @@ export default function Explore({
           ].map(([value, label]) => (
             <button
               key={value}
-              className={`px-4 rounded-full text-sm font-semibold ${day === value ? 'bg-indigo-100 text-indigo-900' : 'text-gray-600 bg-white'}`}
+              className={`px-4 rounded-full text-sm font-semibold ${day === value ? 'bg-brand-100 text-brand-900' : 'text-gray-600 bg-white'}`}
               aria-pressed={day === value}
               onClick={() => setDay(value)}
             >
@@ -391,22 +385,6 @@ export default function Explore({
             ))}
           </div>
         )}
-        {source === 'live' && intents.length > 0 && intents.length < 4 && !hasFilters && (
-          <div className="mt-8 border-t border-slate-200 pt-5 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="font-bold">Have somewhere else in mind?</h2>
-              <p className="text-sm text-gray-600 mt-1">
-                Find a place and invite people to your own plan.
-              </p>
-            </div>
-            <button className="secondary text-sm" onClick={() => findPlaces()}>
-              Browse places
-            </button>
-          </div>
-        )}
-        <p className="mt-8 text-xs text-gray-500">
-          Times are shown in India Standard Time. Join requests need the host’s approval.
-        </p>
       </div>
     </section>
   )

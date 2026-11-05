@@ -230,7 +230,7 @@ export default function PostSheet({
     const map = mapRef.current
     if (!map) return
     if (!markerRef.current) {
-      markerRef.current = new maplibregl.Marker({ color: '#111827' })
+      markerRef.current = new maplibregl.Marker({ color: '#8b362a' })
         .setLngLat([lng, lat])
         .addTo(map)
     } else {
@@ -341,7 +341,7 @@ export default function PostSheet({
         attributionControl: { compact: true },
       })
       if (prefill) {
-        markerRef.current = new maplibregl.Marker({ color: '#111827' })
+        markerRef.current = new maplibregl.Marker({ color: '#8b362a' })
           .setLngLat([prefill.lng, prefill.lat])
           .addTo(map)
       }
@@ -350,7 +350,7 @@ export default function PostSheet({
         setMenuUrl('')
         setPin({ lat: e.lngLat.lat, lng: e.lngLat.lng })
         if (!markerRef.current) {
-          markerRef.current = new maplibregl.Marker({ color: '#111827' })
+          markerRef.current = new maplibregl.Marker({ color: '#8b362a' })
             .setLngLat(e.lngLat)
             .addTo(map)
         } else {
@@ -442,7 +442,7 @@ export default function PostSheet({
     if (date < todayIST() || date > maxDateIST())
       return setError('Pick a date between today and a week from now.')
     if (new Date(toIsoIST(date, endTime)).getTime() <= Date.now())
-      return setError('That time window has already passed — pick a later slot.')
+      return setError('Choose a later time.')
     const link = whatsapp.trim()
     if (link && !WHATSAPP_LINK_RE.test(link))
       return setError('Group link must look like https://chat.whatsapp.com/…')
@@ -524,7 +524,7 @@ export default function PostSheet({
           Plan title
           <input
             className={inputCls}
-            placeholder="Title — e.g. Badminton doubles, need 2"
+            placeholder="e.g. Badminton doubles, need 2"
             value={title}
             maxLength={80}
             onChange={(e) => setTitle(e.target.value)}
@@ -582,7 +582,9 @@ export default function PostSheet({
 
         <div>
           <p id="plan-time-preview" className="text-sm text-gray-600 mb-3">
-            {startTime && endTime ? formatTimeRange(startTime, endTime) : 'Choose times in India Standard Time (IST).'}
+            {startTime && endTime
+              ? formatTimeRange(startTime, endTime)
+              : 'Choose times in India Standard Time (IST).'}
           </p>
           <p className="text-sm text-gray-600 mb-1.5">
             Where? <span className="text-gray-400">Search a venue or tap the map</span>
@@ -592,7 +594,7 @@ export default function PostSheet({
               Search venues in Jaipur
               <input
                 className={inputCls}
-                placeholder="🔍 Search venue — e.g. Central Park"
+                placeholder="e.g. Central Park"
                 value={venueQuery}
                 onChange={(e) => setVenueQuery(e.target.value)}
               />
@@ -614,7 +616,7 @@ export default function PostSheet({
                 ))}
                 {!searching && venueResults.length === 0 && venueQuery.trim().length >= 3 && (
                   <p className="px-3 py-2.5 text-sm text-gray-400">
-                    No matches near Jaipur — tap the map instead.
+                    No matches in Jaipur. Try the map.
                   </p>
                 )}
               </div>
@@ -627,7 +629,7 @@ export default function PostSheet({
           Meeting venue
           <input
             className={inputCls}
-            placeholder="Venue name — e.g. Central Park, C-Scheme"
+            placeholder="e.g. Central Park, C-Scheme"
             value={venueName}
             maxLength={80}
             onChange={(e) => {
@@ -645,14 +647,10 @@ export default function PostSheet({
             maxLength={100}
             placeholder="e.g. Vaishali Nagar"
           />
-          <span className="text-xs text-gray-600">Helps people find your plan by area.</span>
         </label>
         <fieldset className="border-t border-slate-200 pt-5 space-y-4">
           <legend className="font-bold text-base">Before people join</legend>
-          <p className="text-sm text-gray-600">
-            Optional details to help people decide. These are shared publicly as information from
-            you.
-          </p>
+          <p className="text-sm text-gray-600">Optional. These details are public.</p>
           <div className="grid sm:grid-cols-2 gap-4">
             <label className="field">
               Expected cost per person (₹)
@@ -666,9 +664,7 @@ export default function PostSheet({
                 onChange={(e) => setExpectedCost(e.target.value)}
                 placeholder="Leave blank if undecided"
               />
-              <span className="text-xs text-gray-600">
-                An estimate, not a payment. Enter 0 for free.
-              </span>
+              <span className="text-xs text-gray-600">Estimate only. Enter 0 for free.</span>
             </label>
             <label className="field">
               Skill level
@@ -721,7 +717,7 @@ export default function PostSheet({
           Note (optional)
           <input
             className={inputCls}
-            placeholder="Note (optional) — skill level, cost split…"
+            placeholder="Anything else people should know?"
             value={note}
             maxLength={280}
             onChange={(e) => setNote(e.target.value)}
@@ -732,7 +728,7 @@ export default function PostSheet({
           WhatsApp group link (optional)
           <input
             className={inputCls}
-            placeholder="WhatsApp group link (optional) — https://chat.whatsapp.com/…"
+            placeholder="https://chat.whatsapp.com/…"
             value={whatsapp}
             onChange={(e) => setWhatsapp(e.target.value)}
           />
@@ -765,7 +761,7 @@ export default function PostSheet({
               ? 'Saving…'
               : editing
                 ? 'Save changes'
-                : 'Post it 🙌'}
+                : 'Post plan'}
         </button>
       </div>
     </Sheet>

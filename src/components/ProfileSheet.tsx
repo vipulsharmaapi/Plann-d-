@@ -181,7 +181,7 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
   const uploadAvatar = async (file: File) => {
     if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type))
       return setError('Choose a JPG, PNG, WebP or GIF image.')
-    if (file.size > 4 * 1024 * 1024) return setError('Image too big — keep it under 4 MB.')
+    if (file.size > 4 * 1024 * 1024) return setError('Choose an image under 4 MB.')
     setUploading(true)
     setError(null)
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
@@ -349,7 +349,7 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
         </div>
         <div>
           <p className="text-sm font-medium text-gray-600 mb-1.5">
-            Your emoji <span className="text-gray-400">— shown when you have no photo</span>
+            Your emoji <span className="text-gray-400">(used without a photo)</span>
             {emojiSaved && <span className="ml-2 text-green-600 font-semibold">✓ saved</span>}
           </p>
           <div className="grid grid-cols-5 gap-1">
@@ -369,7 +369,7 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
 
         <div>
           <p className="text-sm font-medium text-gray-600 mb-1.5">
-            Gender <span className="text-gray-400">— used for women-only plans</span>
+            Gender <span className="text-gray-400">(for women-only plans)</span>
             {genderSaved && <span className="ml-2 text-green-600 font-semibold">✓ saved</span>}
           </p>
           {auth.gender ? (
@@ -404,7 +404,7 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
         <label className="block text-sm font-medium text-gray-600">
           WhatsApp number{' '}
           <span className="text-gray-400 font-normal">
-            — shared only with people you match with
+            Shared only with hosts or participants after approval.
           </span>
           {waSaved && <span className="ml-2 text-green-600 font-semibold">✓ saved</span>}
           <div className="mt-1 flex gap-2">
@@ -430,7 +430,7 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
           <p className="text-sm font-medium text-gray-600 mb-1.5">My plans</p>
           {!myPlans && <p className="text-sm text-gray-400">Loading…</p>}
           {myPlans && myPlans.length === 0 && (
-            <p className="text-sm text-gray-400">Nothing yet — post your first plan 🎯</p>
+            <p className="text-sm text-gray-400">No plans posted yet.</p>
           )}
           <div className="space-y-1.5 max-h-56 overflow-y-auto">
             {myPlans?.map(({ intent, status, live }) => (
@@ -477,7 +477,7 @@ export default function ProfileSheet({ auth, open, onClose, onViewIntent, onRepo
           <p className="text-sm font-medium text-gray-600 mb-1.5">Joined</p>
           {!joinedPlans && <p className="text-sm text-gray-400">Loading…</p>}
           {joinedPlans && joinedPlans.length === 0 && (
-            <p className="text-sm text-gray-400">Nothing joined yet — tap "I'm in" on a plan 🙋</p>
+            <p className="text-sm text-gray-400">No plans joined yet.</p>
           )}
           <div className="space-y-1.5 max-h-56 overflow-y-auto">
             {joinedPlans?.map(({ intent, requestStatus, live }) => (

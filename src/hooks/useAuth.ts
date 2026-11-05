@@ -110,7 +110,7 @@ export function useAuth(): Auth {
     // Supabase obfuscates existing accounts: user comes back with no identities
     if (data.user && (data.user.identities?.length ?? 0) === 0)
       return {
-        error: 'An account with this email already exists — sign in instead.',
+        error: 'This email already has an account. Sign in instead.',
         needsConfirm: false,
       }
     return { error: null, needsConfirm: !data.session }

@@ -70,9 +70,6 @@ export default function VenueSearch({
         </div>
       )}
       <div hidden={!editing}>
-        <p className="text-gray-600 mb-5">
-          Search by venue name or activity. Add a neighbourhood to find places nearby.
-        </p>
         <form
           role="search"
           aria-label="Search Jaipur venues"
@@ -127,7 +124,7 @@ export default function VenueSearch({
           {examples.map((example) => (
             <button
               key={example.query}
-              className="text-sm text-indigo-700 underline underline-offset-4 min-h-11 text-left hover:text-indigo-900"
+              className="text-sm text-brand-700 underline underline-offset-4 min-h-11 text-left hover:text-brand-900"
               onClick={() => search(example)}
             >
               {example.query}
@@ -144,15 +141,7 @@ export default function VenueSearch({
           intents={intents}
           onOpenPlan={onOpenPlan}
         />
-      ) : (
-        <div className="border-t border-slate-200 pt-8 pb-10">
-          <h2 className="font-bold text-xl">Know the name? Start there.</h2>
-          <p className="text-gray-600 mt-2 max-w-xl">
-            Or search for something you’d like to do. Compare photos, ratings and locations, then
-            make a plan at your favourite spot.
-          </p>
-        </div>
-      )}
+      ) : null}
     </div>
   )
 }

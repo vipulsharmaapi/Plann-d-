@@ -204,7 +204,7 @@ export default function VenueMap({ places, selectedId, onSelect, onPost, renderP
     <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-x-3 px-4 py-2">
         <p className="text-sm text-slate-600">
-          {places.length} {places.length === 1 ? 'venue' : 'venues'} · Tap a pin or group
+          {places.length} {places.length === 1 ? 'venue' : 'venues'}
         </p>
         <button
           className="text-sm font-semibold min-h-11 inline-flex items-center gap-1.5 disabled:opacity-50"
@@ -298,7 +298,7 @@ export default function VenueMap({ places, selectedId, onSelect, onPost, renderP
             {group.map((place) => (
               <li key={place.id}>
                 <button
-                  className="w-full text-left py-3 min-h-11 hover:bg-indigo-50 focus-visible:bg-indigo-50"
+                  className="w-full text-left py-3 min-h-11 hover:bg-brand-50 focus-visible:bg-brand-50"
                   aria-label={`Select ${place.displayName.text} on map`}
                   onClick={() => {
                     setGroupIds([])
@@ -318,7 +318,7 @@ export default function VenueMap({ places, selectedId, onSelect, onPost, renderP
         </div>
       ) : (
         <p className="px-4 py-3 text-sm text-slate-600 border-t border-slate-200">
-          Tap a group to zoom in or choose a venue. Individual pin numbers match the cards below.
+          Select a pin to see a venue.
         </p>
       )}
     </div>

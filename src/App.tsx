@@ -13,11 +13,9 @@ import { useAuth } from './hooks/useAuth'
 import { INTENT_COLUMNS, rowToIntent, useIntents, type IntentRow } from './hooks/useIntents'
 import { useNotifications, type AppNotification } from './hooks/useNotifications'
 import { supabase } from './lib/supabase'
-import { GOOGLE_MAPS_KEY } from './lib/googleMaps'
 import type { LatLng } from './lib/geo'
 import { ACTIVITIES, humanDay, type Intent, type ActivityKey, type VenueDraft } from './types'
-const MapView = lazy(() => import('./components/MapView'))
-const GoogleMapView = lazy(() => import('./components/GoogleMapView'))
+const JaipurMap = lazy(() => import('./components/JaipurMap'))
 const AuthSheet = lazy(() => import('./components/AuthSheet'))
 const PostSheet = lazy(() => import('./components/PostSheet'))
 const ProfileSheet = lazy(() => import('./components/ProfileSheet'))
@@ -66,7 +64,6 @@ export default function App() {
     [locating, setLocating] = useState(false),
     [notice, setNotice] = useState(''),
     [linkLoading, setLinkLoading] = useState(false)
-  const [provider, setProvider] = useState(GOOGLE_MAPS_KEY ? 'google' : 'maplibre')
   const [afterAuth, setAfterAuth] = useState<'post' | 'plan' | null>(
     () => readAuthIntent()?.action ?? null,
   )
@@ -374,28 +371,12 @@ export default function App() {
                 </p>
               }
             >
-              {provider === 'google' ? (
-                <GoogleMapView
-                  intents={mapIntents}
-                  selectedId={selected?.id ?? null}
-                  onSelect={(id) => {
-                    const i = mapIntents.find((i) => i.id === id)
-                    if (i) openPlan(i)
-                  }}
-                  userLoc={userLoc}
-                  onFallback={() => setProvider('maplibre')}
-                />
-              ) : (
-                <MapView
-                  intents={mapIntents}
-                  selectedId={selected?.id ?? null}
-                  onSelect={(id) => {
-                    const i = mapIntents.find((i) => i.id === id)
-                    if (i) openPlan(i)
-                  }}
-                  userLoc={userLoc}
-                />
-              )}
+              <JaipurMap
+                plans={mapIntents}
+                selected={selected ?? undefined}
+                onSelect={openPlan}
+                onDetails={openPlan}
+              />
             </Suspense>
             <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-3 pointer-events-none">
               <p className="bg-white shadow rounded-xl px-4 py-3 text-sm font-semibold pointer-events-auto">

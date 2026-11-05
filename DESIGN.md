@@ -185,7 +185,7 @@ This is the supplied prototype’s chosen world, implemented against the existin
 - Flat list surfaces, tonal selection and elevation for floating controls.
 - Deliberate desktop and phone compositions with legible plan facts.
 
-Authority: the effective cascade in `src/index.css`, `src/App.tsx`, and the Explore, PlanRow, PlanDetail, JoinSection, Sheet and JaipurMap components. The source prototype is `../plannd-redesign/prototype`; `.impeccable/review/` holds integration review captures. Frontmatter owns reusable primitives; `.impeccable/design.json` carries extensions and isolated component previews. This is the integrated system, not the prototype’s session-only behavior.
+Authority: the effective cascade in `src/index.css`, `src/App.tsx`, and the Explore, PlanRow, PlanDetail, JoinSection, Sheet, PostSheet, JaipurMap and VenuePinMap components. The source prototype is `../plannd-redesign/prototype`; `.impeccable/review/` holds integration review captures. Frontmatter owns reusable primitives; `.impeccable/design.json` carries extensions and isolated component previews. This is the integrated system, not the prototype’s session-only behavior.
 
 ## Colors
 
@@ -243,7 +243,7 @@ Explore retains the supplied invitation/search band, category strip, date filter
 
 At 700px and below, discovery becomes one column. A plan opens in a native, full-screen detail sheet. The action row is fixed at the bottom, includes safe-area padding and is bounded to 170px with overflow when needed; the detail reserves 190px below its content. Bottom navigation adds the safe-area inset to its 72px height. The floating List/Map switch sits above it at 90px plus that inset. Category and date strips can scroll horizontally; the page itself should fit the viewport.
 
-Phone map mode hides the large invitation and retains search. Its map height is `calc(100dvh - 350px)` with a 380px minimum. The desktop map is 610px tall. The 360px breakpoint reduces gutters and row thumbnails further. Normal sheets use a 38rem maximum width and a 90dvh maximum height; at 640px they meet the bottom edge and may reach 94dvh. The plan sheet has its own wider desktop and full-screen phone treatment.
+Phone map mode hides the large invitation and retains search. Its map height is `calc(100dvh - 350px)` with a 380px minimum. The desktop map is 610px tall. The 360px breakpoint reduces gutters and row thumbnails further. Normal sheets use a 38rem maximum width and a 90dvh maximum height; at 640px they meet the bottom edge and may reach 94dvh. The plan sheet has its own wider desktop and full-screen phone treatment. Posting preserves the supplied centered dialog: maximum width 590px, 28px inset, and 20px top/bottom viewport clearance. At 700px and below, it keeps a centered inset surface with 23px/20px padding and 10px viewport clearance. Paired fields retain two equal columns down to 380px; below that width, they stack to keep native date and time values readable.
 
 Spacing tokens record repeated steps rather than a compulsory universal grid. Use space to separate tasks and tight gaps to keep related facts together. My plans and venue discovery retain the same page gutters while accommodating their existing functional content.
 
@@ -253,7 +253,7 @@ White space, thin dividers and tonal selection provide most hierarchy. Ordinary 
 
 **The Floating Surface Rule.** Add elevation when a control or temporary surface sits above content; keep ordinary plan rows and content panels flat.
 
-State feedback is brief: button colors transition over 150ms and marker scale over 180ms when reduced motion is not requested. The global reduced-motion rule reduces animation and transition durations. Leaflet fitting is unanimated. Do not infer the unused prototype dialog entrance animation as a requirement for the production Sheet component.
+State feedback is brief: button colors transition over 150ms and marker scale over 180ms when reduced motion is not requested. The global reduced-motion rule reduces animation and transition durations. Do not infer the unused prototype dialog entrance animation as a requirement for the production Sheet component.
 
 ## Shapes
 
@@ -291,7 +291,13 @@ Desktop navigation uses icon/text pairs, berry active text and an underline. Pho
 
 ### Jaipur map and plan preview
 
-Leaflet displays OpenStreetMap tiles and host-stored coordinates. Circular category pins invert white/berry and scale to 1.15 when selected. The preview repeats the same plan artwork, title, time and available places, and opens details. Keep map attribution visible and preserve a useful list path when tiles fail. The map label describes meeting places from hosts; it does not claim independent location verification.
+Google Maps displays host-stored coordinates through the existing loader and project key. Circular category pins invert white/berry and scale to 1.15 when selected. The preview repeats the same plan artwork, title, time and available places, and opens details. Keep Google attribution visible. Loading uses a plain status; failure hides the vendor canvas and presents one recovery message with Retry map, while List remains available. The map label describes meeting places from hosts; it does not claim independent location verification. The optional meeting-pin map in posting uses the same Google provider and an inline retry state.
+
+### Posting dialog
+
+The supplied form hierarchy stays intact: heading and short introduction, plan title, activity/open spots, venue, neighbourhood/date, start/end times, description, then the full-width berry action. The Bricolage heading is 28px on desktop and 26px on phone, with a 1.14 line height; Instrument Sans carries labels, fields and helper text. Fields are white, finely outlined and gently rounded, with 45px minimum height and 11px/12px padding. Phone fields use 16px text. Form rows are separated by 18px on desktop and 16px on phone.
+
+Google venue suggestions appear directly beneath the venue field, with names, addresses, attribution and loading/error recovery. A selected meeting place receives a quiet confirmation and a Check meeting pin control. The IST preview sits directly below the time pair. More details begins closed and keeps optional production fields accessible without disturbing the supplied form’s main sequence. Its disclosure uses normal label text and a muted Optional qualifier. Save progress and errors remain beside the action. The shared native Sheet supplies focus, Escape dismissal and scroll locking; posting uses its own visible header close control.
 
 ### Sheets and feedback
 
@@ -306,7 +312,8 @@ Production overlays use the shared native Sheet: accessible dialog naming, a Luc
 - **Do** reuse the four supplied WebP assets and identify activity artwork as illustrative.
 - **Do** give phone layouts their own composition and clearance for fixed controls.
 - **Do** distinguish selection, hover, focus, saving, pending requests and accepted membership.
-- **Do** preserve OpenStreetMap and Google attribution beside the content they describe.
+- **Do** preserve Google attribution beside the maps, venue results and photos it describes.
+- **Do** keep the supplied posting hierarchy and expose optional production fields through More details.
 
 ### Don't:
 

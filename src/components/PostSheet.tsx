@@ -2,9 +2,8 @@ import Sheet from './Sheet'
 import { formatTimeRange } from '../lib/time'
 import { safeExternalUrl } from '../lib/venues'
 import { useEffect, useRef, useState } from 'react'
-import * as maplibregl from 'maplibre-gl'
-import 'maplibre-gl/dist/maplibre-gl.css'
-import { GOOGLE_MAP_ID, loadGoogleMaps, onGoogleAuthFailure } from '../lib/googleMaps'
+import { ArrowRight, CircleHelp, MapPin, X } from 'lucide-react'
+import VenuePinMap from './VenuePinMap'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { ACTIVITIES, type ActivityKey, type Intent, type VenueDraft } from '../types'
@@ -41,9 +40,10 @@ const nearJaipur = (v: VenueResult) =>
 
 // Google Places (New) Text Search — much better coverage of Indian venues.
 // Used automatically when VITE_GOOGLE_MAPS_API_KEY is set.
-async function searchVenuesGoogle(q: string): Promise<VenueResult[]> {
+async function searchVenuesGoogle(q: string, signal: AbortSignal): Promise<VenueResult[]> {
   const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
     method: 'POST',
+    signal,
     headers: {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': GOOGLE_KEY!,
@@ -78,40 +78,6 @@ async function searchVenuesGoogle(q: string): Promise<VenueResult[]> {
       lng: p.location.longitude,
     }))
     .filter(nearJaipur)
-}
-
-// Free OpenStreetMap geocoder (photon.komoot.io), biased to Jaipur and
-// filtered to ~60 km around it.
-async function searchVenues(q: string): Promise<VenueResult[]> {
-  if (GOOGLE_KEY) {
-    try {
-      return await searchVenuesGoogle(q)
-    } catch {
-      // fall through to the free geocoder on quota/config errors
-    }
-  }
-  const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&lat=${JAIPUR_CENTER[1]}&lon=${JAIPUR_CENTER[0]}&limit=6`
-  const res = await fetch(url)
-  if (!res.ok) return []
-  const json = await res.json()
-  return (json.features ?? [])
-    .map(
-      (f: { properties: Record<string, string>; geometry: { coordinates: [number, number] } }) => {
-        const p = f.properties
-        const [lng, lat] = f.geometry.coordinates
-        const area = [p.district, p.city, p.state].filter(Boolean).slice(0, 2).join(', ')
-        return {
-          name: p.name || p.street || q,
-          label: area,
-          lat,
-          lng,
-        }
-      },
-    )
-    .filter(
-      (v: VenueResult) =>
-        Math.abs(v.lat - JAIPUR_CENTER[1]) < 0.55 && Math.abs(v.lng - JAIPUR_CENTER[0]) < 0.55,
-    )
 }
 
 // Today's date in IST as yyyy-mm-dd, so "19:00" becomes 19:00 IST today.
@@ -153,7 +119,7 @@ export default function PostSheet({
   onClose,
   onPosted,
 }: Props) {
-  const [activity, setActivity] = useState<ActivityKey>('badminton')
+  const [activity, setActivity] = useState<ActivityKey>('coffee')
   const [title, setTitle] = useState('')
   const [note, setNote] = useState('')
   const [date, setDate] = useState(todayIST())
@@ -176,77 +142,55 @@ export default function PostSheet({
   const [linkLoading, setLinkLoading] = useState(false)
   const draftId = useRef<string>(crypto.randomUUID())
 
-  const mapDivRef = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<maplibregl.Map | null>(null)
-  const markerRef = useRef<maplibregl.Marker | null>(null)
-  const gMapRef = useRef<google.maps.Map | null>(null)
-  const gMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null)
   const [venueQuery, setVenueQuery] = useState('')
   const [venueResults, setVenueResults] = useState<VenueResult[]>([])
   const [searching, setSearching] = useState(false)
+  const [venueError, setVenueError] = useState(false)
+  const [searchAttempt, setSearchAttempt] = useState(0)
+  const [showPinMap, setShowPinMap] = useState(false)
 
   // Debounced venue search
   useEffect(() => {
-    const q = venueQuery.trim()
-    if (q.length < 3) {
-      setSearching(false)
+    if (!open || venueQuery.trim().length < 3) {
       setVenueResults([])
+      setSearching(false)
       return
     }
     let active = true
+    const controller = new AbortController()
     setSearching(true)
-    const t = setTimeout(async () => {
-      try {
-        const results = await searchVenues(q)
-        if (active) setVenueResults(results)
-      } catch {
-        if (active) setVenueResults([])
-      } finally {
-        if (active) setSearching(false)
-      }
+    setVenueError(false)
+    setVenueResults([])
+    const timeout = setTimeout(() => controller.abort(), 12000)
+    const timer = setTimeout(() => {
+      searchVenuesGoogle(venueQuery.trim(), controller.signal)
+        .then((r) => {
+          if (active) setVenueResults(r)
+        })
+        .catch(() => {
+          if (active) setVenueError(true)
+        })
+        .finally(() => {
+          clearTimeout(timeout)
+          if (active) setSearching(false)
+        })
     }, 400)
     return () => {
       active = false
-      clearTimeout(t)
+      clearTimeout(timer)
+      clearTimeout(timeout)
+      controller.abort()
     }
-  }, [venueQuery])
-
-  const placePin = (lat: number, lng: number) => {
-    setPin({ lat, lng })
-    const gMap = gMapRef.current
-    if (gMap) {
-      if (!gMarkerRef.current) {
-        gMarkerRef.current = new google.maps.marker.AdvancedMarkerElement({
-          map: gMap,
-          position: { lat, lng },
-        })
-      } else {
-        gMarkerRef.current.position = { lat, lng }
-      }
-      gMap.panTo({ lat, lng })
-      if ((gMap.getZoom() ?? 0) < 14) gMap.setZoom(14)
-      return
-    }
-    const map = mapRef.current
-    if (!map) return
-    if (!markerRef.current) {
-      markerRef.current = new maplibregl.Marker({ color: '#8b362a' })
-        .setLngLat([lng, lat])
-        .addTo(map)
-    } else {
-      markerRef.current.setLngLat([lng, lat])
-    }
-    map.easeTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), 14), duration: 500 })
-  }
+  }, [open, venueQuery, searchAttempt])
 
   const chooseVenue = (v: VenueResult) => {
     setGooglePlaceId(v.placeId ?? null)
     setMenuUrl('')
-    setVenueArea('')
-    placePin(v.lat, v.lng)
-    setVenueName(v.label ? `${v.name}, ${v.label.split(',')[0]}` : v.name)
+    setPin({ lat: v.lat, lng: v.lng })
+    setVenueName(v.name.slice(0, 80))
     setVenueQuery('')
     setVenueResults([])
+    setVenueError(false)
   }
 
   // Populate (or reset) the form each time the sheet opens
@@ -287,7 +231,7 @@ export default function PostSheet({
     } else {
       setLinkLoading(false)
       const t = defaultTimes()
-      setActivity(template?.activity ?? venuePrefill?.activity ?? 'badminton')
+      setActivity(template?.activity ?? venuePrefill?.activity ?? 'coffee')
       setTitle(template?.title ?? '')
       setNote(template?.note ?? '')
       setDate(todayIST())
@@ -309,115 +253,12 @@ export default function PostSheet({
     setBookingStatus(editing?.bookingStatus ?? '')
     setMeetingInstructions(details?.meetingInstructions ?? '')
     setError(null)
+    setVenueQuery('')
+    setVenueResults([])
+    setVenueError(false)
+    setShowPinMap(false)
     return () => {
       active = false
-    }
-  }, [open, editing, template, venuePrefill])
-
-  useEffect(() => {
-    if (!open || !mapDivRef.current) return
-    let cancelled = false
-    let mlMap: maplibregl.Map | null = null
-    const prefill = editing ?? template ?? venuePrefill ?? null
-
-    const initMapLibre = () => {
-      if (cancelled || !mapDivRef.current) return
-      const map = new maplibregl.Map({
-        container: mapDivRef.current,
-        style: {
-          version: 8,
-          sources: {
-            osm: {
-              type: 'raster',
-              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-              tileSize: 256,
-              attribution: '© OpenStreetMap contributors',
-            },
-          },
-          layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
-        },
-        center: prefill ? [prefill.lng, prefill.lat] : JAIPUR_CENTER,
-        zoom: prefill ? 13 : 10.8,
-        attributionControl: { compact: true },
-      })
-      if (prefill) {
-        markerRef.current = new maplibregl.Marker({ color: '#8b362a' })
-          .setLngLat([prefill.lng, prefill.lat])
-          .addTo(map)
-      }
-      map.on('click', (e) => {
-        setGooglePlaceId(null)
-        setMenuUrl('')
-        setPin({ lat: e.lngLat.lat, lng: e.lngLat.lng })
-        if (!markerRef.current) {
-          markerRef.current = new maplibregl.Marker({ color: '#8b362a' })
-            .setLngLat(e.lngLat)
-            .addTo(map)
-        } else {
-          markerRef.current.setLngLat(e.lngLat)
-        }
-      })
-      mapRef.current = map
-      mlMap = map
-    }
-
-    const offAuthFailure = onGoogleAuthFailure(() => {
-      if (cancelled || !mapDivRef.current) return
-      // Google map got created but its auth failed — wipe it, use OSM
-      gMapRef.current = null
-      gMarkerRef.current = null
-      mapDivRef.current.innerHTML = ''
-      initMapLibre()
-    })
-
-    loadGoogleMaps()
-      .then((g) => {
-        if (cancelled || !mapDivRef.current) return
-        const map = new g.maps.Map(mapDivRef.current, {
-          center: prefill
-            ? { lat: prefill.lat, lng: prefill.lng }
-            : { lat: JAIPUR_CENTER[1], lng: JAIPUR_CENTER[0] },
-          zoom: prefill ? 13 : 10.8,
-          mapId: GOOGLE_MAP_ID,
-          disableDefaultUI: true,
-          zoomControl: true,
-          clickableIcons: false,
-        })
-        gMapRef.current = map
-        if (prefill) {
-          gMarkerRef.current = new g.maps.marker.AdvancedMarkerElement({
-            map,
-            position: { lat: prefill.lat, lng: prefill.lng },
-          })
-        }
-        map.addListener('click', (e: google.maps.MapMouseEvent) => {
-          setGooglePlaceId(null)
-          setMenuUrl('')
-          if (!e.latLng) return
-          const lat = e.latLng.lat()
-          const lng = e.latLng.lng()
-          setPin({ lat, lng })
-          if (!gMarkerRef.current) {
-            gMarkerRef.current = new g.maps.marker.AdvancedMarkerElement({
-              map,
-              position: { lat, lng },
-            })
-          } else {
-            gMarkerRef.current.position = { lat, lng }
-          }
-        })
-      })
-      .catch(initMapLibre)
-
-    return () => {
-      cancelled = true
-      offAuthFailure()
-      markerRef.current = null
-      mapRef.current = null
-      if (gMarkerRef.current) gMarkerRef.current.map = null
-      gMarkerRef.current = null
-      gMapRef.current = null
-      mlMap?.remove()
     }
   }, [open, editing, template, venuePrefill])
 
@@ -427,7 +268,10 @@ export default function PostSheet({
     if (!session || busy || linkLoading) return
     setError(null)
     if (title.trim().length < 3) return setError('Give it a short title (3+ characters).')
-    if (!pin) return setError('Tap the map to drop a pin where you’ll meet.')
+    if (!pin)
+      return setError(
+        'Choose a venue from the search results, or pin the meeting place on Google Maps.',
+      )
     if (venueArea.trim() && venueArea.trim().length < 2)
       return setError('Use at least 2 characters for the neighbourhood.')
     if (
@@ -488,282 +332,318 @@ export default function PostSheet({
     onPosted()
   }
 
-  const inputCls =
-    'w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-gray-900'
-
+  const neighbourhoods = [
+    'Vaishali Nagar',
+    'Mansarovar',
+    'C-Scheme',
+    'Malviya Nagar',
+    'Civil Lines',
+    'Pink City',
+  ]
+  const hasResults = venueQuery.trim().length >= 3
   return (
-    <Sheet title="Plan editor" onClose={onClose}>
-      <div className="sheet-panel relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl max-h-[92%] overflow-y-auto p-5 pb-8 space-y-4">
-        <div className="w-10 h-1 rounded-full bg-gray-300 mx-auto sm:hidden" />
-        <h2 className="text-lg font-bold text-gray-900">
-          {editing ? 'Edit your post' : 'Post an activity'}
-        </h2>
-        {venuePrefill && !editing && !template && (
-          <p className="text-sm text-gray-600">
-            Venue selected. Add a title, time and group size. Posting a plan doesn’t reserve the
-            venue.
-          </p>
-        )}
-
-        <label className="block text-sm text-gray-600">
-          What's the plan?
-          <select
-            className={`${inputCls} mt-1 appearance-none bg-white`}
-            value={activity}
-            onChange={(e) => setActivity(e.target.value as ActivityKey)}
-          >
-            {ACTIVITIES.map((a) => (
-              <option key={a.key} value={a.key}>
-                {a.emoji} {a.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="field">
-          Plan title
+    <Sheet
+      title={editing ? 'Edit your plan' : 'Make a plan in Jaipur'}
+      onClose={onClose}
+      className="dialog wide post-dialog"
+    >
+      <div className="dialog-head">
+        <h2>{editing ? 'Edit your plan' : 'Make a plan in Jaipur'}</h2>
+        <button type="button" className="icon-button" onClick={onClose} aria-label="Close dialog">
+          <X size={22} />
+        </button>
+      </div>
+      <p className="dialog-intro">A place you like. Something to do. A few people to join you.</p>
+      <form
+        className="post-form"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void submit()
+        }}
+      >
+        <label>
+          What’s the plan?
           <input
-            className={inputCls}
-            placeholder="e.g. Badminton doubles, need 2"
+            name="title"
+            required
+            maxLength={70}
+            placeholder="Coffee and a little conversation"
+            autoFocus
             value={title}
-            maxLength={80}
             onChange={(e) => setTitle(e.target.value)}
           />
         </label>
-
-        <label className="block text-sm text-gray-600">
-          When?
-          <input
-            type="date"
-            className={`${inputCls} mt-1`}
-            value={date}
-            min={todayIST()}
-            max={maxDateIST()}
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </label>
-
-        <div className="grid grid-cols-1 min-[380px]:grid-cols-2 sm:grid-cols-3 items-end gap-3">
-          <label className="min-w-0 text-sm text-gray-600">
-            From
-            <input
-              type="time"
-              aria-describedby="plan-time-preview"
-              className={`${inputCls} mt-1`}
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-            />
-          </label>
-          <label className="min-w-0 text-sm text-gray-600">
-            Till
-            <input
-              type="time"
-              aria-describedby="plan-time-preview"
-              className={`${inputCls} mt-1`}
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-            />
-          </label>
-          <label className="min-[380px]:col-span-2 sm:col-span-1 min-w-0 text-sm text-gray-600">
-            Need
+        <div className="form-pair">
+          <label>
+            Activity
             <select
-              className={`${inputCls} mt-1`}
-              value={spots}
-              onChange={(e) => setSpots(Number(e.target.value))}
+              name="category"
+              value={activity}
+              onChange={(e) => setActivity(e.target.value as ActivityKey)}
             >
+              {[...ACTIVITIES]
+                .sort((a, b) => Number(b.key === 'coffee') - Number(a.key === 'coffee'))
+                .map((a) => (
+                  <option key={a.key} value={a.key}>
+                    {a.label}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label>
+            Open spots
+            <select name="spots" value={spots} onChange={(e) => setSpots(Number(e.target.value))}>
               {[1, 2, 3, 4, 5, 6, 8, 10].map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
+                <option key={n}>{n}</option>
               ))}
             </select>
           </label>
         </div>
-
-        <div>
-          <p id="plan-time-preview" className="text-sm text-gray-600 mb-3">
-            {startTime && endTime
-              ? formatTimeRange(startTime, endTime)
-              : 'Choose times in India Standard Time (IST).'}
-          </p>
-          <p className="text-sm text-gray-600 mb-1.5">
-            Where? <span className="text-gray-400">Search a venue or tap the map</span>
-          </p>
-          <div className="relative mb-2">
-            <label className="field">
-              Search venues in Jaipur
-              <input
-                className={inputCls}
-                placeholder="e.g. Central Park"
-                value={venueQuery}
-                onChange={(e) => setVenueQuery(e.target.value)}
-              />
-            </label>
-            {(venueResults.length > 0 || searching || venueQuery.trim().length >= 3) && (
-              <div className="absolute top-full inset-x-0 z-10 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-                {searching && venueResults.length === 0 && (
-                  <p className="px-3 py-2.5 text-sm text-gray-400">Searching…</p>
-                )}
-                {venueResults.map((v, i) => (
-                  <button
-                    key={i}
-                    onClick={() => chooseVenue(v)}
-                    className="w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0"
-                  >
-                    <span className="font-medium text-gray-900">{v.name}</span>
-                    {v.label && <span className="text-gray-400"> · {v.label}</span>}
-                  </button>
-                ))}
-                {!searching && venueResults.length === 0 && venueQuery.trim().length >= 3 && (
-                  <p className="px-3 py-2.5 text-sm text-gray-400">
-                    No matches in Jaipur. Try the map.
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-          <div ref={mapDivRef} className="h-44 rounded-xl overflow-hidden border border-gray-200" />
-        </div>
-
-        <label className="field">
-          Meeting venue
-          <input
-            className={inputCls}
-            placeholder="e.g. Central Park, C-Scheme"
-            value={venueName}
-            maxLength={80}
-            onChange={(e) => {
-              setVenueName(e.target.value)
-              setGooglePlaceId(null)
-              setMenuUrl('')
-            }}
-          />
-        </label>
-        <label className="field">
-          Neighbourhood in Jaipur (optional)
-          <input
-            value={venueArea}
-            onChange={(e) => setVenueArea(e.target.value)}
-            maxLength={100}
-            placeholder="e.g. Vaishali Nagar"
-          />
-        </label>
-        <fieldset className="border-t border-slate-200 pt-5 space-y-4">
-          <legend className="font-bold text-base">Before people join</legend>
-          <p className="text-sm text-gray-600">Optional. These details are public.</p>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <label className="field">
-              Expected cost per person (₹)
-              <input
-                type="number"
-                min="0"
-                max="100000"
-                step="0.01"
-                inputMode="decimal"
-                value={expectedCost}
-                onChange={(e) => setExpectedCost(e.target.value)}
-                placeholder="Leave blank if undecided"
-              />
-              <span className="text-xs text-gray-600">Estimate only. Enter 0 for free.</span>
-            </label>
-            <label className="field">
-              Skill level
-              <select value={skillLevel} onChange={(e) => setSkillLevel(e.target.value)}>
-                <option value="">Not specified</option>
-                <option value="all">All levels welcome</option>
-                <option value="beginner">Beginner friendly</option>
-                <option value="intermediate">Intermediate</option>
-                <option value="advanced">Advanced</option>
-              </select>
-            </label>
-          </div>
-          <label className="field">
-            Venue booking
-            <select value={bookingStatus} onChange={(e) => setBookingStatus(e.target.value)}>
-              <option value="">Not specified</option>
-              <option value="not_needed">No booking needed</option>
-              <option value="needed">Still to be arranged</option>
-              <option value="confirmed">Booked by me</option>
-            </select>
-          </label>
-          <label className="field">
-            Where to meet and what to expect
-            <textarea
-              rows={2}
-              maxLength={280}
-              value={meetingInstructions}
-              onChange={(e) => setMeetingInstructions(e.target.value)}
-              placeholder="e.g. Meet at the front desk. Bring your racket."
+        <div className="post-venue">
+          <label>
+            Venue
+            <input
+              name="venue"
+              required
+              maxLength={80}
+              autoComplete="off"
+              placeholder="Name a café, court, park or public place"
+              value={venueName}
+              aria-describedby={pin ? 'venue-selected' : undefined}
+              onChange={(e) => {
+                setVenueName(e.target.value)
+                setVenueQuery(e.target.value)
+                setPin(null)
+                setGooglePlaceId(null)
+                setMenuUrl('')
+              }}
             />
           </label>
-        </fieldset>
-
-        <label className="field">
-          Venue menu link (optional)
-          <input
-            type="url"
-            className={inputCls}
-            placeholder="https://…"
-            value={menuUrl}
-            maxLength={2048}
-            onChange={(e) => setMenuUrl(e.target.value)}
-          />
-          <span className="text-xs text-gray-600">
-            Link the venue’s official menu. Members will see that you added it.
-          </span>
-        </label>
-
-        <label className="field">
-          Note (optional)
-          <input
-            className={inputCls}
-            placeholder="Anything else people should know?"
-            value={note}
+          {hasResults && (
+            <div className="venue-suggestions" aria-label="Venue search results">
+              {searching && <p role="status">Searching Google Maps…</p>}
+              {!searching && venueError && (
+                <div role="alert">
+                  <p>Venue search couldn’t load.</p>
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => setSearchAttempt((n) => n + 1)}
+                  >
+                    Try again
+                  </button>
+                </div>
+              )}
+              {venueResults.map((v) => (
+                <button
+                  type="button"
+                  key={v.placeId ?? `${v.lat},${v.lng}`}
+                  onClick={() => chooseVenue(v)}
+                >
+                  <strong>{v.name}</strong>
+                  <span>{v.label}</span>
+                </button>
+              ))}
+              {!searching && !venueError && venueResults.length === 0 && (
+                <p>No matches. Try another name or pin the place below.</p>
+              )}
+              {venueResults.length > 0 && <p className="google-attribution">Google Maps</p>}
+            </div>
+          )}
+          {pin && (
+            <p id="venue-selected" className="venue-selected">
+              <MapPin size={14} />
+              Meeting place selected
+            </p>
+          )}
+          {((venueName.trim().length >= 3 && !searching) || pin) && (
+            <button
+              type="button"
+              className="text-button pin-toggle"
+              aria-expanded={showPinMap}
+              onClick={() => setShowPinMap((v) => !v)}
+            >
+              {showPinMap
+                ? 'Hide map'
+                : pin
+                  ? 'Check meeting pin'
+                  : 'Choose meeting pin on Google Maps'}
+            </button>
+          )}
+          {showPinMap && (
+            <VenuePinMap
+              value={pin}
+              onChange={(p) => {
+                setPin(p)
+                setGooglePlaceId(null)
+                setMenuUrl('')
+                setVenueQuery('')
+              }}
+            />
+          )}
+        </div>
+        <div className="form-pair">
+          <label>
+            Jaipur neighbourhood
+            <select name="area" value={venueArea} onChange={(e) => setVenueArea(e.target.value)}>
+              <option value="">Choose an area</option>
+              {venueArea && !neighbourhoods.includes(venueArea) && <option>{venueArea}</option>}
+              {neighbourhoods.map((a) => (
+                <option key={a}>{a}</option>
+              ))}
+              <option value="Other area in Jaipur">Other area in Jaipur</option>
+            </select>
+          </label>
+          <label>
+            Date
+            <input
+              type="date"
+              name="date"
+              required
+              min={todayIST()}
+              max={maxDateIST()}
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </label>
+        </div>
+        <div className="form-pair">
+          <label>
+            Starts at
+            <input
+              type="time"
+              name="start"
+              required
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              aria-describedby="plan-time-preview"
+            />
+          </label>
+          <label>
+            Ends at
+            <input
+              type="time"
+              name="end"
+              required
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+              aria-describedby="plan-time-preview"
+            />
+          </label>
+        </div>
+        <p id="plan-time-preview" className="post-time-preview">
+          {startTime && endTime ? formatTimeRange(startTime, endTime) : 'Choose times in IST.'}
+        </p>
+        <label>
+          A little about your plan
+          <textarea
+            name="note"
+            rows={3}
             maxLength={280}
+            placeholder="What will you do? Anything people should bring or know?"
+            value={note}
             onChange={(e) => setNote(e.target.value)}
           />
         </label>
-
-        <label className="field">
-          WhatsApp group link (optional)
-          <input
-            className={inputCls}
-            placeholder="https://chat.whatsapp.com/…"
-            value={whatsapp}
-            onChange={(e) => setWhatsapp(e.target.value)}
-          />
-        </label>
-
-        <label className="flex items-center gap-2.5 text-sm font-medium text-gray-700">
-          <input
-            type="checkbox"
-            className="w-4 h-4 accent-pink-600"
-            checked={womenOnly}
-            onChange={(e) => setWomenOnly(e.target.checked)}
-          />
-          Women only (self-declared gender)
-        </label>
-
+        <details className="post-options">
+          <summary>
+            More details <span>Optional</span>
+          </summary>
+          <div className="post-form">
+            <div className="form-pair">
+              <label>
+                Expected cost per person (₹)
+                <input
+                  type="number"
+                  min="0"
+                  max="100000"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={expectedCost}
+                  onChange={(e) => setExpectedCost(e.target.value)}
+                  placeholder="Undecided"
+                />
+              </label>
+              <label>
+                Skill level
+                <select value={skillLevel} onChange={(e) => setSkillLevel(e.target.value)}>
+                  <option value="">Not specified</option>
+                  <option value="all">All levels welcome</option>
+                  <option value="beginner">Beginner friendly</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              Venue booking
+              <select value={bookingStatus} onChange={(e) => setBookingStatus(e.target.value)}>
+                <option value="">Not specified</option>
+                <option value="not_needed">No booking needed</option>
+                <option value="needed">Still to be arranged</option>
+                <option value="confirmed">Booked by me</option>
+              </select>
+            </label>
+            <label>
+              Meeting point
+              <textarea
+                rows={2}
+                maxLength={280}
+                value={meetingInstructions}
+                onChange={(e) => setMeetingInstructions(e.target.value)}
+                placeholder="e.g. Meet at the front desk. Bring your racket."
+              />
+            </label>
+            <label>
+              Venue menu link
+              <input
+                type="url"
+                placeholder="https://…"
+                value={menuUrl}
+                maxLength={2048}
+                onChange={(e) => setMenuUrl(e.target.value)}
+              />
+            </label>
+            <label>
+              WhatsApp group link
+              <input
+                type="url"
+                placeholder="https://chat.whatsapp.com/…"
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
+              />
+              <small>Visible to approved members.</small>
+            </label>
+            <label className="post-checkbox">
+              <input
+                type="checkbox"
+                checked={womenOnly}
+                onChange={(e) => setWomenOnly(e.target.checked)}
+              />
+              Women only (self-declared gender)
+            </label>
+          </div>
+        </details>
+        <p className="form-note">
+          <CircleHelp size={17} />
+          Times are in India Standard Time. Choose a public meeting place.
+        </p>
         {error && (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="form-error">
             {error}
           </p>
         )}
-
-        <button
-          onClick={submit}
-          disabled={busy || linkLoading}
-          className="w-full bg-gray-900 text-white rounded-xl py-3 font-semibold disabled:opacity-40"
-        >
+        <button className="primary" type="submit" disabled={busy || linkLoading}>
           {linkLoading
             ? 'Loading saved details…'
             : busy
               ? 'Saving…'
               : editing
                 ? 'Save changes'
-                : 'Post plan'}
+                : 'Post your plan'}
+          <ArrowRight size={20} />
         </button>
-      </div>
+      </form>
     </Sheet>
   )
 }

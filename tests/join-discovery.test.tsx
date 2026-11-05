@@ -46,8 +46,7 @@ vi.mock('../src/hooks/useIntents', () => ({
 vi.mock('../src/hooks/useNotifications', () => ({
   useNotifications: () => ({ items: [], unread: 0 }),
 }))
-vi.mock('../src/components/GoogleMapView', () => ({ default: () => <p>Plan map content</p> }))
-vi.mock('../src/components/MapView', () => ({ default: () => <p>Plan map content</p> }))
+vi.mock('../src/components/JaipurMap', () => ({ default: () => <p>Plan map content</p> }))
 vi.mock('../src/components/VenueMap', () => ({ default: () => <p>Venue map content</p> }))
 vi.mock('../src/components/JoinSection', () => ({
   default: () => <p>Review then request to join</p>,

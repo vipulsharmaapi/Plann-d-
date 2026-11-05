@@ -1179,16 +1179,6 @@ main {
   align-items: center;
   justify-content: space-between;
 }
-.leaflet-control-attribution {
-  font-size: 10px !important;
-}
-.leaflet-control-zoom {
-  border: 0 !important;
-  box-shadow: 0 2px 10px #34212f18 !important;
-}
-.leaflet-control-zoom a {
-  color: var(--berry) !important;
-}
 .map-error {
   position: absolute;
   top: 70px;
@@ -1993,10 +1983,6 @@ main {
   .map-preview .spots {
     font-size: 12px;
   }
-  .leaflet-control-attribution {
-    max-width: 100%;
-    font-size: 9px !important;
-  }
   .subpage-heading {
     padding: 32px 22px 25px;
   }
@@ -2477,5 +2463,135 @@ body {
   }
   .header-signin {
     font-size: 13px;
+  }
+}
+
+/* The supplied prototype's posting dialog, with live venue selection. */
+.modal-sheet.post-dialog {
+  margin: auto;
+  padding: 28px;
+  width: calc(100% - 32px);
+  max-width: 590px;
+  max-height: calc(100dvh - 40px);
+}
+.post-dialog > .sheet-close {
+  display: none;
+}
+.post-dialog .dialog-head h2 {
+  line-height: 1.14;
+}
+.post-dialog .dialog-head .icon-button {
+  flex-shrink: 0;
+}
+.post-dialog label {
+  min-width: 0;
+}
+.post-dialog .form-pair {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.post-dialog .post-checkbox {
+  flex-direction: row;
+  align-items: center;
+}
+.post-dialog .post-checkbox input {
+  width: 18px;
+  min-height: 18px;
+  height: 18px;
+}
+.post-dialog small {
+  font-weight: 400;
+  color: var(--muted);
+}
+.post-time-preview {
+  margin-top: -10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.post-options summary {
+  cursor: pointer;
+  font-size: 14px;
+  padding: 10px 0;
+}
+.post-options summary span {
+  color: var(--muted);
+  margin-left: 8px;
+  font-size: 12px;
+}
+.post-options[open] > .post-form {
+  padding-top: 12px;
+}
+.post-venue {
+  position: relative;
+}
+.venue-suggestions {
+  margin-top: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.venue-suggestions > button {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  padding: 12px;
+  font-size: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.venue-suggestions > button:hover {
+  background: var(--surface);
+}
+.venue-suggestions span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.venue-suggestions p,
+.venue-suggestions > div {
+  padding: 12px;
+  font-size: 13px;
+}
+.venue-suggestions .google-attribution {
+  text-align: right;
+  font-weight: 500;
+}
+.venue-selected {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 8px;
+}
+.pin-toggle {
+  font-size: 12px;
+  min-height: 36px;
+}
+.venue-pin-map {
+  margin-top: 8px;
+}
+.venue-pin-canvas {
+  height: 230px;
+  border-radius: 8px;
+}
+.venue-pin-map > p,
+.venue-pin-map > div[role='alert'] {
+  padding: 12px 0;
+  font-size: 13px;
+}
+.map-error .secondary {
+  margin-top: 12px;
+}
+@media (max-width: 700px) {
+  .modal-sheet.post-dialog {
+    padding: 23px 20px;
+    width: calc(100% - 20px);
+    max-height: calc(100dvh - 20px);
+  }
+}
+
+@media (max-width: 379px) {
+  .post-dialog .form-pair {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

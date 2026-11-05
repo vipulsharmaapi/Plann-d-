@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-05T12:10:36.512516+00:00",
+  "generatedAt": "2026-11-05T12:41:00.968820+00:00",
   "title": "Design System: Plann’d",
   "extensions": {
     "colorMeta": {
@@ -328,11 +328,6 @@
         "name": "reduced-motion",
         "value": "animation-duration: 0.01ms; transition-duration: 0.01ms; scroll-behavior: auto",
         "purpose": "Global reduced-motion override."
-      },
-      {
-        "name": "map-fit",
-        "value": "animate: false",
-        "purpose": "Unanimated bounds updates."
       }
     ],
     "breakpoints": [
@@ -359,6 +354,10 @@
       {
         "name": "small-phone-max",
         "value": "360px"
+      },
+      {
+        "name": "post-single-column-max",
+        "value": "379px"
       }
     ]
   },
@@ -431,14 +430,14 @@
       "name": "Selected plan pin",
       "kind": "custom",
       "refersTo": "map-pin-selected",
-      "description": "A selected live plan marker; coordinates come from the host.",
+      "description": "A selected Google Maps plan marker; exact coordinates come from the host’s stored plan.",
       "html": "<button class=\"ds-pin\" aria-label=\"Selected plan at its meeting place\" aria-pressed=\"true\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M10 2v2M14 2v2M4 2v2M18 8h1a3 3 0 1 1 0 6h-1M3 22h18M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4Z\"/></svg></button>",
       "css": ".ds-pin{width:44px;height:44px;border-radius:50%;border:3px solid var(--color-white,#fff);display:grid;place-items:center;background:var(--berry,#822c51);color:var(--color-white,#fff);box-shadow:0 3px 9px #34212f30;transform:scale(1.15);cursor:pointer}.ds-pin:focus-visible{outline:3px solid var(--color-brand-400,#b86085);outline-offset:3px;}@media(prefers-reduced-motion:no-preference){.ds-primary,.ds-secondary,.ds-post,.ds-date button,.ds-row{transition:background-color .15s,color .15s}.ds-pin{transition:transform .18s}}"
     },
     {
       "name": "Modal sheet",
       "kind": "custom",
-      "description": "Native production dialog styling. The application invokes showModal() and manages focus, Escape and scroll locking; this isolated preview displays its surface.",
+      "description": "Native production Sheet styling. The application manages focus, Escape and scroll locking. Posting uses the same primitive with its supplied 590px dialog, header close control, paired fields and closed More details; see DESIGN.md for its responsive composition. This isolated preview shows the shared join-review surface.",
       "html": "<section class=\"ds-sheet\" role=\"dialog\" aria-label=\"Join review preview\"><button class=\"ds-sheet-close\" aria-label=\"Close preview\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"m18 6-12 12M6 6l12 12\"/></svg></button><h2>Request to join</h2><p>The host approves your request. Chat opens once you’re accepted.</p></section>",
       "css": ".ds-sheet{font-family:\"Instrument Sans Variable\",sans-serif;position:relative;border:0;border-radius:18px;color:var(--ink,#34212f);background:var(--color-white,#fff);box-shadow:0 24px 90px #34212f40;padding:54px 28px 28px;max-width:480px}.ds-sheet h2{font-family:\"Bricolage Grotesque Variable\",sans-serif;font-size:28px;line-height:1.18;letter-spacing:-.025em;font-weight:700;margin:0 0 16px}.ds-sheet p{font-size:16px;line-height:1.5;margin:0}.ds-sheet-close{position:absolute;top:8px;right:8px;display:flex;align-items:center;justify-content:center;width:44px;height:44px;border:0;border-radius:50%;background:var(--surface,#fbf8fa);color:var(--ink,#34212f);cursor:pointer}.ds-sheet-close:focus-visible{outline:3px solid var(--color-brand-400,#b86085);outline-offset:3px}dialog.ds-sheet::backdrop{background:#2f1a2bb3;backdrop-filter:none}"
     }
@@ -476,7 +475,8 @@
       "**Do** reuse the four supplied WebP assets and identify activity artwork as illustrative.",
       "**Do** give phone layouts their own composition and clearance for fixed controls.",
       "**Do** distinguish selection, hover, focus, saving, pending requests and accepted membership.",
-      "**Do** preserve OpenStreetMap and Google attribution beside the content they describe."
+      "**Do** preserve Google attribution beside the maps, venue results and photos it describes.",
+      "**Do** keep the supplied posting hierarchy and expose optional production fields through More details."
     ],
     "donts": [
       "**Don't** add resting shadows to every row or flatten the distinction between content and floating controls.",

@@ -13,7 +13,7 @@ cp .env.example .env
 npm run dev
 ```
 
-`VITE_GOOGLE_MAPS_API_KEY` is optional. The plan map uses Leaflet with OpenStreetMap. Without a Google key, the legacy map uses MapLibre and venue autocomplete uses Photon. The existing Google venue discovery/search integration requires the Google key. Restrict any Google browser key to your site domains and the Maps/Places APIs you use. Never put a Supabase service-role key in a `VITE_` variable.
+`VITE_GOOGLE_MAPS_API_KEY` is required for the plan map, meeting-pin map, venue search and venue discovery. These use the existing Google Maps/Places integration; a missing or rejected key produces a retry state, and discovery remains usable in List. Restrict the browser key to the intended site domains and enable the Maps JavaScript API and Places API (New). The existing production restriction rejects localhost, so local failure-state checks do not verify live Google content. `VITE_GOOGLE_MAP_ID` is optional; the existing loader uses Google’s `DEMO_MAP_ID` by default. Never put a Supabase service-role key in a `VITE_` variable.
 
 ```sh
 npm run check    # lint, behavior/database tests, production build
@@ -53,7 +53,8 @@ The connected interface follows the supplied Rose Jaipur prototype: Bricolage Gr
 - [Connected join states](https://www.figma.com/design/xnIljT9gfTgCZzFcuesGl8/Plann-d?node-id=78-172)
 - Saved plans persist in Supabase, and appear under **My plans → Saved**.
 - Join introductions are visible only to the requester and host. Requests remain pending until the host accepts.
-- Plan map pins use the host's stored coordinates. Venue search retains Google Maps attribution and actual venue photos. Activity artwork is illustrative and labelled in plan details.
+- Plan map pins and the meeting-pin editor use Google Maps with the existing key. Pins use the host’s stored coordinates. Venue search retains Google attribution and actual venue photos. Activity artwork is illustrative and labelled in plan details.
+- Posting follows the supplied prototype dialog and field order, with live Google venue selection and an IST preview. Optional production fields are under More details; editing, reposting and the atomic `save_plan` RPC remain available. Paired fields stack below 380px to keep date/time controls readable.
 - Plan links, signup, host decisions, group chat, profile and safety controls, calendar downloads and in-app reminders retain the existing backend.
 
 The source download contains the frontend, Express preview server, migration history and tests. Copy `.env.example` to `.env` with your project settings before a production build. Never include service-role credentials in frontend variables. `npm ci` installs the locked dependencies; `npm run check` validates and builds the app; `npm start` serves the connected build and preview routes.

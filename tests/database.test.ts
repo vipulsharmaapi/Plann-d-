@@ -79,6 +79,8 @@ beforeAll(async () => {
   await db.exec(read('supabase/migrations/202611040003_venue_details.sql'))
   await db.exec(read('supabase/migrations/202611040004_join_first.sql'))
   await db.exec(read('supabase/migrations/202611040004_join_first.sql'))
+  await db.exec(read('supabase/migrations/202611050001_saved_plans_and_introductions.sql'))
+  await db.exec(read('supabase/migrations/202611050001_saved_plans_and_introductions.sql'))
 }, 30000)
 afterAll(() => db.close())
 
@@ -281,5 +283,57 @@ describe.sequential('database integrity and authorization', () => {
     await expect(
       asUser(host, `update intents set status='open' where id='${plan}'`),
     ).rejects.toThrow(/ended plan/)
+  })
+})
+
+describe.sequential('saved plans and introductions', () => {
+  const host = '10000000-0000-4000-8000-000000000011',
+    alice = '10000000-0000-4000-8000-000000000012',
+    bob = '10000000-0000-4000-8000-000000000013'
+  const savedPlan = '20000000-0000-4000-8000-000000000099'
+  test('saves belong to the signed-in user and survive a separate query', async () => {
+    await db.exec(
+      `insert into auth.users(id) values('${host}'),('${alice}'),('${bob}'); update public.profiles set first_name='Integration test',gender='female' where id in ('${host}','${alice}','${bob}');`,
+    )
+    await asUser(host, `select save_plan('${savedPlan}','${values()}',null)`)
+    await asUser(
+      alice,
+      `insert into saved_plans(user_id,intent_id) values('${alice}','${savedPlan}')`,
+    )
+    const own = await asUser(alice, 'select intent_id from saved_plans')
+    expect(own[0].rows).toEqual([{ intent_id: savedPlan }])
+    const other = await asUser(bob, 'select intent_id from saved_plans')
+    expect(other[0].rows).toEqual([])
+    await expect(
+      asUser(bob, `insert into saved_plans(user_id,intent_id) values('${alice}','${savedPlan}')`),
+    ).rejects.toThrow()
+    await asUser(bob, `delete from saved_plans where intent_id='${savedPlan}'`)
+    expect((await asUser(alice, 'select intent_id from saved_plans'))[0].rows).toHaveLength(1)
+    await asUser(alice, `delete from saved_plans where intent_id='${savedPlan}'`)
+    expect((await asUser(alice, 'select intent_id from saved_plans'))[0].rows).toEqual([])
+  })
+  test('an introduction is visible only to its requester and host, and cannot be rewritten', async () => {
+    await asUser(
+      alice,
+      `insert into join_requests(intent_id,user_id,introduction) values('${savedPlan}','${alice}','Happy to join for coffee')`,
+    )
+    const note = `select introduction from join_requests where intent_id='${savedPlan}'`
+    expect((await asUser(host, note))[0].rows).toEqual([
+      { introduction: 'Happy to join for coffee' },
+    ])
+    expect((await asUser(alice, note))[0].rows).toHaveLength(1)
+    expect((await asUser(bob, note))[0].rows).toEqual([])
+    await expect(
+      asUser(
+        alice,
+        `update join_requests set introduction='changed' where intent_id='${savedPlan}'`,
+      ),
+    ).rejects.toThrow(/permission denied/)
+    await expect(
+      asUser(
+        bob,
+        `insert into join_requests(intent_id,user_id,introduction) values('${savedPlan}','${bob}',repeat('x',501))`,
+      ),
+    ).rejects.toThrow()
   })
 })

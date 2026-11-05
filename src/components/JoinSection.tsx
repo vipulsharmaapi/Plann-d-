@@ -8,6 +8,8 @@ import VenueDetails from './VenueDetails'
 import { ChevronDown } from 'lucide-react'
 import SafetySheet from './SafetySheet'
 import ConfirmAction, { type Confirmation } from './ConfirmAction'
+import Sheet from './Sheet'
+import { formatTimeRange } from '../lib/time'
 interface Props {
   intent: Intent
   auth: Auth
@@ -21,6 +23,7 @@ interface RequestRow {
   user_id: string
   status: 'pending' | 'accepted' | 'declined'
   name?: string
+  introduction?: string | null
 }
 export default function JoinSection({
   intent,
@@ -41,6 +44,8 @@ export default function JoinSection({
     [safety, setSafety] = useState(false),
     [blocked, setBlocked] = useState(false),
     [cancelled, setCancelled] = useState(false)
+  const [joinReview, setJoinReview] = useState(false),
+    [introduction, setIntroduction] = useState('')
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
   const load = useCallback(async () => {
     if (!userId) {
@@ -51,7 +56,7 @@ export default function JoinSection({
     try {
       let query = supabase
         .from('join_requests')
-        .select('id,user_id,status')
+        .select('id,user_id,status,introduction')
         .eq('intent_id', intent.id)
         .order('created_at')
       if (!isMine) query = query.eq('user_id', userId)
@@ -122,6 +127,7 @@ export default function JoinSection({
   async function run(
     action: () => PromiseLike<{ error: { message: string } | null }>,
     success?: string,
+    onSuccess?: () => void,
   ) {
     if (busy) return
     setBusy(true)
@@ -130,6 +136,7 @@ export default function JoinSection({
     try {
       const { error } = await action()
       if (error) throw error
+      onSuccess?.()
       if (success) setMessage(success)
       await load()
     } catch (e) {
@@ -143,10 +150,23 @@ export default function JoinSection({
       onRequestAuth()
       return
     }
-    void run(() =>
-      supabase
-        .from('join_requests')
-        .insert({ intent_id: intent.id, user_id: userId, status: 'pending' }),
+    setJoinReview(true)
+  }
+  function sendRequest() {
+    if (!userId) return
+    void run(
+      () =>
+        supabase.from('join_requests').insert({
+          intent_id: intent.id,
+          user_id: userId,
+          status: 'pending',
+          introduction: introduction.trim() || null,
+        }),
+      'Request sent. Waiting for the host’s approval.',
+      () => {
+        setJoinReview(false)
+        setIntroduction('')
+      },
     )
   }
   function respond(r: RequestRow, status: 'accepted' | 'declined') {
@@ -237,7 +257,7 @@ export default function JoinSection({
       {mine?.status === 'accepted' && available && (
         <p className="text-sm font-semibold text-green-800">You’re in.</p>
       )}
-      <div className="plan-action-row">
+      <div className="plan-action-row join-action">
         <div className="min-w-0 flex-1">
           {loading && userId ? (
             <p role="status" className="text-sm">
@@ -290,12 +310,12 @@ export default function JoinSection({
         <button className="secondary text-sm shrink-0" onClick={share}>
           Share
         </button>
+        {canRequest && spots > 0 && (
+          <p className="join-approval">
+            The host approves your request. Chat opens once you’re accepted.
+          </p>
+        )}
       </div>
-      {canRequest && spots > 0 && (
-        <p className="text-xs text-gray-600">
-          The host approves your request. Chat opens once you’re accepted.
-        </p>
-      )}
       {error && (
         <div role="alert" className="text-sm text-red-700">
           <p>{error}</p>
@@ -334,6 +354,7 @@ export default function JoinSection({
                   >
                     {r.name}
                   </button>
+                  {r.introduction && <p className="request-introduction">{r.introduction}</p>}
                   {r.status === 'pending' ? (
                     <>
                       <button
@@ -449,6 +470,48 @@ export default function JoinSection({
             load()
           }}
         />
+      )}
+      {joinReview && (
+        <Sheet title="Request to join" onClose={() => !busy && setJoinReview(false)}>
+          <form
+            className="join-review"
+            onSubmit={(e) => {
+              e.preventDefault()
+              sendRequest()
+            }}
+          >
+            <h2>Request to join</h2>
+            <div className="join-summary">
+              <div>
+                <strong>{intent.title}</strong>
+                <p>
+                  {formatTimeRange(intent.startsAt, intent.endsAt)} · {intent.venueName}
+                </p>
+              </div>
+            </div>
+            <p className="dialog-intro">
+              {intent.posterName} will confirm your spot. Chat opens after you’re accepted.
+            </p>
+            <label className="field">
+              A quick hello <span className="optional">Optional</span>
+              <textarea
+                value={introduction}
+                maxLength={500}
+                rows={3}
+                onChange={(e) => setIntroduction(e.target.value)}
+                placeholder="Introduce yourself to the host"
+              />
+            </label>
+            {error && (
+              <p role="alert" className="form-error">
+                {error}
+              </p>
+            )}
+            <button className="primary w-full mt-5" disabled={busy || spots === 0 || ended}>
+              {busy ? 'Sending request…' : 'Send request'}
+            </button>
+          </form>
+        </Sheet>
       )}
       {confirmation && (
         <ConfirmAction confirmation={confirmation} onClose={() => setConfirmation(null)} />

@@ -61,3 +61,12 @@ The Google key's production-origin restriction remains in place; local fixture c
 This hosting account shares a 120-process/thread limit across its websites. During the Express rollout, baseline usage was already around 108–109 and rose to the limit, causing 503 responses and repeated Node restarts. Plann’d uses `UV_THREADPOOL_SIZE=1` and `NODE_OPTIONS=--v8-pool-size=1` in Hostinger to reduce its worker count. Keep these runtime settings when redeploying. Do not stop all account processes as routine maintenance; that interrupts unrelated sites. Review the account's Max Processes graph if errors return.
 
 Hostinger Agent's 4 November diagnosis also attributed the intermittent bot verification to account-wide process-limit protection, overlapping deployment activity; it reported the restriction cleared at 16:14 IST. Its initial I/O explanation was corrected after comparing usage with the quota. Avoid overlapping builds and check process usage during rollout. If verification continues despite normal usage, request human technical review of the origin protection; do not assume a CDN exception will resolve it or disable protections globally.
+
+
+## Rose Jaipur frontend (5 November 2026)
+
+Apply `202611050001_saved_plans_and_introductions.sql` before deploying this frontend. It is transactional and re-runnable, retains existing plan/account data, creates three owner-scoped RLS policies on saved_plans, and limits join introductions to 500 characters. Join requests retain the existing participant/host policies and host-only status RPC. The SQL Editor check confirmed RLS enabled, three policies, introduction column present and the migration record present.
+
+Saved plans are bookmarks, not a reserved place. The bookmark acknowledgement follows a successful database response. A refresh or new sign-in reads bookmarks again; another account cannot read or mutate them. No scheduled email/push delivery was added. Keep the existing in-app reminder and calendar behavior.
+
+Visual QA used local-only fixture plans because discovery had no upcoming live plans at review time. Those fixtures are excluded from production and from the downloadable source. The database/behavior suite covers allowed and denied save/intro operations, retries, pending host approvals, capacity, chat privacy, cancellation, reminders and existing venue flows. Email delivery checks from earlier releases remain separate; this integration did not send a fresh pair of signup emails.

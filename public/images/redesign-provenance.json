@@ -1,0 +1,34 @@
+[
+  {
+    "file": "public/images/jaipur-badminton.webp",
+    "type": "User-supplied generated illustrative photograph",
+    "source": "plannd-redesign/prototype/public/images/jaipur-badminton.webp",
+    "depicts_verified_venue": false,
+    "sha256": "d89922013f66cee65ed2f8df5721447e2985055ce6d8b9139159b9fe320feccb",
+    "production_usage": "Illustrative activity artwork; real venue photos are attributed Google content."
+  },
+  {
+    "file": "public/images/jaipur-cafe.webp",
+    "type": "User-supplied generated illustrative photograph",
+    "source": "plannd-redesign/prototype/public/images/jaipur-cafe.webp",
+    "depicts_verified_venue": false,
+    "sha256": "45f179eb5c12edd01a8b5d85639d2d45ba6b91ca1b76866bf7adead71e7ebbaa",
+    "production_usage": "Illustrative activity artwork; real venue photos are attributed Google content."
+  },
+  {
+    "file": "public/images/jaipur-canopy.webp",
+    "type": "User-supplied generated illustrative photograph",
+    "source": "plannd-redesign/prototype/public/images/jaipur-canopy.webp",
+    "depicts_verified_venue": false,
+    "sha256": "fba5920ab6980274ab0a58c9530c25b138aeb88388bb4f6f5f988d65628fe518",
+    "production_usage": "Illustrative activity artwork; real venue photos are attributed Google content."
+  },
+  {
+    "file": "public/images/jaipur-games.webp",
+    "type": "User-supplied generated illustrative photograph",
+    "source": "plannd-redesign/prototype/public/images/jaipur-games.webp",
+    "depicts_verified_venue": false,
+    "sha256": "0c37235a1a47cb78f1a5be9718b15bdc963d026c80b39da78260fdf02ae55d2c",
+    "production_usage": "Illustrative activity artwork; real venue photos are attributed Google content."
+  }
+]

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import type { Intent } from '../types'
+import { type Intent } from '../types'
+import { CalendarDays, MapPin, ChevronDown } from 'lucide-react'
+import { formatTimeRange } from '../lib/time'
 import { supabase } from '../lib/supabase'
 
 const skillLabels = {
@@ -42,12 +44,23 @@ export default function PlanContext({
       active = false
     }
   }, [intent.userId])
+  const closed =
+    intent.status === 'cancelled'
+      ? 'Cancelled'
+      : intent.status === 'expired' ||
+          (!!intent.endsAtIso && Date.parse(intent.endsAtIso) <= Date.now())
+        ? 'Ended'
+        : null
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+    <div className="detail-context">
+      <div className="detail-host">
         <div className="flex min-w-0 items-center gap-3">
-          {host?.avatar_url && (
-            <img src={host.avatar_url} alt="" className="w-11 h-11 rounded-xl object-cover" />
+          {host?.avatar_url ? (
+            <img src={host.avatar_url} alt="" className="avatar" width={40} height={40} />
+          ) : (
+            <span className="avatar initial" style={{ width: 40, height: 40 }} aria-hidden="true">
+              {intent.posterName.slice(0, 1)}
+            </span>
           )}
           <button
             className="text-left min-h-11 font-semibold text-sm hover:underline break-words"
@@ -58,48 +71,89 @@ export default function PlanContext({
           </button>
         </div>
         <span className="text-sm font-semibold text-brand-700 shrink-0">
-          {intent.spotsFilled >= intent.spotsNeeded
-            ? 'Full'
-            : `${intent.spotsNeeded - intent.spotsFilled} spot${intent.spotsNeeded - intent.spotsFilled === 1 ? '' : 's'} left`}
+          {closed ||
+            (intent.spotsFilled >= intent.spotsNeeded
+              ? 'Full'
+              : `${intent.spotsNeeded - intent.spotsFilled} spot${intent.spotsNeeded - intent.spotsFilled === 1 ? '' : 's'} left`)}
         </span>
       </div>
-      {intent.note && (
-        <p className="text-sm text-gray-600 whitespace-pre-wrap break-words">{intent.note}</p>
-      )}
-      {intent.expectedCost != null || intent.skillLevel || intent.bookingStatus ? (
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-          {intent.expectedCost != null && (
-            <div>
-              <dt className="text-gray-600">Expected cost / person</dt>
-              <dd className="font-semibold mt-1">
-                {intent.expectedCost === 0
-                  ? 'Free'
-                  : `About ₹${Number(intent.expectedCost).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`}
-              </dd>
-            </div>
-          )}
-          {intent.skillLevel && (
-            <div>
-              <dt className="text-gray-600">Skill level</dt>
-              <dd className="font-semibold mt-1">{skillLabels[intent.skillLevel]}</dd>
-            </div>
-          )}
-          {intent.bookingStatus && (
-            <div className="col-span-2">
-              <dt className="text-gray-600">Venue booking</dt>
-              <dd className="font-semibold mt-1">{bookingLabels[intent.bookingStatus]}</dd>
-            </div>
-          )}
-        </dl>
-      ) : null}
-      {intent.meetingInstructions && (
+      {intent.note && <p className="description whitespace-pre-wrap break-words">{intent.note}</p>}
+      <div className="detail-facts">
         <div>
-          <h3 className="font-semibold text-sm">Where to meet & what to expect</h3>
-          <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap break-words">
-            {intent.meetingInstructions}
-          </p>
+          <CalendarDays size={20} />
+          <span>
+            {new Date(`${intent.date}T12:00:00+05:30`).toLocaleDateString('en-IN', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+              timeZone: 'Asia/Kolkata',
+            })}
+            <br />
+            <span className="muted">{formatTimeRange(intent.startsAt, intent.endsAt)}</span>
+          </span>
         </div>
-      )}
+        <div>
+          <MapPin size={20} />
+          <span>
+            {intent.venueArea || intent.venueName}
+            <br />
+            <a
+              className="inline-link"
+              href={`https://www.google.com/maps/search/?api=1&query=${intent.lat},${intent.lng}${intent.googlePlaceId ? `&query_place_id=${encodeURIComponent(intent.googlePlaceId)}` : ''}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View meeting place
+            </a>
+          </span>
+        </div>
+      </div>
+      <details className="plan-disclosure good-to-know">
+        <summary>
+          Good to know
+          <ChevronDown size={16} />
+        </summary>
+        <div className="more-details">
+          <p>
+            {intent.spotsFilled + 1} {intent.spotsFilled === 0 ? 'person' : 'people'} confirmed · up
+            to {intent.spotsNeeded + 1} including the host
+          </p>
+          {intent.expectedCost != null || intent.skillLevel || intent.bookingStatus ? (
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+              {intent.expectedCost != null && (
+                <div>
+                  <dt className="text-gray-600">Expected cost / person</dt>
+                  <dd className="font-semibold mt-1">
+                    {intent.expectedCost === 0
+                      ? 'Free'
+                      : `About ₹${Number(intent.expectedCost).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`}
+                  </dd>
+                </div>
+              )}
+              {intent.skillLevel && (
+                <div>
+                  <dt className="text-gray-600">Skill level</dt>
+                  <dd className="font-semibold mt-1">{skillLabels[intent.skillLevel]}</dd>
+                </div>
+              )}
+              {intent.bookingStatus && (
+                <div className="col-span-2">
+                  <dt className="text-gray-600">Venue booking</dt>
+                  <dd className="font-semibold mt-1">{bookingLabels[intent.bookingStatus]}</dd>
+                </div>
+              )}
+            </dl>
+          ) : null}
+          {intent.meetingInstructions && (
+            <div>
+              <h3 className="font-semibold text-sm">Where to meet & what to expect</h3>
+              <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap break-words">
+                {intent.meetingInstructions}
+              </p>
+            </div>
+          )}
+        </div>
+      </details>
     </div>
   )
 }

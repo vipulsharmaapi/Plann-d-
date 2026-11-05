@@ -1,23 +1,29 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { INTENT_COLUMNS, rowToIntent, type IntentRow } from '../hooks/useIntents'
 import type { Intent } from '../types'
-import IntentCard from './IntentCard'
+import PlanRow from './PlanRow'
+import type { SavedPlans } from '../hooks/useSavedPlans'
 export default function MyPlans({
   userId,
   onSignIn,
   onOpen,
   onPost,
+  saved,
 }: {
+  saved?: SavedPlans
   userId?: string
   onSignIn: () => void
   onOpen: (i: Intent) => void
   onPost: () => void
 }) {
+  const savedIds = saved?.ids
+  const sequence = useRef(0)
   const [rows, setRows] = useState<{ intent: Intent; relation: string }[]>([]),
     [tab, setTab] = useState('upcoming'),
     [state, setState] = useState('loading')
   const refresh = useCallback(async () => {
+    const request = ++sequence.current
     if (!userId) return
     try {
       const [own, joins] = await Promise.all([
@@ -30,7 +36,7 @@ export default function MyPlans({
         supabase.from('join_requests').select('status,intent_id').eq('user_id', userId),
       ])
       if (own.error || joins.error) throw own.error ?? joins.error
-      const ids = (joins.data ?? []).map((j) => j.intent_id)
+      const ids = [...new Set([...(joins.data ?? []).map((j) => j.intent_id), ...(savedIds ?? [])])]
       const joined = ids.length
         ? await supabase
             .from('intents')
@@ -40,21 +46,25 @@ export default function MyPlans({
             .limit(100)
         : { data: [], error: null }
       if (joined.error) throw joined.error
+      if (request !== sequence.current) return
       setRows([
         ...(own.data ?? []).map((i) => ({
           intent: rowToIntent(i as IntentRow),
           relation: 'Hosting',
         })),
-        ...(joined.data ?? []).map((i) => ({
-          intent: rowToIntent(i as IntentRow),
-          relation: joins.data?.find((j) => j.intent_id === i.id)?.status ?? 'pending',
-        })),
+        ...(joined.data ?? [])
+          .filter((i) => i.user_id !== userId)
+          .map((i) => ({
+            intent: rowToIntent(i as IntentRow),
+            relation: joins.data?.find((j) => j.intent_id === i.id)?.status ?? 'Saved',
+          })),
       ])
       setState('ready')
     } catch {
+      if (request !== sequence.current) return
       setState('error')
     }
-  }, [userId])
+  }, [userId, savedIds])
   useEffect(() => {
     setRows([])
     setState('loading')
@@ -67,6 +77,9 @@ export default function MyPlans({
       .subscribe()
     window.addEventListener('focus', refresh)
     return () => {
+      // Invalidate pending reads when the account or saved IDs change.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      sequence.current++
       supabase.removeChannel(c)
       window.removeEventListener('focus', refresh)
     }
@@ -76,19 +89,21 @@ export default function MyPlans({
       (i.endsAtIso ?? '') < new Date().toISOString() ||
       i.status === 'cancelled' ||
       i.status === 'expired'
-    return tab === 'past'
-      ? past
-      : tab === 'hosting'
-        ? r === 'Hosting' && !past
-        : tab === 'requests'
-          ? r === 'pending' && !past
-          : !past && r !== 'declined'
+    return tab === 'saved'
+      ? !!saved?.ids.includes(i.id)
+      : tab === 'past'
+        ? past
+        : tab === 'hosting'
+          ? r === 'Hosting' && !past
+          : tab === 'requests'
+            ? r === 'pending' && !past
+            : !past && r !== 'declined' && r !== 'Saved'
   })
   return (
-    <section className="max-w-4xl mx-auto px-4 sm:px-8 py-8">
-      <h1 className="text-3xl font-bold">My plans</h1>
+    <section className="personal-plans">
+      <h1>Your plans, all together.</h1>
       <p className="text-gray-600 mt-2 mb-6">
-        Your requests, your group, and the plans you’re hosting.
+        The plans you’re hosting, joining, or saving for later.
       </p>
       {!userId ? (
         <div className="py-12 text-center">
@@ -99,16 +114,17 @@ export default function MyPlans({
         </div>
       ) : (
         <>
-          <div className="flex gap-2 overflow-x-auto mb-6">
+          <div className="date-tabs personal-tabs">
             {[
               ['upcoming', 'Upcoming'],
               ['hosting', 'Hosting'],
               ['requests', 'Requests'],
+              ['saved', 'Saved'],
               ['past', 'Past & cancelled'],
             ].map(([v, l]) => (
               <button
                 key={v}
-                className={`${tab === v ? 'primary' : 'secondary'} whitespace-nowrap text-sm`}
+                className={tab === v ? 'active' : ''}
                 aria-pressed={tab === v}
                 onClick={() => setTab(v)}
               >
@@ -116,6 +132,14 @@ export default function MyPlans({
               </button>
             ))}
           </div>
+          {saved?.error && (
+            <p role="alert">
+              {saved.error}{' '}
+              <button className="inline-link" onClick={saved.refresh}>
+                Retry saved plans
+              </button>
+            </p>
+          )}
           {state === 'loading' ? (
             <p role="status">Loading your plans…</p>
           ) : state === 'error' ? (
@@ -146,7 +170,7 @@ export default function MyPlans({
                           ? 'Joined'
                           : relation}
                   </p>
-                  <IntentCard intent={intent} selected={false} onClick={() => onOpen(intent)} />
+                  <PlanRow intent={intent} onClick={() => onOpen(intent)} />
                 </div>
               ))}
             </div>

@@ -83,9 +83,7 @@ export default function PlanContext({
           )}
         </dl>
       ) : (
-        <p className="text-sm text-gray-600">
-          The host hasn’t added cost, skill level or booking details yet.
-        </p>
+        <p className="text-sm text-gray-600">Cost and booking details not added.</p>
       )}
       {intent.meetingInstructions && (
         <div>
@@ -95,10 +93,7 @@ export default function PlanContext({
           </p>
         </div>
       )}
-      <p className="text-xs text-gray-600">
-        Details are supplied by the host. Confirm costs and arrangements in chat after approval, and
-        meet in a public place.
-      </p>
+      <p className="text-xs text-gray-600">Details from the host. Confirm arrangements in chat.</p>
     </div>
   )
 }

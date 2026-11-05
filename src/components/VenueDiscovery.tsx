@@ -179,16 +179,6 @@ export function VenueResults({
           </select>
         </label>
       </div>
-      <p className="text-xs text-gray-600 mb-5">
-        {sort === 'rating'
-          ? 'Sorted by Google rating within these results.'
-          : sort === 'reviews'
-            ? 'Sorted by number of Google reviews within these results.'
-            : search
-              ? 'Ordered by Google’s relevance to your search. Nearby areas may also appear.'
-              : 'Ordered by Google’s relevance to this activity.'}{' '}
-        Check prices, timings and bookings with the venue before posting.
-      </p>
       <p role="status" aria-label="Venue results" className="text-sm text-gray-600 mb-4">
         {loading
           ? places.length
@@ -203,9 +193,7 @@ export function VenueResults({
           <h3 className="font-bold">
             {places.length ? 'More places couldn’t load' : 'Places couldn’t load'}
           </h3>
-          <p className="text-sm mt-2 mb-3">
-            Check your connection and try again. You can also choose a venue when posting a plan.
-          </p>
+          <p className="text-sm mt-2 mb-3">Check your connection and try again.</p>
           <button className="secondary" onClick={() => setRetry((n) => n + 1)}>
             Try again
           </button>
@@ -317,10 +305,7 @@ export function VenueResults({
         </div>
       )}
       {!!sorted.length && (
-        <p className="text-xs text-gray-600 mt-6">
-          Listings, ratings and photos from Google Maps. Results may not include every venue in
-          Jaipur.
-        </p>
+        <p className="text-xs text-gray-600 mt-6">Places, photos and ratings from Google Maps.</p>
       )}
     </section>
   )
@@ -354,7 +339,7 @@ function VenueCard({
   const website = safeExternalUrl(place.websiteUri)
   return (
     <article
-      className={`rounded-2xl border ${selected ? 'border-indigo-600' : 'border-gray-200'} bg-white overflow-hidden flex flex-col min-w-0`}
+      className={`rounded-2xl border ${selected ? 'border-brand-600' : 'border-gray-200'} bg-white overflow-hidden flex flex-col min-w-0`}
     >
       <div className="aspect-[3/2] bg-slate-100 relative overflow-hidden shrink-0">
         {image && !imageFailed ? (
@@ -505,7 +490,7 @@ function MatchedText({ text, query = '' }: { text: string; query?: string }) {
   )
   return text.split(/([\p{L}\p{N}\p{M}]+)/u).map((part, index) =>
     tokens.has(normalize(part)) ? (
-      <mark key={index} className="bg-indigo-100 text-indigo-950 rounded-sm">
+      <mark key={index} className="bg-brand-100 text-brand-950 rounded-sm">
         {part}
       </mark>
     ) : (
@@ -525,12 +510,14 @@ export function VenuePlans({
   return (
     <div className="border-t border-slate-200 pt-3 space-y-2">
       <h4 className="font-bold text-sm">
-        {plans.some((plan) => !plan.googlePlaceId) ? 'Upcoming plans here or nearby' : 'Upcoming plans here'}
+        {plans.some((plan) => !plan.googlePlaceId)
+          ? 'Upcoming plans here or nearby'
+          : 'Upcoming plans here'}
       </h4>
       {plans.map((plan) => (
         <button
           key={plan.id}
-          className="w-full text-left min-h-11 py-2 text-indigo-900 underline underline-offset-4"
+          className="w-full text-left min-h-11 py-2 text-brand-900 underline underline-offset-4"
           onClick={() => onOpen(plan)}
           aria-label={`View plan: ${plan.title}`}
         >
@@ -543,7 +530,7 @@ export function VenuePlans({
           </span>
           {!plan.googlePlaceId && (
             <span className="block text-xs mt-1 text-slate-600">
-              Matched by name and nearby location. Check the meeting point in the plan.
+              Nearby name match. Confirm the meeting point.
             </span>
           )}
         </button>

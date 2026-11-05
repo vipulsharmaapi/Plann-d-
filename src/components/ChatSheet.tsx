@@ -298,7 +298,7 @@ export default function ChatSheet({ intent, auth, onClose }: Props) {
             </button>
           )}
           {messages.length === 0 && !loading && !error && (
-            <p className="text-center text-sm text-gray-400 pt-10">No messages yet — say hi 👋</p>
+            <p className="text-center text-sm text-gray-400 pt-10">No messages yet.</p>
           )}
           {messages.map((m) => {
             const mine = m.user_id === session.user.id

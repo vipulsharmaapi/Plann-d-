@@ -137,7 +137,7 @@ export default function MyPlans({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filtered.map(({ intent, relation }) => (
                 <div key={intent.id}>
-                  <p className="text-xs font-bold text-indigo-800 capitalize mb-2">
+                  <p className="text-xs font-bold text-brand-800 capitalize mb-2">
                     {intent.status === 'cancelled'
                       ? 'Cancelled'
                       : relation === 'pending'

@@ -139,7 +139,7 @@ export default function App() {
   useEffect(() => {
     document.title = selected
       ? `${selected.title} · ${humanDay(selected.date)} | Plann’d`
-      : 'Plann’d — Find your people in Jaipur'
+      : 'Plann’d | Plans in Jaipur'
   }, [selected])
   useEffect(() => {
     if (
@@ -229,7 +229,7 @@ export default function App() {
       <a className="sr-only focus:not-sr-only focus:p-3 focus:bg-white" href="#main-content">
         Skip to content
       </a>
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-20">
+      <header className="site-header sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 h-[72px] flex items-center gap-3">
           <button
             onClick={() => setView('explore')}
@@ -237,22 +237,20 @@ export default function App() {
             aria-label="Plann’d home"
           >
             <span className="wordmark block text-2xl">Plann’d</span>
-            <span className="block text-[10px] font-semibold text-gray-500 tracking-wider">
-              JAIPUR · WHO’S IN?
-            </span>
+            <span className="block text-xs font-medium text-brand-900">Jaipur</span>
           </button>
           <nav aria-label="Main navigation" className="hidden sm:flex gap-1 mr-auto">
             {nav.map((n) => (
               <button
                 key={n.key}
                 onClick={() => setView(n.key)}
-                className={`relative flex items-center gap-2 px-3 rounded-xl text-sm font-semibold ${view === n.key ? 'bg-indigo-50 text-indigo-800' : 'text-gray-600'}`}
+                className={`relative flex items-center gap-2 px-3 rounded-xl text-sm font-semibold ${view === n.key ? 'bg-brand-50 text-brand-800' : 'text-gray-600'}`}
                 aria-current={view === n.key ? 'page' : undefined}
               >
                 <n.icon size={18} />
                 {n.label}
                 {n.key === 'inbox' && notifications.unread > 0 && (
-                  <span className="text-xs text-indigo-700">{notifications.unread}</span>
+                  <span className="text-xs text-brand-700">{notifications.unread}</span>
                 )}
               </button>
             ))}
@@ -286,7 +284,7 @@ export default function App() {
       {notice && (
         <div
           role="status"
-          className="bg-indigo-50 px-4 sm:px-8 py-3 flex items-center gap-3 text-sm"
+          className="bg-brand-50 px-4 sm:px-8 py-3 flex items-center gap-3 text-sm"
         >
           <p className="flex-1 max-w-5xl mx-auto">{notice}</p>
           <button onClick={() => setNotice('')} aria-label="Dismiss notice" className="px-3">
@@ -403,14 +401,14 @@ export default function App() {
         {nav.map((n) => (
           <button
             key={n.key}
-            className={`relative min-h-[68px] flex flex-col justify-center items-center gap-1 text-[11px] font-semibold ${view === n.key ? 'text-indigo-800 bg-indigo-50' : 'text-gray-600'}`}
+            className={`relative min-h-[68px] flex flex-col justify-center items-center gap-1 text-[11px] font-semibold ${view === n.key ? 'text-brand-800 bg-brand-50' : 'text-gray-600'}`}
             aria-current={view === n.key ? 'page' : undefined}
             onClick={() => setView(n.key)}
           >
             <n.icon size={22} />
             {n.label}
             {n.key === 'inbox' && notifications.unread > 0 && (
-              <span className="absolute right-4 top-2 rounded-full bg-indigo-700 text-white px-1.5 text-[10px]">
+              <span className="absolute right-4 top-2 rounded-full bg-brand-700 text-white px-1.5 text-[10px]">
                 {notifications.unread > 9 ? '9+' : notifications.unread}
               </span>
             )}
@@ -467,9 +465,9 @@ export default function App() {
             open
             context={
               afterAuth === 'plan' && selected
-                ? `Request to join “${selected.title}” after signing in. The host will review your request.`
+                ? `Sign in to request a place in “${selected.title}”.`
                 : venuePrefill
-                  ? `Continue your plan at ${venuePrefill.venueName} after signing in.`
+                  ? `Sign in to plan at ${venuePrefill.venueName}.`
                   : undefined
             }
             onClose={() => setAuthOpen(false)}

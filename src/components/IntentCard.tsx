@@ -50,7 +50,7 @@ export default function IntentCard({ intent, selected, onClick, userLoc, childre
           <div className="flex items-center flex-wrap gap-1.5 mt-2 text-xs">
             <span className="inline-flex flex-wrap items-center gap-x-1 font-semibold text-gray-700 bg-gray-100 rounded-xl px-2 py-0.5">
               {intent.date !== todayIST() && (
-                <span className="text-indigo-700">{humanDay(intent.date)} · </span>
+                <span className="text-brand-700">{humanDay(intent.date)} · </span>
               )}
               <span className="whitespace-nowrap">🕐 {formatTimeRange(intent.startsAt, intent.endsAt)}</span>
             </span>

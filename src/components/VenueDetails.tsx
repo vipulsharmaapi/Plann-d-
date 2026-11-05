@@ -55,7 +55,7 @@ export default function VenueDetails({ intent }: { intent: Intent }) {
             <figure className="mt-3">
               <img
                 src={image}
-                alt={`${place?.displayName?.text || intent.venueName} — venue photo ${photoIndex + 1}`}
+                alt={`${place?.displayName?.text || intent.venueName}, venue photo ${photoIndex + 1}`}
                 className="w-full aspect-[3/2] object-cover rounded-xl"
                 onError={() => setImageFailed(true)}
               />
@@ -212,8 +212,8 @@ export default function VenueDetails({ intent }: { intent: Intent }) {
       </div>
       <p className="mt-2 text-xs text-gray-600">
         {menu
-          ? 'Menu link added by the host. Check current prices with the venue.'
-          : 'No menu link has been added. Check the venue website or ask the host.'}
+          ? 'Menu added by the host. Prices may change.'
+          : 'Menu not added. Check the venue website.'}
       </p>
     </section>
   )

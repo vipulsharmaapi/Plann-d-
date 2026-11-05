@@ -366,7 +366,7 @@ export default function JoinSection({
         </>
       ) : mine?.status === 'pending' ? (
         <>
-          <p className="font-semibold bg-indigo-50 text-indigo-900 rounded-xl p-4" role="status">
+          <p className="font-semibold bg-brand-50 text-brand-900 rounded-xl p-4" role="status">
             Waiting for {intent.posterName} to approve your request.
           </p>
           <button className="secondary text-sm" disabled={busy} onClick={withdraw}>
@@ -395,7 +395,7 @@ export default function JoinSection({
                   : 'Sign in to request to join'}
           </button>
           <p className="text-xs text-gray-600">
-            The host approves each request before chat and contact details become available.
+            The host approves your request. Chat opens once you’re accepted.
           </p>
         </>
       )}

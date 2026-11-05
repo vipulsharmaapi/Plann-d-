@@ -56,7 +56,7 @@ test('a discovered venue prefills the real editor and save_plan receives its exa
   fireEvent.change(screen.getByLabelText('When?'), { target: { value: tomorrow } })
   fireEvent.change(screen.getByLabelText('From'), { target: { value: '17:00' } })
   fireEvent.change(screen.getByLabelText('Till'), { target: { value: '18:00' } })
-  await user.click(screen.getByRole('button', { name: 'Post it 🙌' }))
+  await user.click(screen.getByRole('button', { name: 'Post plan' }))
   await waitFor(() => expect(onPosted).toHaveBeenCalledOnce())
   expect(supabase.rpc).toHaveBeenCalledWith(
     'save_plan',

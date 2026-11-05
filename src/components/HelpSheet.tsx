@@ -80,10 +80,10 @@ export default function HelpSheet({ userId, onClose }: { userId?: string; onClos
       <div className="p-6 pt-16 space-y-6 text-sm leading-relaxed">
         <h2 className="text-2xl font-bold">Help, privacy & safety</h2>
         <section className="border-b border-slate-200 pb-5">
-          <h3 className="font-bold text-base mb-2">Can’t sign in or need account help?</h3>
+          <h3 className="font-bold text-base mb-2">Account help</h3>
           <p>
-            Email us from an address where you can receive a reply. Include what happened and the
-            email on your account, but never your password or sign-in code.
+            Email your account address and a short description of the problem. Never send passwords
+            or sign-in codes.
           </p>
           <a
             className="inline-flex items-center min-h-11 font-semibold underline break-all"
@@ -91,10 +91,7 @@ export default function HelpSheet({ userId, onClose }: { userId?: string; onClos
           >
             vipulsharma86481@gmail.com
           </a>
-          <p className="text-xs text-gray-600">
-            You don’t need to sign in. Requests are reviewed manually; this is not emergency
-            support.
-          </p>
+          <p className="text-xs text-gray-600">No sign-in needed. We review requests manually.</p>
         </section>
         <section>
           <h3 className="font-bold text-base mb-2">How plans work</h3>

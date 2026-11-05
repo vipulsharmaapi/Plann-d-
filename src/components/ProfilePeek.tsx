@@ -46,7 +46,7 @@ export default function ProfilePeek({
         ) : (
           <>
             <div className="flex items-center gap-4">
-              <div className="h-16 w-16 rounded-2xl bg-indigo-50 flex justify-center items-center overflow-hidden text-3xl">
+              <div className="h-16 w-16 rounded-2xl bg-brand-50 flex justify-center items-center overflow-hidden text-3xl">
                 {profile.avatar_url ? (
                   <img className="h-full w-full object-cover" alt="" src={profile.avatar_url} />
                 ) : (

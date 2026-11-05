@@ -32,18 +32,21 @@ const time = (iso) =>
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
-  }).format(new Date(iso)).replace(/\s+/g, ' ').toUpperCase()
+  })
+    .format(new Date(iso))
+    .replace(/\s+/g, ' ')
+    .toUpperCase()
 
 export function previewData(plan, now = Date.now()) {
   if (!plan)
     return {
-      title: 'Make time for a plan.',
-      venue: 'Find your people in Jaipur',
-      when: 'A game, a coffee, a little company.',
+      title: 'Join a plan in Jaipur',
+      venue: 'Games, coffee and local activities',
+      when: '',
       status: 'Plann’d · Jaipur',
-      description: 'Find a game, share a coffee, or host a plan in Jaipur.',
+      description: 'Join games, coffee plans and activities in Jaipur.',
       url: `${SITE_URL}/`,
-      image: `${SITE_URL}/og/site.png`,
+      image: `${SITE_URL}/og/site.png?v=pink-city-v1`,
     }
   const status =
     plan.status === 'cancelled'
@@ -57,7 +60,7 @@ export function previewData(plan, now = Date.now()) {
     venue = clean(plan.venue_name, 160)
   const when = `${date(plan.starts_at)} · ${time(plan.starts_at)} to ${time(plan.ends_at)} IST`
   const version = createHash('sha256')
-    .update(JSON.stringify([title, venue, when, status]))
+    .update(JSON.stringify(['pink-city-v1', title, venue, when, status]))
     .digest('hex')
     .slice(0, 12)
   return {
@@ -85,7 +88,7 @@ export function injectPreview(html, data, unavailable = false) {
 <meta property="og:image:type" content="image/png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
-<meta property="og:image:alt" content="${escapeHtml(`${data.title} — ${data.venue}. ${data.when}. ${data.status}`)}" />
+<meta property="og:image:alt" content="${escapeHtml(`${data.title}. ${data.venue}. ${data.when}. ${data.status}`)}" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="${escapeHtml(title)}" />
 <meta name="twitter:description" content="${escapeHtml(data.description)}" />
@@ -147,7 +150,7 @@ export function renderPreview(data) {
         `<text x="76" y="${450 + i * 35}" font-size="27" font-weight="500">${escapeHtml(s)}</text>`,
     )
     .join('')
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630"><rect width="1200" height="630" fill="#f7f8fc"/><g font-family="Manrope" fill="#181c2a"><text x="72" y="90" font-size="38" font-weight="800">Plann’d</text><text x="1128" y="88" text-anchor="end" font-size="24" fill="#5143a8">Jaipur</text>${title}<text x="76" y="397" font-size="25" font-weight="600" fill="#5143a8">${escapeHtml(data.when)}</text>${venue}<path d="M72 529H1128" stroke="#d8dbe5"/><text x="76" y="579" font-size="25" font-weight="700">${escapeHtml(data.status)}</text><text x="1128" y="579" text-anchor="end" font-size="24">Who’s in?</text></g></svg>`
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630"><rect width="1200" height="630" fill="#fff8f2"/><rect width="1200" height="120" fill="#f2b7a8"/><g font-family="Manrope" fill="#382722"><text x="72" y="90" font-size="38" font-weight="800">Plann’d</text><text x="1128" y="88" text-anchor="end" font-size="24" fill="#8b362a">Jaipur</text>${title}<text x="76" y="397" font-size="25" font-weight="600" fill="#8b362a">${escapeHtml(data.when)}</text>${venue}<path d="M72 529H1128" stroke="#e5d2c8"/><text x="76" y="579" font-size="25" font-weight="700">${escapeHtml(data.status)}</text><text x="1128" y="579" text-anchor="end" font-size="24">Join a plan</text></g></svg>`
   return new Resvg(svg, {
     font: {
       fontFiles: [

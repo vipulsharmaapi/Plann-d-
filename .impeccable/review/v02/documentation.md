@@ -1,0 +1,15 @@
+# v.02 documentation refresh
+
+Updated only `PRODUCT.md`, `DESIGN.md`, `.impeccable/design.json` and this record. The user-approved v.02 system change authorizes the merge into the incumbent design system; no new visual world, context interview, detector or fresh design review was run.
+
+The authority is `../plannd-redesign/releases/v.02/HANDOFF.md` and its Figma exports, with `.impeccable/surfaces/explore.md` as the direction contract. PRODUCT now identifies the clear headline, Explore plans/Post a plan hierarchy, quiet venue link, three/two/one-column responsive cards, public dedicated detail and server-confirmed pending state. Query, scroll and focus return, secondary filters, save/share/safety, venue information, Google map attribution and actual profile data remain explicit.
+
+DESIGN replaces the conflicting v.01 peer modes, primary list/detail composition and phone detail sheet with the effective v.02 patterns. The observed additions are 38px plan-home display, 23/19px card titles at weight 700, 36/28px detail titles, 180px card photography and 240/210px detail photography. It records the 710px desktop content column, 210/230px hero defaults, minimum 280px narrow hero, 16px phone fields and 44px action targets. At 320px the two selects precede the full-row Map action. The established palette, font families and unchanged venue/post/account patterns are preserved.
+
+The schema-v2 sidecar preserves extension-only storage and ten self-contained previews. It replaces the obsolete peer-mode, date-strip and selected-plan-row previews with the first-visit actions, simple filters and v.02 card, including a truthful missing-photo example. Primitive references and metadata resolve to DESIGN frontmatter; narrative is copied verbatim. Removed floating-switch tokens are no longer presented as the current Explore pattern.
+
+Verification of both token-bearing files: DESIGN frontmatter parses as YAML, uses the permitted token groups and component properties, and all `{path.to.token}` references resolve. Sidecar JSON parses; color/typography metadata and component references resolve; the eight canonical DESIGN sections remain ordered; sidecar overview, characteristics, named rules and do/don’t text match the Markdown. Changed measurements were checked against the final v.02 CSS and sampled components. Documentation formatting and whitespace checks passed.
+
+The implementation verification record reports `npm run check` passing with 92 tests in 18 files and `npm audit --audit-level=high` reporting zero vulnerabilities. Those app checks were not rerun for this documentation-only pass. Local screenshots use synthetic fixture records/photos and do not ship; they do not establish live provider or backend mutation results. Native 200% browser zoom remains unverified. Deployment has not been performed at the time of this documentation pass.
+
+Not canonized or repaired: unused legacy sheet/switch CSS, the one-off pending rose fallback, two pre-existing map-ref lint warnings and the existing bundle-size advisory. These are outside the approved documentation change; no unrelated source or palette cleanup was performed.

@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { formatTimeRange } from '../lib/time'
 import { formatKm, haversineKm, type LatLng } from '../lib/geo'
-import { activityByKey, humanDay, todayIST, type Intent } from '../types'
+import { humanDay, todayIST, type Intent } from '../types'
+import ActivityIcon from './ActivityIcon'
 
 interface Props {
   intent: Intent
@@ -13,14 +14,13 @@ interface Props {
 
 export default function IntentCard({ intent, selected, onClick, userLoc, children }: Props) {
   const Header = onClick ? 'button' : 'div'
-  const activity = activityByKey(intent.activity)
   const spotsLeft = intent.spotsNeeded - intent.spotsFilled
 
   return (
     <article
       className={`min-w-0 w-full text-left rounded-2xl p-4 border transition-all cursor-pointer ${
         selected
-          ? 'border-gray-900 ring-1 ring-gray-900 bg-white shadow-lg'
+          ? 'border-brand-600 bg-white'
           : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
       }`}
     >
@@ -30,59 +30,38 @@ export default function IntentCard({ intent, selected, onClick, userLoc, childre
         aria-controls={`plan-${intent.id}`}
         className="flex items-start gap-3 w-full text-left"
       >
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0"
-          style={{ backgroundColor: `${activity.color}22` }}
-        >
-          {activity.emoji}
-        </div>
+        <ActivityIcon activity={intent.activity} />
         <div className="min-w-0 flex-1">
           <div className="flex items-start flex-wrap gap-2">
-            <p className="font-semibold text-gray-900 break-words">{intent.title}</p>
+            <p className="font-bold text-gray-900 break-words">{intent.title}</p>
             {intent.womenOnly && (
               <span className="text-[10px] font-bold uppercase tracking-wide bg-pink-100 text-pink-700 rounded-full px-2 py-0.5 shrink-0">
                 Women only
               </span>
             )}
           </div>
-          <p className="text-sm text-gray-600 truncate">{intent.venueName}</p>
+          <p className="text-[13px] text-gray-600 break-words mt-1">{intent.venueName}</p>
           {intent.venueArea && <p className="text-xs text-gray-600 mt-1">{intent.venueArea}</p>}
-          <div className="flex items-center flex-wrap gap-1.5 mt-2 text-xs">
-            <span className="inline-flex flex-wrap items-center gap-x-1 font-semibold text-gray-700 bg-gray-100 rounded-xl px-2 py-0.5">
-              {intent.date !== todayIST() && (
-                <span className="text-brand-700">{humanDay(intent.date)} · </span>
-              )}
-              <span className="whitespace-nowrap">🕐 {formatTimeRange(intent.startsAt, intent.endsAt)}</span>
-            </span>
-            <span
-              className={`font-semibold rounded-full px-2 py-0.5 ${
-                spotsLeft <= 0
-                  ? 'bg-gray-100 text-gray-500'
-                  : spotsLeft === 1
-                    ? 'bg-red-50 text-red-600'
-                    : 'bg-green-50 text-green-700'
-              }`}
-            >
+          <p className="text-[13px] font-semibold mt-1">
+            {intent.date !== todayIST() && `${humanDay(intent.date)} · `}
+            {formatTimeRange(intent.startsAt, intent.endsAt)}
+          </p>
+          <p className="text-xs text-gray-600 mt-1 flex flex-wrap gap-x-1">
+            <span>
               {spotsLeft <= 0 ? 'Full' : `${spotsLeft} spot${spotsLeft === 1 ? '' : 's'} left`}
             </span>
-            {userLoc && (
-              <span className="font-semibold text-blue-700 bg-blue-50 rounded-full px-2 py-0.5">
-                📍 {formatKm(haversineKm(userLoc, intent))}
-              </span>
-            )}
-            <span className="text-gray-600 px-1">{intent.posterName}</span>
+            <span>· {intent.posterName}</span>
+            {userLoc && <span>· {formatKm(haversineKm(userLoc, intent))}</span>}
             {intent.expectedCost != null && (
-              <span className="text-gray-600">
+              <span>
                 ·{' '}
                 {intent.expectedCost === 0
                   ? 'Free'
                   : `About ₹${Number(intent.expectedCost).toLocaleString('en-IN')} each`}
               </span>
             )}
-            {intent.skillLevel === 'beginner' && (
-              <span className="text-gray-600">· Beginner friendly</span>
-            )}
-          </div>
+            {intent.skillLevel === 'beginner' && <span>· Beginner friendly</span>}
+          </p>
         </div>
       </Header>
       {selected && (

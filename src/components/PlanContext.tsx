@@ -43,20 +43,29 @@ export default function PlanContext({
     }
   }, [intent.userId])
   return (
-    <div className="space-y-4 border-b border-slate-200 pb-4">
-      <div className="flex items-center gap-3">
-        {host?.avatar_url && (
-          <img src={host.avatar_url} alt="" className="w-11 h-11 rounded-xl object-cover" />
-        )}
-        <button
-          className="text-left min-h-11 underline font-semibold"
-          disabled={!intent.userId}
-          onClick={() => intent.userId && onProfile(intent.userId)}
-        >
-          Hosted by {host?.first_name || intent.posterName}
-        </button>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          {host?.avatar_url && (
+            <img src={host.avatar_url} alt="" className="w-11 h-11 rounded-xl object-cover" />
+          )}
+          <button
+            className="text-left min-h-11 font-semibold text-sm hover:underline break-words"
+            disabled={!intent.userId}
+            onClick={() => intent.userId && onProfile(intent.userId)}
+          >
+            Hosted by {host?.first_name || intent.posterName}
+          </button>
+        </div>
+        <span className="text-sm font-semibold text-brand-700 shrink-0">
+          {intent.spotsFilled >= intent.spotsNeeded
+            ? 'Full'
+            : `${intent.spotsNeeded - intent.spotsFilled} spot${intent.spotsNeeded - intent.spotsFilled === 1 ? '' : 's'} left`}
+        </span>
       </div>
-      {host?.bio && <p className="text-sm text-gray-700 break-words">{host.bio}</p>}
+      {intent.note && (
+        <p className="text-sm text-gray-600 whitespace-pre-wrap break-words">{intent.note}</p>
+      )}
       {intent.expectedCost != null || intent.skillLevel || intent.bookingStatus ? (
         <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
           {intent.expectedCost != null && (
@@ -82,9 +91,7 @@ export default function PlanContext({
             </div>
           )}
         </dl>
-      ) : (
-        <p className="text-sm text-gray-600">Cost and booking details not added.</p>
-      )}
+      ) : null}
       {intent.meetingInstructions && (
         <div>
           <h3 className="font-semibold text-sm">Where to meet & what to expect</h3>
@@ -93,7 +100,6 @@ export default function PlanContext({
           </p>
         </div>
       )}
-      <p className="text-xs text-gray-600">Details from the host. Confirm arrangements in chat.</p>
     </div>
   )
 }

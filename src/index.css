@@ -261,6 +261,7 @@ button:disabled {
 @media (max-width: 640px) {
   .modal-sheet {
     width: 100%;
+    max-width: 100%;
     margin: auto 0 0;
     max-height: 94dvh;
     border-radius: 24px 24px 0 0;
@@ -335,4 +336,213 @@ input::placeholder,
 textarea::placeholder {
   color: var(--color-gray-500);
   opacity: 1;
+}
+
+/* Figma: Plann’d / Home and Plan details, 5:43–5:244. */
+.jaipur-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 164px;
+  margin-bottom: 24px;
+}
+.jaipur-hero-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+.jaipur-title {
+  font-size: 36px;
+  line-height: 1.3;
+}
+.jaipur-landmark {
+  width: 340px;
+  height: auto;
+  max-width: 40%;
+  flex: 0 0 auto;
+  opacity: 0.8;
+  object-fit: contain;
+  pointer-events: none;
+}
+.explore-heading {
+  margin-bottom: 24px;
+}
+.explore-heading .jaipur-hero-copy {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+.explore-tabs {
+  display: flex;
+  gap: 24px;
+  border-bottom: 1px solid var(--color-gray-200);
+  margin-bottom: 20px;
+}
+.explore-tabs button {
+  min-height: 48px;
+  padding: 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-gray-600);
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+}
+.explore-tabs button[aria-pressed='true'] {
+  color: var(--color-brand-700);
+  border-bottom-color: currentColor;
+  font-weight: 800;
+}
+.plan-detail-content {
+  padding: 32px;
+}
+.plan-detail-sheet .sheet-close {
+  top: 24px;
+  right: 24px;
+  background: transparent;
+}
+.plan-detail-header h2 {
+  padding-right: 44px;
+  font-size: 26px;
+  line-height: 1.4;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+  margin-bottom: 24px;
+}
+.plan-facts {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+.plan-facts > div {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 14px;
+}
+.plan-facts svg {
+  color: var(--color-gray-600);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.plan-facts p {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.plan-facts > div:last-child {
+  color: var(--color-gray-600);
+}
+.plan-join-section {
+  display: grid;
+  gap: 20px;
+  margin-top: 20px;
+}
+.plan-action-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.plan-action-row button {
+  min-height: 44px;
+}
+.plan-action-row .primary {
+  font-size: 14px;
+}
+.plan-sections {
+  display: grid;
+  gap: 0;
+}
+.plan-disclosure {
+  border-top: 1px solid var(--color-gray-200);
+}
+.plan-disclosure > summary,
+.venue-more > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+.plan-disclosure > summary::-webkit-details-marker,
+.venue-more > summary::-webkit-details-marker {
+  display: none;
+}
+.plan-disclosure > summary svg,
+.venue-more > summary svg {
+  flex-shrink: 0;
+}
+.plan-disclosure[open] > summary svg,
+.venue-more[open] > summary svg {
+  transform: rotate(180deg);
+}
+.plan-venue-section {
+  border-top: 1px solid var(--color-gray-200);
+  padding-top: 16px;
+}
+.venue-more > summary {
+  color: var(--color-brand-700);
+  justify-content: flex-start;
+  min-height: 44px;
+  font-size: 13px;
+}
+.plan-safety-action {
+  border-top: 1px solid var(--color-gray-200);
+  padding-top: 12px;
+  text-align: left;
+  font-size: 12px;
+  color: var(--color-gray-600);
+  min-height: 44px;
+}
+@media (max-width: 639px) {
+  .jaipur-hero {
+    min-height: 132px;
+    margin-bottom: 20px;
+  }
+  .jaipur-title {
+    font-size: 28px;
+  }
+  .jaipur-landmark {
+    width: 146px;
+    max-width: 41%;
+  }
+  .explore-tabs {
+    gap: 24px;
+  }
+  .explore-tabs button {
+    font-size: 13px;
+  }
+  .plan-detail-content {
+    padding: 24px 20px;
+  }
+  .plan-detail-header h2 {
+    font-size: 23px;
+  }
+  .plan-detail-sheet .sheet-close {
+    top: 18px;
+    right: 12px;
+  }
+}
+@media (max-width: 359px) {
+  .jaipur-title {
+    font-size: 24px;
+  }
+  .jaipur-landmark {
+    max-width: 35%;
+  }
+  .explore-tabs {
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .plan-detail-content {
+    padding: 24px 16px;
+  }
+  .plan-action-row .secondary {
+    padding-inline: 12px;
+  }
 }

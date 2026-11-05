@@ -129,12 +129,10 @@ export default function Explore({
   }
   return (
     <section className="max-w-5xl mx-auto px-4 sm:px-8 py-6 sm:py-10">
-      <div
-        className={`flex ${browse !== 'plans' ? 'flex-row' : 'flex-col sm:flex-row'} items-start justify-between gap-4 mb-6`}
-      >
-        <div>
+      <div className={browse === 'plans' ? 'jaipur-hero' : 'explore-heading'}>
+        <div className="jaipur-hero-copy">
           <h1
-            className={`${browse !== 'plans' ? 'text-2xl' : 'text-3xl'} sm:text-4xl font-extrabold tracking-tight`}
+            className={`${browse === 'plans' ? 'jaipur-title' : 'text-2xl sm:text-4xl'} font-extrabold tracking-tight`}
           >
             {browse === 'search'
               ? 'Search Jaipur'
@@ -142,40 +140,38 @@ export default function Explore({
                 ? 'Places in Jaipur'
                 : 'Join a plan in Jaipur'}
           </h1>
+          <button className="secondary text-sm self-start" onClick={onPost}>
+            + Post a plan
+          </button>
         </div>
-        <button className="secondary shrink-0 text-sm" onClick={onPost}>
-          + Post a plan
-        </button>
+        {browse === 'plans' && (
+          <img
+            className="jaipur-landmark"
+            src="/images/hawa-mahal.webp"
+            width="960"
+            height="418"
+            alt=""
+            aria-hidden="true"
+          />
+        )}
       </div>
-      <div
-        className="flex gap-2 border-b border-slate-200 mb-5 pb-3"
-        role="group"
-        aria-label="Explore Jaipur"
-      >
-        <button
-          className={`${browse === 'plans' ? 'primary' : 'secondary'} flex-1 sm:flex-none text-xs min-[380px]:text-sm !px-2 sm:!px-4`}
-          aria-pressed={browse === 'plans'}
-          onClick={() => setBrowse('plans')}
-        >
+      <div className="explore-tabs" role="group" aria-label="Explore Jaipur">
+        <button aria-pressed={browse === 'plans'} onClick={() => setBrowse('plans')}>
           Join a plan
         </button>
         <button
-          className={`${browse === 'places' ? 'primary' : 'secondary'} flex-1 sm:flex-none text-xs min-[380px]:text-sm !px-2 sm:!px-4`}
+          aria-label="Browse activities"
           aria-pressed={browse === 'places'}
           onClick={() => findPlaces()}
         >
-          Browse activities
+          Activities
         </button>
         <button
-          className={`${browse === 'search' ? 'primary' : 'secondary'} flex-1 sm:flex-none text-xs min-[380px]:text-sm !px-2 sm:!px-4`}
           aria-label="Search venues"
           aria-pressed={browse === 'search'}
           onClick={() => setBrowse('search')}
         >
-          <Search size={16} aria-hidden="true" className="hidden sm:block" />
-          <span>
-            Search<span className="hidden sm:inline"> venues</span>
-          </span>
+          Search venues
         </button>
       </div>
       {(visited.search || browse === 'search') && (
@@ -231,7 +227,6 @@ export default function Explore({
               aria-pressed={activity === a.key}
               onClick={() => onActivity(activity === a.key ? null : a.key)}
             >
-              <span aria-hidden="true">{a.emoji}</span>
               {a.label}
             </button>
           ))}

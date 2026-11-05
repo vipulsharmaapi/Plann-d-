@@ -1,35 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { ExternalLink, ImageOff, MapPin, Star, Utensils, ChevronDown } from 'lucide-react'
 import type { Intent } from '../types'
-import { loadVenue, photoUrl, safeExternalUrl, type VenueDetails as Place } from '../lib/venues'
+import { photoUrl, safeExternalUrl } from '../lib/venues'
+import { PlanVenueContext, usePlanVenue } from '../hooks/usePlanVenue'
 
 export default function VenueDetails({ intent }: { intent: Intent }) {
-  const [place, setPlace] = useState<Place | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [failed, setFailed] = useState(false)
-  const [attempt, setAttempt] = useState(0)
+  const shared = useContext(PlanVenueContext)
+  const standalone = usePlanVenue(intent, !shared)
+  const { place, loading, failed, retry } = shared ?? standalone
   const [photoIndex, setPhotoIndex] = useState(0)
   const [imageFailed, setImageFailed] = useState(false)
-  const { id, venueName, googlePlaceId, lat, lng } = intent
   useEffect(() => {
-    const controller = new AbortController()
-    setLoading(true)
-    setFailed(false)
-    setPlace(null)
     setPhotoIndex(0)
     setImageFailed(false)
-    loadVenue({ venueName, googlePlaceId, lat, lng }, controller.signal)
-      .then((p) => {
-        if (!controller.signal.aborted) setPlace(p)
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setFailed(true)
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
-      })
-    return () => controller.abort()
-  }, [id, venueName, googlePlaceId, lat, lng, attempt])
+  }, [place])
 
   const photos = place?.photos?.slice(0, 5) ?? []
   const photo = photos[photoIndex],
@@ -75,7 +59,7 @@ export default function VenueDetails({ intent }: { intent: Intent }) {
             </p>
           )}
           {failed && (
-            <button className="secondary text-sm mt-2" onClick={() => setAttempt(attempt + 1)}>
+            <button className="secondary text-sm mt-2" onClick={retry}>
               Retry venue details
             </button>
           )}

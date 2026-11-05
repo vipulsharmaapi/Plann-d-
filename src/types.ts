@@ -24,8 +24,8 @@ export interface VenueDraft {
   venueName: string
   venueArea?: string
   googlePlaceId: string
-  lat: number
-  lng: number
+  lat?: number
+  lng?: number
 }
 
 export interface Activity {

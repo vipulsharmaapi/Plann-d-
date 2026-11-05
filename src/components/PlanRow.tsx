@@ -1,3 +1,4 @@
+import Avatar from './Avatar'
 import { humanDay, type Intent } from '../types'
 import { formatTimeRange } from '../lib/time'
 import { planArtwork, planGroup } from '../lib/discovery'
@@ -37,9 +38,7 @@ export default function PlanRow({
         </span>
         <span className="row-bottom">
           <span className="host-inline">
-            <span className="avatar initial" aria-hidden="true" style={{ width: 28, height: 28 }}>
-              {intent.posterName.slice(0, 1)}
-            </span>
+            <Avatar userId={intent.userId} name={intent.posterName} size={28} />
             <span>{intent.posterName} is hosting</span>
           </span>
           <span className="spots">

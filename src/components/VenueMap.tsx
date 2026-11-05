@@ -2,13 +2,14 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { LocateFixed, Star, X } from 'lucide-react'
 import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer'
 import { GOOGLE_MAP_ID, loadGoogleMaps, onGoogleAuthFailure } from '../lib/googleMaps'
-import type { DiscoverableVenue } from '../lib/venues'
+import { hasVenueLocation, type DiscoverableVenue, type VenueBounds } from '../lib/venues'
 
 interface Props {
   places: DiscoverableVenue[]
   selectedId: string | null
   onSelect: (id: string | null) => void
   onPost: (place: DiscoverableVenue) => void
+  onSearchArea?: (bounds: VenueBounds) => void
   renderPlans?: (place: DiscoverableVenue) => ReactNode
 }
 type MarkerEntry = {
@@ -17,7 +18,14 @@ type MarkerEntry = {
   click: () => void
 }
 
-export default function VenueMap({ places, selectedId, onSelect, onPost, renderPlans }: Props) {
+export default function VenueMap({
+  places,
+  selectedId,
+  onSelect,
+  onPost,
+  renderPlans,
+  onSearchArea,
+}: Props) {
   const container = useRef<HTMLDivElement>(null)
   const map = useRef<google.maps.Map | null>(null)
   const api = useRef<typeof google | null>(null)
@@ -124,7 +132,7 @@ export default function VenueMap({ places, selectedId, onSelect, onPost, renderP
   function fitAll() {
     const g = api.current,
       view = map.current,
-      venues = currentPlaces.current
+      venues = currentPlaces.current.filter(hasVenueLocation)
     if (!g || !view || !venues.length) return
     const first = venues[0].location
     if (
@@ -148,7 +156,7 @@ export default function VenueMap({ places, selectedId, onSelect, onPost, renderP
     const g = api.current,
       view = map.current
     if (!ready || !g || !view) return
-    const ids = new Set(places.map((place) => place.id))
+    const ids = new Set(places.filter(hasVenueLocation).map((place) => place.id))
     for (const [id, entry] of markers.current) {
       if (!ids.has(id)) {
         entry.marker.removeEventListener('gmp-click', entry.click)
@@ -157,6 +165,7 @@ export default function VenueMap({ places, selectedId, onSelect, onPost, renderP
       }
     }
     places.forEach((place, index) => {
+      if (!hasVenueLocation(place)) return
       let entry = markers.current.get(place.id)
       if (!entry) {
         const pin = document.createElement('div')
@@ -193,7 +202,7 @@ export default function VenueMap({ places, selectedId, onSelect, onPost, renderP
       entry.marker.zIndex = id === selectedId ? 10000 : 1
     }
     const place = places.find((venue) => venue.id === selectedId)
-    if (place && map.current) {
+    if (place && hasVenueLocation(place) && map.current) {
       setGroupIds([])
       map.current.panTo({ lat: place.location.latitude, lng: place.location.longitude })
       map.current.setZoom(Math.max(map.current.getZoom() ?? 11, 16))
@@ -218,6 +227,18 @@ export default function VenueMap({ places, selectedId, onSelect, onPost, renderP
           Fit all venues
         </button>
       </div>
+      {onSearchArea && (
+        <button
+          className="secondary map-search-area"
+          disabled={!ready}
+          onClick={() => {
+            const bounds = map.current?.getBounds()?.toJSON()
+            if (bounds) onSearchArea(bounds)
+          }}
+        >
+          Search this area
+        </button>
+      )}
       <div className={`relative h-72 sm:h-96 bg-slate-100 ${failed ? 'hidden' : ''}`}>
         <div ref={container} className="absolute inset-0" aria-label="Map of venue results" />
         {!ready && (
@@ -258,8 +279,8 @@ export default function VenueMap({ places, selectedId, onSelect, onPost, renderP
             <p className="text-sm text-slate-600 mt-1 flex flex-wrap items-center gap-1.5">
               <Star size={15} aria-hidden="true" className="text-amber-700" />
               {typeof selected.rating === 'number'
-                ? `${selected.rating.toFixed(1)} / 5 · ${(selected.userRatingCount ?? 0).toLocaleString('en-IN')} reviews`
-                : 'No ratings yet'}{' '}
+                ? `${selected.rating.toFixed(1)} / 5${typeof selected.userRatingCount === 'number' ? ` · ${selected.userRatingCount.toLocaleString('en-IN')} reviews` : ''}`
+                : ''}{' '}
               · Google Maps
             </p>
             <p className="text-sm text-slate-600 mt-1 break-words">{selected.formattedAddress}</p>

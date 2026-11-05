@@ -37,7 +37,7 @@ test('choosing a venue hands off the matching activity, branch and coordinates w
     user = userEvent.setup()
   render(<VenueDiscovery activity="football" onActivity={vi.fn()} onPost={post} />)
   expect(post).not.toHaveBeenCalled()
-  await user.click(await screen.findByRole('button', { name: 'Make a plan at Test football turf' }))
+  await user.click(await screen.findByRole('button', { name: 'Make a plan here' }))
   expect(post).toHaveBeenCalledWith({
     activity: 'football',
     venueName: turf.displayName.text,
@@ -61,7 +61,7 @@ test('switching categories aborts the old request and ignores its late response'
   const view = render(<VenueDiscovery {...props} activity="football" />)
   const footballSignal = search.mock.calls[0][1]
   view.rerender(<VenueDiscovery {...props} activity="coffee" />)
-  await screen.findByText('Test café')
+  await screen.findByRole('button', { name: 'Select Test café' })
   await act(async () => finishFootball({ places: [turf] }))
   expect(footballSignal.aborted).toBe(true)
   expect(screen.queryByText('Test football turf')).toBeNull()
@@ -71,7 +71,7 @@ test('search failures stay distinct from empty results and can be retried', asyn
   search.mockRejectedValueOnce(new Error('quota')).mockResolvedValueOnce({ places: [] })
   const user = userEvent.setup()
   render(<VenueDiscovery activity="football" onActivity={vi.fn()} onPost={vi.fn()} />)
-  expect((await screen.findByRole('alert')).textContent).toContain('Places couldn’t load')
+  expect((await screen.findByRole('alert')).textContent).toContain('Venues couldn’t load')
   expect(screen.queryByText('No matching venues found')).toBeNull()
   await user.click(screen.getByRole('button', { name: 'Try again' }))
   await screen.findByText('No matching venues found')
@@ -85,16 +85,12 @@ test('pagination retries keep existing venues and never duplicate a returned bra
     .mockResolvedValueOnce({ places: [turf, cafe] })
   const user = userEvent.setup()
   render(<VenueDiscovery activity="football" onActivity={vi.fn()} onPost={vi.fn()} />)
-  await user.click(await screen.findByRole('button', { name: 'Show more places' }))
+  await user.click(await screen.findByRole('button', { name: 'Show more venues' }))
   await screen.findByRole('alert')
-  expect(screen.getByText('Test football turf')).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Select Test football turf' })).toBeTruthy()
   await user.click(screen.getByRole('button', { name: 'Try again' }))
-  await screen.findByText('Test café')
-  expect(screen.getAllByText('Test football turf')).toHaveLength(1)
+  await screen.findByRole('button', { name: 'Select Test café' })
+  expect(screen.getAllByRole('button', { name: 'Select Test football turf' })).toHaveLength(1)
   expect(search.mock.calls[2][2]).toBe('next')
-  await waitFor(() =>
-    expect(screen.getByRole('status', { name: 'Venue results' }).textContent).toBe(
-      '2 places found',
-    ),
-  )
+  await waitFor(() => expect(screen.getByRole('status').textContent).toBe('2 venues in Jaipur'))
 })

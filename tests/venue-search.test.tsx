@@ -28,7 +28,8 @@ afterEach(() => {
   vi.resetAllMocks()
 })
 
-test('Explore exposes a separate search action without triggering a category lookup', async () => {
+test('Explore exposes peer modes and venue discovery is public', async () => {
+  search.mockResolvedValue({ places: [] })
   const user = userEvent.setup()
   render(
     <Explore
@@ -44,47 +45,40 @@ test('Explore exposes a separate search action without triggering a category loo
       onVenuePost={vi.fn()}
     />,
   )
-  await user.click(screen.getByRole('button', { name: 'Search venues' }))
-  await screen.findByRole('search', { name: 'Search Jaipur venues' })
   expect(search).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('button', { name: 'Explore venues' }))
+  await screen.findByRole('search', { name: 'Search Jaipur venues' })
   expect(new URLSearchParams(location.search).get('browse')).toBe('search')
-  expect(screen.getByRole('button', { name: 'Join a plan' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Join plans' })).toBeTruthy()
 })
 
-test('only submission searches; area and keywords survive pagination and the chosen branch becomes a café plan', async () => {
-  search.mockResolvedValueOnce({ places: [cafe], nextPageToken: 'page2' }).mockResolvedValueOnce({
-    places: [
-      cafe,
-      { ...cafe, id: 'ChIJsearchcafe456', displayName: { text: 'Second café' }, rating: 5 },
-    ],
-  })
+test('editing waits for submission; pagination retains submitted query and the exact branch handoff', async () => {
+  search
+    .mockResolvedValueOnce({ places: [] })
+    .mockResolvedValueOnce({ places: [cafe], nextPageToken: 'page2' })
+    .mockResolvedValueOnce({
+      places: [cafe, { ...cafe, id: 'ChIJsecondcafe456', displayName: { text: 'Second café' } }],
+    })
   const user = userEvent.setup(),
     post = vi.fn()
   render(<VenueSearch onPost={post} />)
+  await screen.findByText('No matching venues found')
   await user.type(screen.getByLabelText('Venue or activity'), '  Roastery  ')
-  await user.type(screen.getByLabelText('Area in Jaipur (optional)'), 'Vaishali  Nagar')
-  expect(search).not.toHaveBeenCalled()
-  await user.click(screen.getByRole('button', { name: 'Search', exact: true }))
-  await screen.findByRole('button', { name: 'Make a plan at Roastery Café' })
-  expect(search.mock.calls[0][0]).toEqual({ query: 'Roastery', area: 'Vaishali Nagar' })
-  expect((screen.getByLabelText('Sort places') as HTMLSelectElement).value).toBe('relevance')
-  expect([...document.querySelectorAll('mark')].map((mark) => mark.textContent)).toEqual([
-    'Roastery',
-    'Vaishali',
-    'Nagar',
-  ])
-  await user.click(screen.getByRole('button', { name: 'Edit search' }))
+  await user.selectOptions(screen.getByLabelText('Neighbourhood'), 'Vaishali Nagar')
+  expect(search).toHaveBeenCalledTimes(1)
+  await user.click(screen.getByRole('button', { name: 'Search venues' }))
+  await screen.findByRole('button', { name: 'Select Roastery Café in Vaishali Nagar' })
+  expect(search.mock.calls[1][0]).toEqual({ query: 'Roastery', area: 'Vaishali Nagar' })
   await user.clear(screen.getByLabelText('Venue or activity'))
   await user.type(screen.getByLabelText('Venue or activity'), 'football')
-  await user.click(screen.getByRole('button', { name: 'Show more places' }))
-  await screen.findByRole('button', { name: 'Make a plan at Second café' })
-  expect(search.mock.calls[1][0]).toEqual({ query: 'Roastery', area: 'Vaishali Nagar' })
-  expect(search.mock.calls[1][2]).toBe('page2')
-  expect(screen.getAllByRole('article')).toHaveLength(2)
-  expect(screen.getAllByRole('article')[0].querySelector('h3')?.textContent).toBe(
-    '1. Roastery Café',
-  )
-  await user.click(screen.getByRole('button', { name: 'Make a plan at Roastery Café' }))
+  await user.click(screen.getByRole('button', { name: 'Show more venues' }))
+  await screen.findByRole('button', { name: 'Select Second café in Vaishali Nagar' })
+  expect(search.mock.calls[2][0]).toEqual({ query: 'Roastery', area: 'Vaishali Nagar' })
+  expect(search.mock.calls[2][2]).toBe('page2')
+  expect(
+    screen.getAllByRole('button', { name: 'Select Roastery Café in Vaishali Nagar' }),
+  ).toHaveLength(1)
+  await user.click(screen.getByRole('button', { name: 'Make a plan here' }))
   expect(post).toHaveBeenCalledWith({
     activity: 'coffee',
     venueName: 'Roastery Café',
@@ -95,7 +89,7 @@ test('only submission searches; area and keywords survive pagination and the cho
   })
 })
 
-test('a new submitted search aborts and ignores an old response', async () => {
+test('Enter submits a new query and late old responses are ignored', async () => {
   let finish!: (result: { places: DiscoverableVenue[] }) => void
   search
     .mockImplementationOnce(
@@ -107,15 +101,13 @@ test('a new submitted search aborts and ignores an old response', async () => {
     .mockResolvedValueOnce({ places: [cafe] })
   const user = userEvent.setup()
   render(<VenueSearch onPost={vi.fn()} />)
-  await user.click(screen.getByRole('button', { name: 'Football · Mansarovar' }))
   const oldSignal = search.mock.calls[0][1]
-  await user.click(screen.getByRole('button', { name: 'Edit search' }))
-  await user.click(screen.getByRole('button', { name: 'Roastery', exact: true }))
-  await screen.findByRole('button', { name: 'Make a plan at Roastery Café' })
+  await user.type(screen.getByLabelText('Venue or activity'), 'Roastery{Enter}')
+  await screen.findByRole('button', { name: 'Select Roastery Café in Vaishali Nagar' })
   await act(async () =>
     finish({ places: [{ ...cafe, displayName: { text: 'Stale football turf' } }] }),
   )
   expect(oldSignal.aborted).toBe(true)
   expect(screen.queryByText('Stale football turf')).toBeNull()
-  expect(screen.getByRole('heading', { name: 'Results for “Roastery”' })).toBeTruthy()
+  expect(new URLSearchParams(location.search).get('q')).toBe('Roastery')
 })

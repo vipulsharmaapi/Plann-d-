@@ -57,8 +57,8 @@ export function readAuthIntent(): {
         data.venue.venueName.length > 200 ||
         typeof data.venue.activity !== 'string' ||
         !/^[A-Za-z0-9_-]{10,255}$/.test(data.venue.googlePlaceId) ||
-        !Number.isFinite(data.venue.lat) ||
-        !Number.isFinite(data.venue.lng))
+        (data.venue.lat !== undefined && !Number.isFinite(data.venue.lat)) ||
+        (data.venue.lng !== undefined && !Number.isFinite(data.venue.lng)))
     )
       return null
     return data

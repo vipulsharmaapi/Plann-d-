@@ -1,3 +1,4 @@
+import AccountGate from './AccountGate'
 import type { AppNotification } from '../hooks/useNotifications'
 import { formatTimestamp } from '../lib/time'
 const ICONS: Record<string, string> = {
@@ -16,6 +17,8 @@ export default function NotificationsSheet({
   onRetry,
   onSignIn,
   signedIn,
+  sessionLoading = false,
+  onExplore,
 }: {
   items: AppNotification[]
   state: string
@@ -24,9 +27,11 @@ export default function NotificationsSheet({
   onRetry: () => void
   onSignIn: () => void
   signedIn: boolean
+  sessionLoading?: boolean
+  onExplore: () => void
 }) {
   return (
-    <section className="max-w-3xl mx-auto px-4 sm:px-8 py-8">
+    <section className="personal-plans inbox-page">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
         <h1 className="text-3xl font-bold">Inbox</h1>
         {signedIn && items.some((i) => !i.read_at) && (
@@ -35,11 +40,12 @@ export default function NotificationsSheet({
           </button>
         )}
       </div>
-      <p className="text-gray-600 mb-6">Requests, plan updates, messages and reminders.</p>
-      {!signedIn ? (
-        <button className="primary" onClick={onSignIn}>
-          Sign in to see your inbox
-        </button>
+      {sessionLoading ? (
+        <div className="account-loading" role="status">
+          Loading your account…
+        </div>
+      ) : !signedIn ? (
+        <AccountGate inbox onSignIn={onSignIn} onExplore={onExplore} />
       ) : state === 'loading' ? (
         <p role="status">Loading your inbox…</p>
       ) : state === 'error' ? (
@@ -74,7 +80,8 @@ export default function NotificationsSheet({
                   {new Date(n.created_at).toLocaleDateString('en-IN', {
                     dateStyle: 'medium',
                     timeZone: 'Asia/Kolkata',
-                  })} · {formatTimestamp(n.created_at)} IST
+                  })}{' '}
+                  · {formatTimestamp(n.created_at)} IST
                 </span>
               </span>
               {!n.read_at && <span className="text-xs font-bold text-brand-700">New</span>}
@@ -82,10 +89,12 @@ export default function NotificationsSheet({
           ))}
         </div>
       )}
-      <p className="text-xs text-gray-500 mt-6">
-        Reminders appear here while you use Plann’d. Add a plan to your calendar for alerts outside
-        the app.
-      </p>
+      {signedIn && items.length > 0 && (
+        <p className="text-xs text-gray-500 mt-6">
+          Reminders appear here while you use Plann’d. Add a plan to your calendar for alerts
+          outside the app.
+        </p>
+      )}
     </section>
   )
 }

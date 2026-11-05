@@ -1,8 +1,8 @@
-import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useRef, useMemo, useState, type ReactNode } from 'react'
 import { navigate, useUrlValue } from '../lib/navigation'
 import { matchesPlan } from '../lib/planDiscovery'
 import { groups, planGroup, matchesDay } from '../lib/discovery'
-import { Search, SlidersHorizontal, X, Plus, List, Map, ArrowLeft, MapPin } from 'lucide-react'
+import { Search, SlidersHorizontal, X, Plus, List, Map, MapPin } from 'lucide-react'
 import PlanRow from './PlanRow'
 import type { IntentSource } from '../hooks/useIntents'
 import { haversineKm, type LatLng } from '../lib/geo'
@@ -41,6 +41,8 @@ export default function Explore({
   selectedId?: string
   renderDetail?: (i: Intent) => ReactNode
 }) {
+  const [venuePin] = useUrlValue('pin')
+  const [venueLayout] = useUrlValue('vlayout', 'list')
   const [browseValue] = useUrlValue('browse', 'plans'),
     browse = ['search', 'places'].includes(browseValue) ? browseValue : 'plans'
   const [group, setGroup] = usePlanFilter('group', 'All plans'),
@@ -56,8 +58,17 @@ export default function Explore({
   const [filters, setFilters] = useState(false),
     [mapSelected, setMapSelected] = useState<string>(),
     [visited, setVisited] = useState({ search: browse === 'search', places: browse === 'places' })
+  const modeScroll = useRef<Record<string, number>>({})
+  const previousMode = useRef(browse)
+  useEffect(() => {
+    if (previousMode.current !== browse) {
+      previousMode.current = browse
+      requestAnimationFrame(() => window.scrollTo(0, modeScroll.current[browse] ?? 0))
+    }
+  }, [browse])
   const radius = [3, 5, 10].includes(Number(radiusValue)) ? Number(radiusValue) : 0
   function setBrowse(value: 'plans' | 'places' | 'search') {
+    modeScroll.current[browse] = window.scrollY
     if (value !== 'plans') setVisited((v) => ({ ...v, [value]: true }))
     navigate({ browse: value === 'plans' ? null : value, p: null })
   }
@@ -126,24 +137,45 @@ export default function Explore({
   }
   const venueActivity = ACTIVITIES.find((a) => a.key === category)?.key ?? 'football'
   return (
-    <section className={layout === 'map' && browse === 'plans' ? 'map-mode' : ''}>
-      <section className="intro">
-        <img className="canopy" src="/images/jaipur-canopy.webp" alt="" />
+    <section
+      className={`${layout === 'map' && browse === 'plans' ? 'map-mode' : ''} ${browse !== 'plans' && venuePin && venueLayout !== 'map' ? 'venue-detail-active' : ''}`}
+    >
+      <section className="intro jaipur-intro">
+        <img className="canopy" src="/images/jaipur-panorama.webp" alt="" />
         <div className="intro-inner">
           <div>
             <h1>
               {browse === 'plans'
                 ? 'Good plans. Right here in Jaipur.'
-                : browse === 'search'
-                  ? 'Find your next place.'
-                  : 'Places around Jaipur.'}
+                : 'Find a place for your next plan.'}
             </h1>
             <p>
               {browse === 'plans'
                 ? 'Find a place, meet a few people, make an evening of it.'
-                : 'Choose a venue and see who’s making a plan.'}
+                : 'Cafés, courts and places to meet across Jaipur.'}
             </p>
           </div>
+        </div>
+      </section>
+      <div className="discovery-modes" role="group" aria-label="Explore mode">
+        <button
+          className={browse === 'plans' ? 'primary' : 'secondary'}
+          aria-pressed={browse === 'plans'}
+          onClick={() => setBrowse('plans')}
+        >
+          Join plans
+        </button>
+        <button
+          className={browse !== 'plans' ? 'primary' : 'secondary'}
+          aria-pressed={browse !== 'plans'}
+          onClick={() => setBrowse('search')}
+        >
+          Explore venues
+        </button>
+      </div>
+      <div hidden={browse !== 'plans'}>
+        <div className="plan-search-bar">
+          {' '}
           {browse === 'plans' && (
             <label className="search-field">
               <Search size={20} />
@@ -162,8 +194,6 @@ export default function Explore({
             </label>
           )}
         </div>
-      </section>
-      <div hidden={browse !== 'plans'}>
         <div className="category-bar">
           <div className="category-scroll" role="group" aria-label="Activities">
             {groups.map((c) => (
@@ -309,9 +339,6 @@ export default function Explore({
                     ? 'Loading plans…'
                     : `${filtered.length} ${filtered.length === 1 ? 'plan' : 'plans'} to explore`}
                 </span>
-                <button className="inline-link text-sm" onClick={searchVenues}>
-                  Search venues
-                </button>
               </div>
               {source === 'error' ? (
                 <div role="alert" className="empty-state">
@@ -384,18 +411,6 @@ export default function Explore({
         </div>
       </div>
       <div hidden={browse === 'plans'} className="venue-workspace">
-        <div className="venue-navigation">
-          <button className="text-button" onClick={() => setBrowse('plans')}>
-            <ArrowLeft size={18} />
-            Join a plan
-          </button>
-          <button
-            className="inline-link"
-            onClick={() => setBrowse(browse === 'search' ? 'places' : 'search')}
-          >
-            {browse === 'search' ? 'Browse activities' : 'Search venues'}
-          </button>
-        </div>
         <Suspense fallback={<p role="status">Loading venues…</p>}>
           <div hidden={browse !== 'search'}>
             {(visited.search || browse === 'search') && (

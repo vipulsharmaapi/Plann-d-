@@ -55,7 +55,37 @@ export const VENUE_CATEGORIES: { activity: ActivityKey; label: string; query: st
 
 export type DiscoverableVenue = VenueDetails & {
   displayName: { text: string }
-  location: { latitude: number; longitude: number }
+}
+export type VenueBounds = { south: number; west: number; north: number; east: number }
+export const JAIPUR_AREAS = [
+  'Vaishali Nagar',
+  'Mansarovar',
+  'C-Scheme',
+  'Malviya Nagar',
+  'Civil Lines',
+  'Pink City',
+  'Raja Park',
+  'Jagatpura',
+  'Tonk Road',
+]
+export function venueNeighbourhood(place: VenueDetails, fallback = '') {
+  return (
+    JAIPUR_AREAS.find((area) =>
+      (place.formattedAddress ?? '')
+        .toLowerCase()
+        .replace(/[-\s]/g, '')
+        .includes(area.toLowerCase().replace(/[-\s]/g, '')),
+    ) ?? fallback
+  )
+}
+export function hasVenueLocation(
+  place: DiscoverableVenue,
+): place is DiscoverableVenue & { location: { latitude: number; longitude: number } } {
+  return (
+    !!place.location &&
+    Number.isFinite(place.location.latitude) &&
+    Number.isFinite(place.location.longitude)
+  )
 }
 export type VenueSort = 'rating' | 'reviews' | 'relevance'
 export interface VenueSearch {
@@ -127,11 +157,12 @@ export function isDiscoverableVenue(place: VenueDetails): place is DiscoverableV
       'administrative_area_level_2',
     ].includes(place.primaryType ?? '') &&
     !(place.types?.includes('political') && !place.types.includes('point_of_interest')) &&
-    place.location &&
-    Number.isFinite(place.location.latitude) &&
-    Number.isFinite(place.location.longitude) &&
-    Math.abs(place.location.latitude - 26.8905) < 0.55 &&
-    Math.abs(place.location.longitude - 75.7873) < 0.55 &&
+    (place.location
+      ? Number.isFinite(place.location.latitude) &&
+        Number.isFinite(place.location.longitude) &&
+        Math.abs(place.location.latitude - 26.8905) < 0.55 &&
+        Math.abs(place.location.longitude - 75.7873) < 0.55
+      : /\bJaipur\b/i.test(place.formattedAddress ?? '')) &&
     (!place.businessStatus || place.businessStatus === 'OPERATIONAL')
   )
 }
@@ -154,10 +185,13 @@ export function venueDraft(
   return {
     activity,
     venueName: place.displayName.text.slice(0, 80),
-    ...(area?.trim() ? { venueArea: area.trim().slice(0, 100) } : {}),
+    ...(venueNeighbourhood(place, area?.trim())
+      ? { venueArea: venueNeighbourhood(place, area?.trim()).slice(0, 100) }
+      : {}),
     googlePlaceId: place.id,
-    lat: place.location.latitude,
-    lng: place.location.longitude,
+    ...(hasVenueLocation(place)
+      ? { lat: place.location.latitude, lng: place.location.longitude }
+      : {}),
   }
 }
 
@@ -165,6 +199,7 @@ export async function discoverVenues(
   selection: ActivityKey | VenueSearch,
   signal: AbortSignal,
   pageToken?: string,
+  bounds?: VenueBounds,
 ): Promise<{ places: DiscoverableVenue[]; nextPageToken?: string }> {
   if (!key) throw new Error('Venue search is not configured')
   const textQuery =
@@ -177,9 +212,20 @@ export async function discoverVenues(
     signal,
     {
       textQuery,
-      locationBias: {
-        circle: { center: { latitude: 26.8905, longitude: 75.7873 }, radius: 35000 },
-      },
+      ...(bounds
+        ? {
+            locationRestriction: {
+              rectangle: {
+                low: { latitude: bounds.south, longitude: bounds.west },
+                high: { latitude: bounds.north, longitude: bounds.east },
+              },
+            },
+          }
+        : {
+            locationBias: {
+              circle: { center: { latitude: 26.8905, longitude: 75.7873 }, radius: 35000 },
+            },
+          }),
       rankPreference: 'RELEVANCE',
       languageCode: 'en',
       regionCode: 'IN',
@@ -188,7 +234,17 @@ export async function discoverVenues(
     },
   )) as { places?: VenueDetails[]; nextPageToken?: string }
   return {
-    places: (result.places ?? []).filter(isDiscoverableVenue),
+    places: (result.places ?? [])
+      .filter(isDiscoverableVenue)
+      .filter(
+        (place) =>
+          !bounds ||
+          !hasVenueLocation(place) ||
+          (place.location.latitude >= bounds.south &&
+            place.location.latitude <= bounds.north &&
+            place.location.longitude >= bounds.west &&
+            place.location.longitude <= bounds.east),
+      ),
     nextPageToken: result.nextPageToken,
   }
 }

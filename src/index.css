@@ -107,15 +107,15 @@ button:active:not(:disabled) {
   animation: sheet-up 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* A solid wordmark and sandstone masthead keep the city colour in the navigation. */
+/* Pink City wall paint and cream architectural linework. */
 .wordmark {
   font-weight: 800;
   letter-spacing: -0.03em;
   color: var(--color-brand-900);
 }
 .site-header {
-  background: var(--color-brand-200);
-  border-bottom: 1px solid var(--color-brand-300);
+  background: var(--color-brand-300) url('/images/pink-city-wall.svg') top left / 320px 180px repeat;
+  border-bottom: 1px solid #bc746066;
 }
 .site-header nav button:not([aria-current]) {
   color: var(--color-brand-900);
@@ -338,14 +338,49 @@ textarea::placeholder {
   opacity: 1;
 }
 
-/* Figma: Plann’d / Home and Plan details, 5:43–5:244. */
+/* Figma: Pink city wall + Sanganeri print, 20:54 and 20:127. */
+.app-shell {
+  background: var(--color-gray-50) url('/images/sanganeri-buti.svg') top left / 160px 180px repeat;
+}
+#main-content {
+  position: relative;
+  isolation: isolate;
+}
+#main-content::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(100%, 1008px);
+  background: #fff8f2f0;
+  pointer-events: none;
+}
+.site-footer {
+  background: #fff8f2f0;
+}
+.site-footer::before {
+  content: '';
+  display: block;
+  height: 32px;
+  background: var(--color-gray-100) url('/images/block-print-border.svg') top left / 160px 32px
+    repeat-x;
+}
+.jaipur-hero-band {
+  background: var(--color-brand-300) url('/images/pink-city-wall.svg') top left / 320px 180px repeat;
+}
+
 .jaipur-hero {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 164px;
-  margin-bottom: 24px;
+  min-height: 224px;
+  max-width: 1024px;
+  padding: 16px 32px;
+  margin: 0 auto;
 }
 .jaipur-hero-copy {
   display: flex;
@@ -356,24 +391,40 @@ textarea::placeholder {
 }
 .jaipur-title {
   font-size: 36px;
-  line-height: 1.3;
+  line-height: 1.4;
+  color: var(--color-brand-900);
+}
+.jaipur-niche {
+  width: 340px;
+  height: 192px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 4px 12px;
+  border-radius: 170px 170px 0 0;
+  border: 1px solid #fff8f2cc;
+  background: #fff0df;
 }
 .jaipur-landmark {
-  width: 340px;
+  display: block;
+  width: 100%;
   height: auto;
-  max-width: 40%;
-  flex: 0 0 auto;
-  opacity: 0.8;
   object-fit: contain;
   pointer-events: none;
 }
-.explore-heading {
-  margin-bottom: 24px;
+.explore-heading-inner {
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 24px 32px 8px;
 }
 .explore-heading .jaipur-hero-copy {
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
+}
+.explore-heading .secondary {
+  flex-shrink: 0;
 }
 .explore-tabs {
   display: flex;
@@ -500,16 +551,25 @@ textarea::placeholder {
   min-height: 44px;
 }
 @media (max-width: 639px) {
+  #main-content::before {
+    background: #fff8f2c2;
+  }
   .jaipur-hero {
-    min-height: 132px;
-    margin-bottom: 20px;
+    min-height: 184px;
+    padding: 16px;
+  }
+  .explore-heading-inner {
+    padding: 24px 16px 8px;
   }
   .jaipur-title {
     font-size: 28px;
   }
-  .jaipur-landmark {
+  .jaipur-niche {
     width: 146px;
     max-width: 41%;
+    height: 112px;
+    border-radius: 74px 74px 0 0;
+    padding: 0 1px 10px;
   }
   .explore-tabs {
     gap: 24px;
@@ -532,8 +592,9 @@ textarea::placeholder {
   .jaipur-title {
     font-size: 24px;
   }
-  .jaipur-landmark {
+  .jaipur-niche {
     max-width: 35%;
+    height: 96px;
   }
   .explore-tabs {
     justify-content: space-between;

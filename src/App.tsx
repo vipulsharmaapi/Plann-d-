@@ -1,10 +1,12 @@
 import { navigate, useUrlParams, readAuthIntent, rememberAuthIntent } from './lib/navigation'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
-import { CalendarDays, Compass, Map, Inbox, MapPin, Plus, HelpCircle, User } from 'lucide-react'
+import { CalendarDays, Compass, Inbox, MapPin, Plus, X } from 'lucide-react'
 import Explore from './components/Explore'
 import MyPlans from './components/MyPlans'
 import NotificationsSheet from './components/NotificationsSheet'
-import PlanHeader from './components/PlanHeader'
+import PlanDetail from './components/PlanDetail'
+import { usePhone } from './hooks/usePhone'
+import { useSavedPlans } from './hooks/useSavedPlans'
 import JoinSection from './components/JoinSection'
 import Sheet from './components/Sheet'
 import { useAuth } from './hooks/useAuth'
@@ -27,12 +29,15 @@ export default function App() {
   const auth = useAuth(),
     { intents, source, refresh } = useIntents(auth.session?.user.id),
     notifications = useNotifications(auth.session)
+  const phone = usePhone()
+  const saved = useSavedPlans(auth.session?.user.id)
   const route = useUrlParams()
   const view = (
     ['map', 'plans', 'inbox'].includes(route.get('view') ?? '') ? route.get('view') : 'explore'
   ) as View
   const activity = ACTIVITIES.find((a) => a.key === route.get('activity'))?.key ?? null
-  const setActivity = (value: ActivityKey | null) => navigate({ activity: value }, 'replace')
+  const setActivity = (value: ActivityKey | null) =>
+    navigate({ activity: value, p: null }, 'replace')
   const [selected, setSelected] = useState<Intent | null>(null)
   const scrollPositions = useRef<Record<string, number>>({})
   const previousView = useRef(view)
@@ -219,65 +224,96 @@ export default function App() {
   const mapIntents = intents.filter((i) => !activity || i.activity === activity)
   const nav = [
     { key: 'explore' as View, label: 'Explore', icon: Compass },
-    { key: 'map' as View, label: 'Plans map', icon: Map },
     { key: 'plans' as View, label: 'My plans', icon: CalendarDays },
     { key: 'inbox' as View, label: 'Inbox', icon: Inbox },
   ]
+  function renderPlan(intent: Intent, onBack?: () => void) {
+    return (
+      <PlanDetail
+        intent={intent}
+        saved={saved}
+        onBack={onBack}
+        onSave={() => {
+          if (auth.session) void saved.toggle(intent.id)
+          else {
+            openPlan(intent)
+            signIn()
+          }
+        }}
+      >
+        <JoinSection
+          key={intent.id}
+          intent={intent}
+          auth={auth}
+          onRequestAuth={() => {
+            openPlan(intent)
+            signIn('plan')
+          }}
+          onEdit={(i) => {
+            setEditing(i)
+            setTemplate(null)
+            setPostOpen(true)
+          }}
+          onViewProfile={setPeek}
+          onOpenChat={setChat}
+        />
+      </PlanDetail>
+    )
+  }
   return (
-    <div className="app-shell min-h-dvh flex flex-col pb-[calc(76px+env(safe-area-inset-bottom))] sm:pb-0">
+    <div className="app-shell min-h-dvh flex flex-col">
       <a className="sr-only focus:not-sr-only focus:p-3 focus:bg-white" href="#main-content">
         Skip to content
       </a>
-      <header className="site-header sticky top-0 z-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 h-[72px] flex items-center gap-3">
-          <button
-            onClick={() => setView('explore')}
-            className="text-left mr-auto"
-            aria-label="Plann’d home"
-          >
-            <span className="wordmark block text-2xl">Plann’d</span>
-            <span className="block text-xs font-medium text-brand-900">Jaipur</span>
+      <header className="site-header">
+        <div className="header-inner">
+          <button className="wordmark" onClick={() => setView('explore')} aria-label="Plann’d home">
+            Plann’d
           </button>
-          <nav aria-label="Main navigation" className="hidden sm:flex gap-1 mr-auto">
+          <button
+            className="location"
+            onClick={locate}
+            disabled={locating}
+            aria-label={locating ? 'Finding your location' : 'Use my location'}
+          >
+            <MapPin size={18} />
+            <span>Jaipur</span>
+          </button>
+          <nav className="desktop-nav" aria-label="Main navigation">
             {nav.map((n) => (
               <button
                 key={n.key}
-                onClick={() => setView(n.key)}
-                className={`relative flex items-center gap-2 px-3 rounded-xl text-sm font-semibold ${view === n.key ? 'bg-brand-50 text-brand-800' : 'text-gray-600'}`}
+                className={view === n.key ? 'active' : ''}
                 aria-current={view === n.key ? 'page' : undefined}
+                onClick={() => setView(n.key)}
               >
-                <n.icon size={18} />
+                <n.icon size={20} strokeWidth={1.7} />
                 {n.label}
                 {n.key === 'inbox' && notifications.unread > 0 && (
-                  <span className="text-xs text-brand-700">{notifications.unread}</span>
+                  <span className="nav-dot" aria-label={`${notifications.unread} unread updates`} />
                 )}
               </button>
             ))}
           </nav>
-          <button
-            className="secondary !p-2.5"
-            disabled={locating}
-            onClick={locate}
-            aria-label={locating ? 'Finding your location' : 'Use my location'}
-          >
-            <MapPin size={19} />
-          </button>
-          {auth.session ? (
-            <button
-              className="secondary !p-2.5"
-              onClick={() => setProfileOpen(true)}
-              aria-label="Your profile"
-            >
-              <User size={19} />
+          <div className="header-actions">
+            <button className="post-button" onClick={post}>
+              <Plus size={20} />
+              <span>Post a plan</span>
             </button>
-          ) : (
-            <button
-              className="primary !px-3 !py-2 text-sm whitespace-nowrap"
-              onClick={() => signIn()}
-            >
-              Sign in
-            </button>
-          )}
+            {auth.session ? (
+              <button
+                className="profile-button"
+                aria-label="Your profile"
+                onClick={() => setProfileOpen(true)}
+              >
+                {(auth.firstName || 'You').slice(0, 2).toUpperCase()}
+              </button>
+            ) : (
+              <button className="header-signin" onClick={() => signIn()}>
+                Sign in
+              </button>
+            )}
+          </div>
         </div>
       </header>
       {notice && (
@@ -287,7 +323,7 @@ export default function App() {
         >
           <p className="flex-1 max-w-5xl mx-auto">{notice}</p>
           <button onClick={() => setNotice('')} aria-label="Dismiss notice" className="px-3">
-            ✕
+            <X size={18} />
           </button>
         </div>
       )}
@@ -304,6 +340,8 @@ export default function App() {
             activity={activity}
             onActivity={setActivity}
             onVenuePost={postAtVenue}
+            selectedId={selected?.id}
+            renderDetail={phone ? undefined : renderPlan}
           />
         </div>
         {view === 'plans' && (
@@ -311,6 +349,7 @@ export default function App() {
             key={`${planKey}-${auth.session?.user.id ?? 'guest'}`}
             userId={auth.session?.user.id}
             onSignIn={() => signIn()}
+            saved={saved}
             onOpen={openPlan}
             onPost={post}
           />
@@ -385,36 +424,31 @@ export default function App() {
           </section>
         )}
       </main>
-      <footer className="site-footer">
-        <div className="max-w-5xl w-full mx-auto px-4 sm:px-8 py-4 flex justify-between items-center text-xs text-gray-600">
-          <span>Plann’d · Jaipur</span>
-          <button onClick={() => setHelpOpen(true)} className="flex items-center gap-1">
-            <HelpCircle size={15} />
-            Help, privacy & safety
-          </button>
-        </div>
+      <footer className="page-footer">
+        <span>Made for a little more Jaipur.</span>
+        <button onClick={() => setHelpOpen(true)}>Help, privacy &amp; safety</button>
       </footer>
-      <nav
-        aria-label="Mobile navigation"
-        className="fixed bottom-0 inset-x-0 z-20 bg-white border-t border-gray-200 grid grid-cols-4 sm:hidden"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-      >
+      <nav className="mobile-nav" aria-label="Mobile navigation">
         {nav.map((n) => (
           <button
             key={n.key}
-            className={`relative min-h-[68px] flex flex-col justify-center items-center gap-1 text-[11px] font-semibold ${view === n.key ? 'text-brand-800 bg-brand-50' : 'text-gray-600'}`}
+            className={view === n.key ? 'active' : ''}
             aria-current={view === n.key ? 'page' : undefined}
             onClick={() => setView(n.key)}
           >
-            <n.icon size={22} />
+            <n.icon size={22} strokeWidth={1.7} />
             {n.label}
             {n.key === 'inbox' && notifications.unread > 0 && (
-              <span className="absolute right-4 top-2 rounded-full bg-brand-700 text-white px-1.5 text-[10px]">
+              <span className="mobile-unread">
                 {notifications.unread > 9 ? '9+' : notifications.unread}
               </span>
             )}
           </button>
         ))}
+        <button onClick={post}>
+          <Plus size={22} />
+          Post a plan
+        </button>
       </nav>
       {linkLoading && (
         <div
@@ -424,31 +458,15 @@ export default function App() {
           Opening plan…
         </div>
       )}
-      {selected && (
-        <Sheet title="Plan details" className="plan-detail-sheet" onClose={closePlan}>
-          <div className="plan-detail-content">
-            <PlanHeader intent={selected} />
-            <JoinSection
-              key={selected.id}
-              intent={selected}
-              auth={auth}
-              onRequestAuth={() => signIn('plan')}
-              onEdit={(i) => {
-                setEditing(i)
-                setTemplate(null)
-                setPostOpen(true)
-              }}
-              onViewProfile={setPeek}
-              onOpenChat={setChat}
-            />
-            {selected.womenOnly && (
-              <p className="text-xs text-gray-600 mt-4">
-                Women-only eligibility uses self-declared gender. Plann’d does not verify identity.
-              </p>
-            )}
-          </div>
-        </Sheet>
-      )}
+      {selected &&
+        (phone ||
+          view !== 'explore' ||
+          ['search', 'places'].includes(route.get('browse') ?? '') ||
+          !intents.some((i) => i.id === selected.id)) && (
+          <Sheet title="Plan details" className="redesign-plan-sheet" onClose={closePlan}>
+            {renderPlan(selected, closePlan)}
+          </Sheet>
+        )}
       <Suspense
         fallback={
           <div

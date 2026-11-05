@@ -184,3 +184,38 @@ test('venue rating stays visible and its disclosure reveals attributed photos an
     'https://example.com/menu',
   )
 })
+
+test('join review sends the optional introduction only after confirmation and retains it on failure', async () => {
+  const user = userEvent.setup()
+  mock.insert.mockResolvedValueOnce({ error: { message: 'Connection interrupted' } })
+  render(<JoinSection intent={plan} auth={auth('guest')} {...callbacks()} />)
+  await user.click(await screen.findByRole('button', { name: 'Request to join' }))
+  expect(mock.insert).not.toHaveBeenCalled()
+  const hello = screen.getByPlaceholderText('Introduce yourself to the host')
+  await user.type(hello, 'Happy to join for coffee.')
+  await user.click(screen.getByRole('button', { name: 'Send request' }))
+  expect(
+    await screen.findByText('Connection interrupted', { selector: '.form-error' }),
+  ).toBeTruthy()
+  expect((hello as HTMLTextAreaElement).value).toBe('Happy to join for coffee.')
+  mock.insert.mockImplementationOnce(async () => {
+    mock.requests = [{ id: 'new-request', user_id: 'guest', status: 'pending' }]
+    return { error: null }
+  })
+  await user.click(screen.getByRole('button', { name: 'Send request' }))
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Request to join' })).toBeNull())
+  expect(mock.insert).toHaveBeenLastCalledWith({
+    intent_id: 'plan',
+    user_id: 'guest',
+    introduction: 'Happy to join for coffee.',
+    status: 'pending',
+  })
+  expect(await screen.findByText(/Request sent. Waiting for the host/)).toBeTruthy()
+})
+
+test('a cancelled plan does not advertise remaining spots or allow new requests', async () => {
+  render(<JoinSection intent={{ ...plan, status: 'cancelled' }} auth={auth()} {...callbacks()} />)
+  expect(await screen.findByText('Cancelled', { exact: true })).toBeTruthy()
+  expect(screen.queryByText(/spots left/)).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Request to join' })).toBeNull()
+})

@@ -31,11 +31,17 @@ const icons = {
   other: Users,
 }
 
-export default function ActivityIcon({ activity }: { activity: ActivityKey }) {
+export default function ActivityIcon({
+  activity,
+  size = 24,
+}: {
+  activity: ActivityKey
+  size?: number
+}) {
   const Icon = icons[activity] ?? Users
   return (
     <Icon
-      size={24}
+      size={size}
       strokeWidth={1.7}
       aria-hidden="true"
       className="shrink-0 text-gray-600 mt-0.5"

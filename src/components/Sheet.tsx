@@ -2,6 +2,9 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
+let openSheets = 0
+let previousOverflow = ''
+
 /** Native modal semantics provide focus trapping, Escape and focus restoration. */
 export default function Sheet({
   open = true,
@@ -21,9 +24,14 @@ export default function Sheet({
     const dialog = ref.current
     if (!open || !dialog) return
     const previous = document.activeElement as HTMLElement | null
+    if (openSheets++ === 0) {
+      previousOverflow = document.documentElement.style.overflow
+      document.documentElement.style.overflow = 'hidden'
+    }
     dialog.showModal()
     return () => {
       dialog.close()
+      if (--openSheets === 0) document.documentElement.style.overflow = previousOverflow
       if (previous?.isConnected) previous.focus({ preventScroll: true })
     }
   }, [open])

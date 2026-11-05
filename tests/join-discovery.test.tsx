@@ -36,6 +36,7 @@ vi.mock('../src/lib/venues', async (original) => ({
   ...(await original<typeof import('../src/lib/venues')>()),
   discoverVenues: discover,
 }))
+vi.mock('../src/hooks/usePhone', () => ({ usePhone: () => true }))
 vi.mock('../src/hooks/useAuth', () => ({ useAuth: () => ({ session: null }) }))
 vi.mock('../src/hooks/useIntents', () => ({
   INTENT_COLUMNS: '*',
@@ -117,8 +118,12 @@ test('legacy plans need both the full venue name and a point within 100 metres',
   const legacy = { ...plan, googlePlaceId: undefined, venueName: 'Public café, 96' }
   expect(plansAtVenue([legacy], place.id, place)).toEqual([legacy])
   expect(plansAtVenue([{ ...legacy, lat: plan.lat + 0.02 }], place.id, place)).toEqual([])
-  expect(plansAtVenue([{ ...legacy, venueName: 'Public café other branch' }], place.id, place)).toEqual([])
-  expect(plansAtVenue([{ ...legacy, googlePlaceId: 'ChIJotherbranch' }], place.id, place)).toEqual([])
+  expect(
+    plansAtVenue([{ ...legacy, venueName: 'Public café other branch' }], place.id, place),
+  ).toEqual([])
+  expect(plansAtVenue([{ ...legacy, googlePlaceId: 'ChIJotherbranch' }], place.id, place)).toEqual(
+    [],
+  )
 })
 test('search, sort and result cards survive main navigation without a second venue request', async () => {
   discover.mockResolvedValue({ places: [place] })
@@ -128,7 +133,7 @@ test('search, sort and result cards survive main navigation without a second ven
   await user.click(await screen.findByRole('button', { name: 'Cafés · Vaishali Nagar' }))
   await screen.findByRole('button', { name: 'View plan: Coffee after work' })
   await user.selectOptions(screen.getByLabelText('Sort places'), 'reviews')
-  await user.click(screen.getAllByRole('button', { name: 'Plans map' })[0])
+  await user.click(screen.getAllByRole('button', { name: 'My plans' })[0])
   expect(screen.queryByRole('button', { name: 'View plan: Coffee after work' })).toBeNull()
   await user.click(screen.getAllByRole('button', { name: 'Explore', exact: true })[0])
   expect(screen.getByRole('button', { name: 'View plan: Coffee after work' })).toBeTruthy()
@@ -139,7 +144,7 @@ test('search, sort and result cards survive main navigation without a second ven
 test('browser Back closes a plan to the previous filtered view', async () => {
   const user = userEvent.setup()
   render(<App />)
-  await user.click(screen.getByRole('button', { name: /Coffee after work Public café/ }))
+  await user.click(screen.getByRole('button', { name: 'View Coffee after work' }))
   expect(await screen.findByRole('dialog', { name: 'Plan details' })).toBeTruthy()
   expect(new URLSearchParams(location.search).get('p')).toBe(plan.id)
   history.back()
@@ -155,7 +160,11 @@ test('main view is restored from its URL after remount', async () => {
 })
 test('a slow plan link cannot reopen its dialog after navigating away', async () => {
   let resolve!: (value: { data: Intent }) => void
-  fetchPlan.mockReturnValue(new Promise((done) => { resolve = done }))
+  fetchPlan.mockReturnValue(
+    new Promise((done) => {
+      resolve = done
+    }),
+  )
   navigate({ p: plan.id }, 'replace')
   const user = userEvent.setup()
   render(<App />)

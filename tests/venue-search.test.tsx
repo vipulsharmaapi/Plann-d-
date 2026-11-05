@@ -47,9 +47,8 @@ test('Explore exposes a separate search action without triggering a category loo
   await user.click(screen.getByRole('button', { name: 'Search venues' }))
   await screen.findByRole('search', { name: 'Search Jaipur venues' })
   expect(search).not.toHaveBeenCalled()
-  expect(screen.getByRole('button', { name: 'Search venues' }).getAttribute('aria-pressed')).toBe(
-    'true',
-  )
+  expect(new URLSearchParams(location.search).get('browse')).toBe('search')
+  expect(screen.getByRole('button', { name: 'Join a plan' })).toBeTruthy()
 })
 
 test('only submission searches; area and keywords survive pagination and the chosen branch becomes a café plan', async () => {

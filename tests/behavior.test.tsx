@@ -85,19 +85,41 @@ describe('discovery states', () => {
     activity: null,
     onActivity: vi.fn(),
   }
+  test('changing filters clears the selected link and never previews an excluded plan', async () => {
+    const user = userEvent.setup()
+    history.replaceState(null, '', '/?p=' + plan.id)
+    const sports: Intent = { ...plan, id: 'sports', activity: 'badminton', title: 'Badminton' }
+    render(
+      <Explore
+        {...props}
+        source="live"
+        intents={[plan, sports]}
+        selectedId={plan.id}
+        renderDetail={(item) => <h2>Details: {item.title}</h2>}
+      />,
+    )
+    expect(screen.getByRole('heading', { name: 'Details: ' + plan.title })).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Sports', exact: true }))
+    expect(screen.getByRole('heading', { name: 'Details: Badminton' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Details: ' + plan.title })).toBeNull()
+    expect(new URLSearchParams(location.search).get('p')).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Food', exact: true }))
+    expect(screen.getByText('No plans match yet')).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: /Details:/ })).toBeNull()
+  })
   test('loading and network failures never masquerade as an empty live market', () => {
     const { rerender } = render(<Explore {...props} source="loading" />)
     expect(screen.getByRole('status').textContent).toContain('Loading')
     expect(screen.queryByText('Your next plan can start here')).toBeNull()
     rerender(<Explore {...props} source="error" />)
-    expect(screen.getByRole('alert').textContent).toContain('couldn’t refresh')
+    expect(screen.getByRole('alert').textContent).toContain('couldn’t load')
     expect(screen.queryByText('Your next plan can start here')).toBeNull()
     expect(screen.queryByText(/live plans/)).toBeNull()
   })
   test('empty discovery offers posting and unmatched search can be cleared', async () => {
     const user = userEvent.setup()
     const { rerender } = render(<Explore {...props} source="live" />)
-    await user.click(screen.getByRole('button', { name: 'Post the first plan' }))
+    await user.click(screen.getByRole('button', { name: /Post a plan/ }))
     expect(props.onPost).toHaveBeenCalledOnce()
     rerender(<Explore {...props} intents={[plan]} source="live" />)
     await user.click(screen.getByRole('button', { name: 'Search & filters' }))

@@ -1,3 +1,4 @@
+import Avatar from './Avatar'
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Auth } from '../hooks/useAuth'
@@ -352,7 +353,7 @@ export default function JoinSection({
                     className="flex-1 text-left underline text-sm min-w-[100px] break-words"
                     onClick={() => onViewProfile(r.user_id)}
                   >
-                    {r.name}
+                    <Avatar userId={r.user_id} name={r.name} size={28} /> {r.name}
                   </button>
                   {r.introduction && <p className="request-introduction">{r.introduction}</p>}
                   {r.status === 'pending' ? (

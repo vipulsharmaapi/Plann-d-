@@ -30,5 +30,13 @@
     "depicts_verified_venue": false,
     "sha256": "0c37235a1a47cb78f1a5be9718b15bdc963d026c80b39da78260fdf02ae55d2c",
     "production_usage": "Illustrative activity artwork; real venue photos are attributed Google content."
+  },
+  {
+    "file": "public/images/jaipur-panorama.webp",
+    "type": "User-approved generated Jaipur panorama",
+    "source": "plannd-redesign/live-improvements/assets/jaipur-panorama-final.png",
+    "prompt_file": "docs/jaipur-panorama-prompt.txt",
+    "production_usage": "Decorative Hawa Mahal, Amber Fort, Albert Hall and Pink City illustration. Optimised from the final handoff PNG at WebP quality 88.",
+    "sha256": "2d61bf2f12df63d8d76a801ddd75a2b70f9573039874b1a9a7b92eee52e616b6"
   }
 ]

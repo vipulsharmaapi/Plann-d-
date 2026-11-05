@@ -15,14 +15,18 @@ export function matchesPlan(plan: Intent, query: string) {
 }
 export function plansAtVenue(plans: Intent[], placeId: string, venue?: DiscoverableVenue) {
   const venueName = (name: string) =>
-    normalizeSearch(name.split(',')[0]).replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
+    normalizeSearch(name.split(',')[0])
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .trim()
   function matchesVenue(plan: Intent) {
     if (plan.googlePlaceId) return plan.googlePlaceId === placeId
-    if (!venue || venueName(venue.displayName.text).length < 5) return false
+    if (!venue?.location || venueName(venue.displayName.text).length < 5) return false
     // Older plans lack a provider ID. Require both the full venue/branch name
     // and a close map point; show these as approximate matches in the UI.
-    return venueName(plan.venueName) === venueName(venue.displayName.text) &&
+    return (
+      venueName(plan.venueName) === venueName(venue.displayName.text) &&
       haversineKm(plan, { lat: venue.location.latitude, lng: venue.location.longitude }) <= 0.1
+    )
   }
   return plans
     .filter(

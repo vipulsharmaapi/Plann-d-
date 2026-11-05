@@ -124,19 +124,16 @@ test('legacy plans need both the full venue name and a point within 100 metres',
     [],
   )
 })
-test('search, sort and result cards survive main navigation without a second venue request', async () => {
+test('venue search and list survive main navigation without a second request', async () => {
   discover.mockResolvedValue({ places: [place] })
+  history.replaceState(null, '', '/?browse=search&q=Cafés&area=Vaishali+Nagar')
   const user = userEvent.setup()
   render(<App />)
-  await user.click(screen.getByRole('button', { name: 'Search venues' }))
-  await user.click(await screen.findByRole('button', { name: 'Cafés · Vaishali Nagar' }))
   await screen.findByRole('button', { name: 'View plan: Coffee after work' })
-  await user.selectOptions(screen.getByLabelText('Sort places'), 'reviews')
   await user.click(screen.getAllByRole('button', { name: 'My plans' })[0])
   expect(screen.queryByRole('button', { name: 'View plan: Coffee after work' })).toBeNull()
   await user.click(screen.getAllByRole('button', { name: 'Explore', exact: true })[0])
   expect(screen.getByRole('button', { name: 'View plan: Coffee after work' })).toBeTruthy()
-  expect((screen.getByLabelText('Sort places') as HTMLSelectElement).value).toBe('reviews')
   expect(new URLSearchParams(location.search).get('q')).toBe('Cafés')
   expect(discover).toHaveBeenCalledOnce()
 })

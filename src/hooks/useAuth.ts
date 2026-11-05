@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { publishProfile } from '../lib/profiles'
 
 export type Gender = 'female' | 'male' | 'other'
 
@@ -12,6 +13,7 @@ export interface ProfileFields {
 }
 
 export interface Auth {
+  loading: boolean
   session: Session | null
   firstName: string
   emoji: string
@@ -34,6 +36,8 @@ export interface Auth {
 }
 
 export function useAuth(): Auth {
+  const profileVersion = useRef(0)
+  const [loading, setLoading] = useState(true)
   const [session, setSession] = useState<Session | null>(null)
   const [firstName, setFirstName] = useState('')
   const [emoji, setEmoji] = useState('🙋')
@@ -42,14 +46,25 @@ export function useAuth(): Auth {
   const [loadedFor, setLoadedFor] = useState<string | null>(null)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s))
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        setSession(data.session)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s)
+      setLoading(false)
+    })
     return () => sub.subscription.unsubscribe()
   }, [])
 
+  const userId = session?.user.id
   useEffect(() => {
     let active = true
-    if (!session) {
+    const version = ++profileVersion.current
+    if (!userId) {
       setLoadedFor(null)
       setFirstName('')
       setEmoji('🙋')
@@ -60,27 +75,28 @@ export function useAuth(): Auth {
     supabase
       .from('profiles')
       .select('first_name, emoji, avatar_url, gender')
-      .eq('id', session.user.id)
+      .eq('id', userId)
       .maybeSingle()
       .then(async ({ data, error }) => {
-        if (!active) return
+        if (!active || profileVersion.current !== version) return
         if (error) {
           // Newer columns may not exist yet (migration not run) — fall back
           // to the original shape so sign-in still works.
           const { data: basic } = await supabase
             .from('profiles')
             .select('first_name')
-            .eq('id', session.user.id)
+            .eq('id', userId)
             .maybeSingle()
-          if (!active) return
-          setLoadedFor(session.user.id)
+          if (!active || profileVersion.current !== version) return
+          setLoadedFor(userId)
           setFirstName(basic?.first_name ?? '')
           setEmoji('🙋')
           setAvatarUrl(null)
           setGender(null)
           return
         }
-        setLoadedFor(session.user.id)
+        publishProfile(userId, data ?? {})
+        setLoadedFor(userId)
         setFirstName(data?.first_name ?? '')
         setEmoji(data?.emoji ?? '🙋')
         setAvatarUrl(data?.avatar_url ?? null)
@@ -89,7 +105,8 @@ export function useAuth(): Auth {
     return () => {
       active = false
     }
-  }, [session])
+    // Refreshing an auth token must not replace a newly saved profile.
+  }, [userId])
 
   const sendOtp = useCallback(async (email: string) => {
     const { error } = await supabase.auth.signInWithOtp({
@@ -148,6 +165,8 @@ export function useAuth(): Auth {
       if (!session) return 'Not signed in'
       const { error } = await supabase.from('profiles').update(fields).eq('id', session.user.id)
       if (!error) {
+        profileVersion.current++
+        publishProfile(session.user.id, fields)
         setLoadedFor(session.user.id)
         if (fields.first_name !== undefined) setFirstName(fields.first_name)
         if (fields.emoji !== undefined) setEmoji(fields.emoji)
@@ -169,6 +188,7 @@ export function useAuth(): Auth {
   }, [])
 
   return {
+    loading,
     session,
     firstName: loadedFor === session?.user.id ? firstName : '',
     emoji: loadedFor === session?.user.id ? emoji : '🙋',

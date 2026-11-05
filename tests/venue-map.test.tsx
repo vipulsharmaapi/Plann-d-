@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import VenueMap from '../src/components/VenueMap'
 import VenueDiscovery from '../src/components/VenueDiscovery'
@@ -208,22 +208,23 @@ test('pagination adds every unique venue to the map; card actions reopen it and 
   const user = userEvent.setup(),
     post = vi.fn()
   render(<VenueDiscovery activity="football" onActivity={vi.fn()} onPost={post} />)
+  await screen.findByRole('button', { name: 'Select Test turf in Mansarovar' })
+  await user.click(screen.getByRole('button', { name: 'Map', exact: true }))
   await screen.findByRole('button', { name: '1. Test turf' })
-  await user.click(screen.getByRole('button', { name: 'Show more places' }))
+  await user.click(screen.getByRole('button', { name: 'Show more venues' }))
   await screen.findByRole('button', { name: '2. Test café' })
   expect(pins).toHaveLength(2)
   expect(screen.getAllByRole('article')).toHaveLength(2)
   await user.click(screen.getByRole('button', { name: 'List', exact: true }))
   expect(pins.every((pin) => pin.map === null)).toBe(true)
-  await user.click(screen.getByRole('button', { name: 'Show Test café on map' }))
+  await user.click(screen.getByRole('button', { name: /Select Test café in/, exact: false }))
+  await user.click(screen.getByRole('button', { name: 'Map', exact: true }))
   await screen.findByRole('button', { name: '2. Test café' })
-  await waitFor(() =>
-    expect(document.activeElement?.getAttribute('aria-label')).toBe('Venues on the map'),
-  )
   await user.click(screen.getByRole('button', { name: 'Make a plan at Test café from map' }))
   expect(post).toHaveBeenCalledWith({
     activity: 'football',
     venueName: 'Test café',
+    venueArea: 'Mansarovar',
     googlePlaceId: cafe.id,
     lat: 26.91,
     lng: 75.79,

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AuthSheet from '../src/components/AuthSheet'
 import type { Auth } from '../src/hooks/useAuth'
@@ -42,7 +42,7 @@ test('returning from email restores the code step, but never the code or passwor
     auth = makeAuth()
   const view = mount(auth)
   await user.type(screen.getByLabelText('Email address'), email)
-  await user.click(screen.getByRole('button', { name: 'Send code', exact: true }))
+  await user.click(screen.getByRole('button', { name: 'Send sign-in code', exact: true }))
   await user.type(screen.getByLabelText('Verification code'), '12345678')
   view.unmount()
   mount(auth)
@@ -77,10 +77,12 @@ test('delivery limits explain the recovery and do not leave a stuck submit butto
   auth.sendOtp.mockResolvedValue('email rate limit exceeded')
   mount(auth)
   await user.type(screen.getByLabelText('Email address'), email)
-  await user.click(screen.getByRole('button', { name: 'Send code', exact: true }))
+  await user.click(screen.getByRole('button', { name: 'Send sign-in code', exact: true }))
   expect(screen.getByRole('alert').textContent).toContain('temporarily at capacity')
+  expect(screen.getByLabelText('Email address').getAttribute('aria-invalid')).toBe('false')
   expect(
-    (screen.getByRole('button', { name: 'Send code', exact: true }) as HTMLButtonElement).disabled,
+    (screen.getByRole('button', { name: 'Send sign-in code', exact: true }) as HTMLButtonElement)
+      .disabled,
   ).toBe(false)
 })
 
@@ -95,6 +97,8 @@ test('a failed password signup releases the form for another attempt', async () 
   await user.type(screen.getByLabelText('Password'), 'fictional-test-password')
   await user.click(screen.getByRole('button', { name: 'Create account', exact: true }))
   expect(screen.getByRole('alert').textContent).toContain('Could not connect')
+  expect(screen.getByLabelText('Password').getAttribute('aria-invalid')).toBe('false')
+  expect(screen.getByLabelText('Password').getAttribute('aria-describedby')).toBeNull()
   expect(
     (screen.getByRole('button', { name: 'Create account', exact: true }) as HTMLButtonElement)
       .disabled,
@@ -130,4 +134,34 @@ test('expired, malformed and unavailable checkpoint storage never break sign-in'
   })
   expect(readPendingAuth()).toBeNull()
   expect(() => rememberPendingAuth({ email, step: 'code', sentAt: Date.now() })).not.toThrow()
+})
+
+test('malformed email has a field-associated explanation after blur', async () => {
+  const user = userEvent.setup(),
+    auth = makeAuth()
+  mount(auth)
+  const input = screen.getByLabelText('Email address')
+  await user.type(input, 'not-an-email')
+  await user.tab()
+  expect(input.getAttribute('aria-invalid')).toBe('true')
+  expect(input.getAttribute('aria-describedby')).toBe('auth-email-error')
+  expect(screen.getByRole('alert').textContent).toContain('Enter a valid email address')
+  expect(auth.sendOtp).not.toHaveBeenCalled()
+})
+
+test('verification errors are linked to the code field and focus it', async () => {
+  rememberPendingAuth({ email, step: 'code', sentAt: Date.now() })
+  const user = userEvent.setup(),
+    auth = {
+      ...makeAuth(),
+      verifyOtp: vi.fn().mockResolvedValue('Token has expired or is invalid'),
+    }
+  mount(auth)
+  const input = screen.getByLabelText('Verification code')
+  await user.type(input, '12345678')
+  await user.click(screen.getByRole('button', { name: 'Verify', exact: true }))
+  expect((await screen.findByRole('alert')).id).toBe('auth-code-error')
+  expect(input.getAttribute('aria-invalid')).toBe('true')
+  expect(input.getAttribute('aria-describedby')).toBe('auth-code-error')
+  await waitFor(() => expect(document.activeElement).toBe(input))
 })

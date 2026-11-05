@@ -30,6 +30,31 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
   const [name, setName] = useState('')
   const [gender, setGender] = useState<Gender | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [emailTouched, setEmailTouched] = useState(false)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const errorField =
+    !error || step === 'profile'
+      ? null
+      : /8 characters|invalid login credentials|password.*(?:short|weak|invalid|characters)/i.test(
+            error,
+          ) && ['pw', 'pw-reset'].includes(step)
+        ? 'password'
+        : /(?:code|otp|token).*(?:invalid|expired)|invalid.*(?:code|otp)/i.test(error) &&
+            ['code', 'pw-code', 'pw-reset'].includes(step)
+          ? 'code'
+          : /email.*(?:invalid|valid address)|invalid.*email/i.test(error) &&
+              ['email', 'pw', 'pw-forgot'].includes(step)
+            ? 'email'
+            : null
+  const fieldErrors: Record<string, string> = error && errorField ? { [errorField]: error } : {}
+  useEffect(() => {
+    if (!errorField) return
+    const frame = requestAnimationFrame(() =>
+      panelRef.current?.querySelector<HTMLInputElement>(`input[name="${errorField}"]`)?.focus(),
+    )
+    return () => cancelAnimationFrame(frame)
+  }, [errorField, error])
+
   const [busy, setBusy] = useState(false)
   const inFlight = useRef(false)
   const [sentAt, setSentAt] = useState(pending?.sentAt ?? 0)
@@ -48,6 +73,21 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
 
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
   const cleanEmail = email.trim()
+  const emailError =
+    emailTouched && !emailOk
+      ? 'Enter a valid email address, like you@example.com.'
+      : fieldErrors.email
+  const errorProps = (field: string) => ({
+    name: field,
+    'aria-invalid': !!fieldErrors[field],
+    'aria-describedby': fieldErrors[field] ? `auth-${field}-error` : undefined,
+  })
+  const emailProps = {
+    name: 'email',
+    onBlur: () => setEmailTouched(true),
+    'aria-invalid': !!emailError,
+    'aria-describedby': emailError ? 'auth-email-error' : undefined,
+  }
 
   // After a session exists: returning users go straight in, new ones set up
   // their profile (auth.firstName loads async, so read the profile directly).
@@ -163,12 +203,12 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
   const codeInputCls = `${inputCls} tracking-[0.4em] text-center font-mono text-xl`
 
   const tabBar = (
-    <div className="flex bg-gray-100 rounded-xl p-1 text-sm font-semibold">
+    <div className="auth-tabs">
       <button
         onClick={() => {
           changeEmail()
         }}
-        className={`flex-1 rounded-lg py-2 ${step === 'email' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
+        className={`flex-1 rounded-lg py-2 ${step === 'email' ? 'active' : ''}`}
       >
         Email code
       </button>
@@ -178,7 +218,7 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
           rememberPendingAuth(null)
           setError(null)
         }}
-        className={`flex-1 rounded-lg py-2 ${step === 'pw' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
+        className={`flex-1 rounded-lg py-2 ${step === 'pw' ? 'active' : ''}`}
       >
         Password
       </button>
@@ -186,27 +226,29 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
   )
 
   return (
-    <Sheet title="Sign in" onClose={onClose}>
-      <div className="sheet-panel relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-8 space-y-4">
-        <div className="w-10 h-1 rounded-full bg-gray-300 mx-auto sm:hidden" />
+    <Sheet title="Sign in to Plann’d" onClose={onClose} className="auth-dialog">
+      <div
+        ref={panelRef}
+        className="sheet-panel relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-8 space-y-4"
+      >
+        <h2 className="auth-title">Sign in to Plann’d</h2>
 
         {(step === 'email' || step === 'pw') && (
           <>
-            <h2 className="text-lg font-bold text-gray-900">
-              {step === 'pw' && pwMode === 'signup' ? 'Create your account' : "Sign in to Plann'd"}
+            <h2 className="auth-heading">
+              {step === 'pw' && pwMode === 'signup'
+                ? 'Create your account'
+                : 'Your plans are waiting.'}
             </h2>
-            {context && (
-              <p className="text-sm text-brand-900 bg-brand-50 p-3 rounded-xl">{context}</p>
-            )}
+            <p className="auth-intro">
+              {context || 'Sign in to keep track of your plans, requests and conversations.'}
+            </p>
             {tabBar}
           </>
         )}
 
         {step === 'email' && (
           <>
-            <p className="text-sm text-gray-600">
-              We'll email you a code to sign in or create an account.
-            </p>
             <label className="field">
               Email address
               <input
@@ -215,6 +257,7 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
                 inputMode="email"
                 autoComplete="email"
                 placeholder="you@example.com"
+                {...emailProps}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 onKeyDown={(e) =>
@@ -227,6 +270,11 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
                   )
                 }
               />
+              {emailError && (
+                <span id="auth-email-error" className="auth-field-error" role="alert">
+                  {emailError}
+                </span>
+              )}
             </label>
             <button
               onClick={() =>
@@ -242,7 +290,7 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
                 ? 'Sending…'
                 : resendWait > 0 && sentTo === cleanEmail
                   ? `Send code in ${resendWait}s`
-                  : 'Send code'}
+                  : 'Send sign-in code'}
             </button>
           </>
         )}
@@ -261,9 +309,15 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
                 autoComplete="one-time-code"
                 maxLength={10}
                 placeholder="••••••"
+                {...errorProps('code')}
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
               />
+              {fieldErrors.code && (
+                <span id="auth-code-error" className="auth-field-error" role="alert">
+                  {fieldErrors.code}
+                </span>
+              )}
             </label>
             <button
               onClick={() => run(() => auth.verifyOtp(cleanEmail, code.trim()), finishAuth)}
@@ -286,9 +340,15 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
                 inputMode="email"
                 autoComplete="email"
                 placeholder="you@example.com"
+                {...emailProps}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
+              {emailError && (
+                <span id="auth-email-error" className="auth-field-error" role="alert">
+                  {emailError}
+                </span>
+              )}
             </label>
             <label className="field">
               Password
@@ -297,9 +357,15 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
                 type="password"
                 autoComplete={pwMode === 'signup' ? 'new-password' : 'current-password'}
                 placeholder={pwMode === 'signup' ? 'Choose a password (8+ characters)' : 'Password'}
+                {...errorProps('password')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
+              {fieldErrors.password && (
+                <span id="auth-password-error" className="auth-field-error" role="alert">
+                  {fieldErrors.password}
+                </span>
+              )}
             </label>
             {pwMode === 'signin' ? (
               <>
@@ -383,9 +449,15 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
                 autoComplete="one-time-code"
                 maxLength={10}
                 placeholder="••••••"
+                {...errorProps('code')}
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
               />
+              {fieldErrors.code && (
+                <span id="auth-code-error" className="auth-field-error" role="alert">
+                  {fieldErrors.code}
+                </span>
+              )}
             </label>
             <button
               onClick={() => run(() => auth.verifySignupCode(cleanEmail, code.trim()), finishAuth)}
@@ -409,9 +481,15 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
                 type="email"
                 inputMode="email"
                 placeholder="you@example.com"
+                {...emailProps}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
+              {emailError && (
+                <span id="auth-email-error" className="auth-field-error" role="alert">
+                  {emailError}
+                </span>
+              )}
             </label>
             <button
               onClick={() =>
@@ -446,9 +524,15 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
                 autoComplete="one-time-code"
                 maxLength={10}
                 placeholder="••••••"
+                {...errorProps('code')}
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
               />
+              {fieldErrors.code && (
+                <span id="auth-code-error" className="auth-field-error" role="alert">
+                  {fieldErrors.code}
+                </span>
+              )}
             </label>
             <label className="field">
               Password
@@ -457,9 +541,15 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
                 type="password"
                 autoComplete="new-password"
                 placeholder="New password (8+ characters)"
+                {...errorProps('password')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
+              {fieldErrors.password && (
+                <span id="auth-password-error" className="auth-field-error" role="alert">
+                  {fieldErrors.password}
+                </span>
+              )}
             </label>
             <button
               onClick={() => {
@@ -500,10 +590,16 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
               <input
                 className={inputCls}
                 placeholder="First name"
+                {...errorProps('name')}
                 value={name}
                 maxLength={30}
                 onChange={(e) => setName(e.target.value)}
               />
+              {fieldErrors.name && (
+                <span id="auth-name-error" className="auth-field-error" role="alert">
+                  {fieldErrors.name}
+                </span>
+              )}
             </label>
             <div>
               <p className="text-sm font-medium text-gray-600 mb-1.5">Gender</p>
@@ -577,19 +673,21 @@ export default function AuthSheet({ auth, open, onClose, onSignedIn, onHelp, con
               />
             </label>
           )}
+          <button type="button" onClick={onHelp} className="text-button">
+            Contact support
+          </button>
         </details>
 
-        <button type="button" onClick={onHelp} className="secondary w-full text-sm">
-          Help, privacy & safety
-        </button>
-
+        <p className="text-sm text-gray-600">
+          After signing in, you’ll return to where you left off.
+        </p>
         {notice && (
           <p role="status" className="text-sm text-gray-700">
             {notice}
           </p>
         )}
 
-        {error && (
+        {error && !Object.keys(fieldErrors).length && (
           <p role="alert" className="text-sm text-red-600">
             {error}
           </p>

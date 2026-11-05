@@ -1,3 +1,4 @@
+import Avatar from './Avatar'
 import { useEffect, useState } from 'react'
 import { type Intent } from '../types'
 import { CalendarDays, MapPin, ChevronDown } from 'lucide-react'
@@ -55,13 +56,12 @@ export default function PlanContext({
     <div className="detail-context">
       <div className="detail-host">
         <div className="flex min-w-0 items-center gap-3">
-          {host?.avatar_url ? (
-            <img src={host.avatar_url} alt="" className="avatar" width={40} height={40} />
-          ) : (
-            <span className="avatar initial" style={{ width: 40, height: 40 }} aria-hidden="true">
-              {intent.posterName.slice(0, 1)}
-            </span>
-          )}
+          <Avatar
+            userId={intent.userId}
+            name={host?.first_name || intent.posterName}
+            url={host?.avatar_url}
+            size={40}
+          />
           <button
             className="text-left min-h-11 font-semibold text-sm hover:underline break-words"
             disabled={!intent.userId}

@@ -3,9 +3,12 @@ import { supabase } from '../lib/supabase'
 import { INTENT_COLUMNS, rowToIntent, type IntentRow } from '../hooks/useIntents'
 import type { Intent } from '../types'
 import PlanRow from './PlanRow'
+import AccountGate from './AccountGate'
 import type { SavedPlans } from '../hooks/useSavedPlans'
 export default function MyPlans({
   userId,
+  sessionLoading = false,
+  onExplore,
   onSignIn,
   onOpen,
   onPost,
@@ -13,6 +16,8 @@ export default function MyPlans({
 }: {
   saved?: SavedPlans
   userId?: string
+  sessionLoading?: boolean
+  onExplore: () => void
   onSignIn: () => void
   onOpen: (i: Intent) => void
   onPost: () => void
@@ -101,17 +106,14 @@ export default function MyPlans({
   })
   return (
     <section className="personal-plans">
-      <h1>Your plans, all together.</h1>
-      <p className="text-gray-600 mt-2 mb-6">
-        The plans you’re hosting, joining, or saving for later.
-      </p>
-      {!userId ? (
-        <div className="py-12 text-center">
-          <p className="mb-4">Sign in to keep track of your plans.</p>
-          <button className="primary" onClick={onSignIn}>
-            Sign in
-          </button>
+      <h1>My plans</h1>
+
+      {sessionLoading ? (
+        <div className="account-loading" role="status">
+          Loading your account…
         </div>
+      ) : !userId ? (
+        <AccountGate onSignIn={onSignIn} onExplore={onExplore} />
       ) : (
         <>
           <div className="date-tabs personal-tabs">
@@ -151,9 +153,14 @@ export default function MyPlans({
             </div>
           ) : filtered.length === 0 ? (
             <div className="py-12 text-center">
-              <h2 className="font-bold text-lg">No plans in this view</h2>
+              <h2 className="font-bold text-lg">
+                {tab === 'upcoming' ? 'Your next plan is out there.' : 'No plans in this view'}
+              </h2>
               <p className="text-gray-600 mt-2 mb-5">Your plans and requests will appear here.</p>
-              <button className="primary" onClick={onPost}>
+              <button className="primary" onClick={onExplore}>
+                Explore plans
+              </button>
+              <button className="text-button mx-auto mt-3" onClick={onPost}>
                 Post a plan
               </button>
             </div>

@@ -1,3 +1,4 @@
+import Avatar from './Avatar'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import Sheet from './Sheet'
@@ -47,11 +48,13 @@ export default function ProfilePeek({
           <>
             <div className="flex items-center gap-4">
               <div className="h-16 w-16 rounded-2xl bg-brand-50 flex justify-center items-center overflow-hidden text-3xl">
-                {profile.avatar_url ? (
-                  <img className="h-full w-full object-cover" alt="" src={profile.avatar_url} />
-                ) : (
-                  profile.emoji
-                )}
+                <Avatar
+                  userId={userId}
+                  name={profile.first_name}
+                  url={profile.avatar_url}
+                  emoji={profile.emoji}
+                  size={64}
+                />
               </div>
               <div>
                 <h2 className="text-xl font-bold">{profile.first_name || 'Member'}</h2>

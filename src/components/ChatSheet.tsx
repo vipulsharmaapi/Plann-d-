@@ -1,3 +1,4 @@
+import Avatar from './Avatar'
 import { mergeMessages, type Message } from '../lib/messages'
 import { formatTimestamp } from '../lib/time'
 import Sheet from './Sheet'
@@ -309,8 +310,15 @@ export default function ChatSheet({ intent, auth, onClose }: Props) {
               <div key={m.id} className={`group flex ${mine ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[80%] ${mine ? 'text-right' : ''}`}>
                   {!mine && (
-                    <p className="text-[11px] text-gray-400 mb-0.5 px-1">
-                      {sender?.emoji ?? '🙋'} {sender?.name ?? '…'}
+                    <p className="text-xs text-gray-600 mb-1 px-1 flex items-center gap-2">
+                      <Avatar
+                        userId={m.user_id}
+                        name={sender?.name}
+                        url={sender?.avatarUrl}
+                        emoji={sender?.emoji}
+                        size={28}
+                      />{' '}
+                      {sender?.name ?? 'Member'}
                     </p>
                   )}
                   <div className={`flex items-end gap-1.5 ${mine ? 'flex-row-reverse' : ''}`}>

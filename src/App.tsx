@@ -1,6 +1,7 @@
 import { navigate, useUrlParams, readAuthIntent, rememberAuthIntent } from './lib/navigation'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { CalendarDays, Compass, Inbox, MapPin, Plus, X } from 'lucide-react'
+import Avatar from './components/Avatar'
 import Explore from './components/Explore'
 import MyPlans from './components/MyPlans'
 import NotificationsSheet from './components/NotificationsSheet'
@@ -303,8 +304,16 @@ export default function App() {
                 aria-label="Your profile"
                 onClick={() => setProfileOpen(true)}
               >
-                {(auth.firstName || 'You').slice(0, 2).toUpperCase()}
+                <Avatar
+                  userId={auth.session.user.id}
+                  name={auth.firstName}
+                  url={auth.avatarUrl}
+                  emoji={auth.emoji}
+                  size={42}
+                />
               </button>
+            ) : auth.loading ? (
+              <span className="avatar-loading" role="status" aria-label="Loading account" />
             ) : (
               <button className="header-signin" onClick={() => signIn()}>
                 Sign in
@@ -345,6 +354,8 @@ export default function App() {
           <MyPlans
             key={`${planKey}-${auth.session?.user.id ?? 'guest'}`}
             userId={auth.session?.user.id}
+            sessionLoading={auth.loading}
+            onExplore={() => setView('explore')}
             onSignIn={() => signIn()}
             saved={saved}
             onOpen={openPlan}
@@ -356,6 +367,8 @@ export default function App() {
             items={notifications.items}
             state={notifications.state}
             signedIn={!!auth.session}
+            sessionLoading={auth.loading}
+            onExplore={() => setView('explore')}
             onSignIn={() => signIn()}
             onOpenNotification={openNotification}
             onRetry={notifications.refresh}

@@ -128,258 +128,269 @@ export default function Explore({
     setRadius(0)
   }
   return (
-    <section className="max-w-5xl mx-auto px-4 sm:px-8 py-6 sm:py-10">
-      <div className={browse === 'plans' ? 'jaipur-hero' : 'explore-heading'}>
-        <div className="jaipur-hero-copy">
-          <h1
-            className={`${browse === 'plans' ? 'jaipur-title' : 'text-2xl sm:text-4xl'} font-extrabold tracking-tight`}
-          >
-            {browse === 'search'
-              ? 'Search Jaipur'
-              : browse === 'places'
-                ? 'Places in Jaipur'
-                : 'Join a plan in Jaipur'}
-          </h1>
-          <button className="secondary text-sm self-start" onClick={onPost}>
-            + Post a plan
-          </button>
-        </div>
-        {browse === 'plans' && (
-          <img
-            className="jaipur-landmark"
-            src="/images/hawa-mahal.webp"
-            width="960"
-            height="418"
-            alt=""
-            aria-hidden="true"
-          />
-        )}
-      </div>
-      <div className="explore-tabs" role="group" aria-label="Explore Jaipur">
-        <button aria-pressed={browse === 'plans'} onClick={() => setBrowse('plans')}>
-          Join a plan
-        </button>
-        <button
-          aria-label="Browse activities"
-          aria-pressed={browse === 'places'}
-          onClick={() => findPlaces()}
-        >
-          Activities
-        </button>
-        <button
-          aria-label="Search venues"
-          aria-pressed={browse === 'search'}
-          onClick={() => setBrowse('search')}
-        >
-          Search venues
-        </button>
-      </div>
-      {(visited.search || browse === 'search') && (
-        <div hidden={browse !== 'search'}>
-          <Suspense fallback={<p role="status">Loading venue search…</p>}>
-            <VenueSearch onPost={onVenuePost} intents={intents} onOpenPlan={onOpen} />
-          </Suspense>
-        </div>
-      )}
-      {(visited.places || browse === 'places') && (
-        <div hidden={browse !== 'places'}>
-          <Suspense fallback={<p role="status">Loading place discovery…</p>}>
-            <VenueDiscovery
-              activity={venueActivity}
-              onActivity={setVenueActivity}
-              onPost={onVenuePost}
-              intents={intents}
-              onOpenPlan={onOpen}
-            />
-          </Suspense>
-        </div>
-      )}
-      <div hidden={browse !== 'plans'}>
-        {filters && (
-          <div className="flex gap-2">
-            <label className="field flex-1">
-              <span className="sr-only">Search plans or neighbourhoods</span>
-              <span className="relative">
-                <Search size={18} className="absolute left-3 top-3.5 text-gray-500" />
-                <input
-                  className="!pl-10"
-                  type="search"
-                  placeholder="Search a plan, venue or neighbourhood"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                />
-              </span>
-            </label>
+    <section>
+      <div className={browse === 'plans' ? 'jaipur-hero-band' : 'explore-heading'}>
+        <div className={browse === 'plans' ? 'jaipur-hero' : 'explore-heading-inner'}>
+          <div className="jaipur-hero-copy">
+            <h1
+              className={`${browse === 'plans' ? 'jaipur-title' : 'text-2xl sm:text-4xl'} font-extrabold tracking-tight`}
+            >
+              {browse === 'search'
+                ? 'Search Jaipur'
+                : browse === 'places'
+                  ? 'Places in Jaipur'
+                  : 'Join a plan in Jaipur'}
+            </h1>
+            <button className="secondary text-sm self-start" onClick={onPost}>
+              + Post a plan
+            </button>
           </div>
-        )}
-        <div className="flex flex-wrap gap-2 py-4" aria-label="Activity filters">
-          <button
-            className={activity === null ? 'primary text-sm' : 'secondary text-sm'}
-            aria-pressed={activity === null}
-            onClick={() => onActivity(null)}
-          >
-            All
-          </button>
-          {categories.map((a) => (
-            <button
-              key={a.key}
-              className={`${activity === a.key ? 'primary' : 'secondary'} text-sm whitespace-nowrap`}
-              aria-pressed={activity === a.key}
-              onClick={() => onActivity(activity === a.key ? null : a.key)}
-            >
-              {a.label}
-            </button>
-          ))}
-          <button
-            className="secondary text-sm"
-            aria-label={allActivities ? 'Fewer activities' : 'More activities'}
-            aria-expanded={allActivities}
-            onClick={() => setAllActivities(!allActivities)}
-          >
-            <span className="sm:hidden">{allActivities ? 'Fewer' : 'More'}</span>
-            <span className="hidden sm:inline">
-              {allActivities ? 'Fewer activities' : 'More activities'}
-            </span>
-          </button>
-          <button
-            className="text-sm font-semibold inline-flex gap-2 items-center underline min-h-11 ml-auto px-2"
-            aria-label="Search & filters"
-            aria-expanded={filters}
-            onClick={() => setFilters(!filters)}
-          >
-            <SlidersHorizontal size={16} />
-            <span className="hidden sm:inline">Search & filters</span>
-            <span className="sm:hidden">Filters</span>
-          </button>
-        </div>
-        {activity && (
-          <button
-            className="text-sm text-brand-800 font-semibold underline underline-offset-4 mb-3 text-left"
-            onClick={() => findPlaces(activity)}
-          >
-            Find{' '}
-            {activity === 'coffee'
-              ? 'cafés'
-              : `${activityByKey(activity).label.toLowerCase()} venues`}{' '}
-            in Jaipur to start a plan
-          </button>
-        )}
-        <div className="flex flex-wrap items-center gap-2 mb-5" aria-label="Day filters">
-          {[
-            ['all', 'Upcoming'],
-            ['today', 'Today'],
-            ['tomorrow', 'Tomorrow'],
-          ].map(([value, label]) => (
-            <button
-              key={value}
-              className={`px-4 rounded-full text-sm font-semibold ${day === value ? 'bg-brand-100 text-brand-900' : 'text-gray-600 bg-white'}`}
-              aria-pressed={day === value}
-              onClick={() => setDay(value)}
-            >
-              {label}
-            </button>
-          ))}
-          {hasFilters && filtered.length > 0 && (
-            <button className="text-sm underline px-3 ml-auto" onClick={clear}>
-              Clear filters
-            </button>
+          {browse === 'plans' && (
+            <div className="jaipur-niche" aria-hidden="true">
+              <img
+                className="jaipur-landmark"
+                src="/images/hawa-mahal.webp"
+                width="960"
+                height="418"
+                alt=""
+                aria-hidden="true"
+              />
+            </div>
           )}
         </div>
-        {filters && (
-          <div className="grid sm:grid-cols-2 gap-4 rounded-2xl bg-white border border-gray-200 p-4 mb-5">
-            <label className="field">
-              Time of day
-              <select value={slot} onChange={(e) => setSlot(e.target.value)}>
-                <option value="all">Any time</option>
-                <option value="morning">Before noon</option>
-                <option value="afternoon">Noon–5 pm</option>
-                <option value="evening">After 5 pm</option>
-              </select>
-            </label>
-            <label className="field">
-              Distance
-              <select
-                value={radius}
-                onChange={(e) => {
-                  setRadius(+e.target.value)
-                  if (+e.target.value && !userLoc) onRequestLocation()
-                }}
+      </div>
+      <div className="explore-content max-w-5xl mx-auto px-4 sm:px-8 pt-4 pb-8">
+        <div className="explore-tabs" role="group" aria-label="Explore Jaipur">
+          <button aria-pressed={browse === 'plans'} onClick={() => setBrowse('plans')}>
+            Join a plan
+          </button>
+          <button
+            aria-label="Browse activities"
+            aria-pressed={browse === 'places'}
+            onClick={() => findPlaces()}
+          >
+            Activities
+          </button>
+          <button
+            aria-label="Search venues"
+            aria-pressed={browse === 'search'}
+            onClick={() => setBrowse('search')}
+          >
+            Search venues
+          </button>
+        </div>
+        {(visited.search || browse === 'search') && (
+          <div hidden={browse !== 'search'}>
+            <Suspense fallback={<p role="status">Loading venue search…</p>}>
+              <VenueSearch onPost={onVenuePost} intents={intents} onOpenPlan={onOpen} />
+            </Suspense>
+          </div>
+        )}
+        {(visited.places || browse === 'places') && (
+          <div hidden={browse !== 'places'}>
+            <Suspense fallback={<p role="status">Loading place discovery…</p>}>
+              <VenueDiscovery
+                activity={venueActivity}
+                onActivity={setVenueActivity}
+                onPost={onVenuePost}
+                intents={intents}
+                onOpenPlan={onOpen}
+              />
+            </Suspense>
+          </div>
+        )}
+        <div hidden={browse !== 'plans'}>
+          {filters && (
+            <div className="flex gap-2">
+              <label className="field flex-1">
+                <span className="sr-only">Search plans or neighbourhoods</span>
+                <span className="relative">
+                  <Search size={18} className="absolute left-3 top-3.5 text-gray-500" />
+                  <input
+                    className="!pl-10"
+                    type="search"
+                    placeholder="Search a plan, venue or neighbourhood"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
+                </span>
+              </label>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-2 py-4" aria-label="Activity filters">
+            <button
+              className={activity === null ? 'primary text-sm' : 'secondary text-sm'}
+              aria-pressed={activity === null}
+              onClick={() => onActivity(null)}
+            >
+              All
+            </button>
+            {categories.map((a) => (
+              <button
+                key={a.key}
+                className={`${activity === a.key ? 'primary' : 'secondary'} text-sm whitespace-nowrap`}
+                aria-pressed={activity === a.key}
+                onClick={() => onActivity(activity === a.key ? null : a.key)}
               >
-                <option value={0}>Anywhere in Jaipur</option>
-                <option value={3}>Within 3 km</option>
-                <option value={5}>Within 5 km</option>
-                <option value={10}>Within 10 km</option>
-              </select>
-            </label>
-            {radius > 0 && !userLoc && (
-              <p className="text-sm text-amber-800">
-                Location is needed for distance filtering. You can search by neighbourhood instead.
-              </p>
-            )}
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={openOnly}
-                onChange={(e) => setOpenOnly(e.target.checked)}
-              />
-              Only plans with open spots
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={women} onChange={(e) => setWomen(e.target.checked)} />
-              Women-only plans
-            </label>
-          </div>
-        )}
-        {source === 'loading' ? (
-          <div role="status" className="py-14 text-center text-gray-600">
-            Loading plans…
-          </div>
-        ) : source === 'error' ? (
-          <div role="alert" className="p-6 rounded-2xl border border-amber-200 bg-amber-50">
-            <h2 className="font-bold">We couldn’t refresh the plans</h2>
-            <p className="text-sm my-2">
-              Check your connection and try again. Any plans shown below may be out of date.
-            </p>
-            <button className="secondary" onClick={onRetry}>
-              Try again
-            </button>
-          </div>
-        ) : (
-          <p className="text-sm font-medium text-gray-600 mb-4" aria-live="polite">
-            {filtered.length} upcoming {filtered.length === 1 ? 'plan' : 'plans'}
-            {userLoc ? ' · nearest first' : ''}
-          </p>
-        )}
-        {source === 'live' && filtered.length === 0 ? (
-          <div className="text-center py-12 sm:py-16">
-            <span className="text-4xl" aria-hidden="true">
-              {hasFilters ? '🔎' : '🏸'}
-            </span>
-            <h2 className="text-xl font-bold mt-4">
-              {hasFilters ? 'No plans match yet' : 'Your next plan can start here'}
-            </h2>
-            <p className="text-gray-600 mt-2 mb-6 max-w-md mx-auto">
-              {hasFilters
-                ? 'Try another day or clear your filters to see all upcoming plans.'
-                : 'There are no upcoming plans in Jaipur right now. Pick a public meeting spot and invite people to join.'}
-            </p>
-            <button className="primary" onClick={hasFilters ? clear : onPost}>
-              {hasFilters ? 'Clear filters' : 'Post the first plan'}
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            {filtered.map((i) => (
-              <IntentCard
-                key={i.id}
-                intent={i}
-                selected={false}
-                userLoc={userLoc}
-                onClick={() => onOpen(i)}
-              />
+                {a.label}
+              </button>
             ))}
+            <button
+              className="secondary text-sm"
+              aria-label={allActivities ? 'Fewer activities' : 'More activities'}
+              aria-expanded={allActivities}
+              onClick={() => setAllActivities(!allActivities)}
+            >
+              <span className="sm:hidden">{allActivities ? 'Fewer' : 'More'}</span>
+              <span className="hidden sm:inline">
+                {allActivities ? 'Fewer activities' : 'More activities'}
+              </span>
+            </button>
+            <button
+              className="text-sm font-semibold inline-flex gap-2 items-center underline min-h-11 ml-auto px-2"
+              aria-label="Search & filters"
+              aria-expanded={filters}
+              onClick={() => setFilters(!filters)}
+            >
+              <SlidersHorizontal size={16} />
+              <span className="hidden sm:inline">Search & filters</span>
+              <span className="sm:hidden">Filters</span>
+            </button>
           </div>
-        )}
+          {activity && (
+            <button
+              className="text-sm text-brand-800 font-semibold underline underline-offset-4 mb-3 text-left"
+              onClick={() => findPlaces(activity)}
+            >
+              Find{' '}
+              {activity === 'coffee'
+                ? 'cafés'
+                : `${activityByKey(activity).label.toLowerCase()} venues`}{' '}
+              in Jaipur to start a plan
+            </button>
+          )}
+          <div className="flex flex-wrap items-center gap-2 mb-5" aria-label="Day filters">
+            {[
+              ['all', 'Upcoming'],
+              ['today', 'Today'],
+              ['tomorrow', 'Tomorrow'],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                className={`px-4 rounded-full text-sm font-semibold ${day === value ? 'bg-brand-100 text-brand-900' : 'text-gray-600 bg-white'}`}
+                aria-pressed={day === value}
+                onClick={() => setDay(value)}
+              >
+                {label}
+              </button>
+            ))}
+            {hasFilters && filtered.length > 0 && (
+              <button className="text-sm underline px-3 ml-auto" onClick={clear}>
+                Clear filters
+              </button>
+            )}
+          </div>
+          {filters && (
+            <div className="grid sm:grid-cols-2 gap-4 rounded-2xl bg-white border border-gray-200 p-4 mb-5">
+              <label className="field">
+                Time of day
+                <select value={slot} onChange={(e) => setSlot(e.target.value)}>
+                  <option value="all">Any time</option>
+                  <option value="morning">Before noon</option>
+                  <option value="afternoon">Noon–5 pm</option>
+                  <option value="evening">After 5 pm</option>
+                </select>
+              </label>
+              <label className="field">
+                Distance
+                <select
+                  value={radius}
+                  onChange={(e) => {
+                    setRadius(+e.target.value)
+                    if (+e.target.value && !userLoc) onRequestLocation()
+                  }}
+                >
+                  <option value={0}>Anywhere in Jaipur</option>
+                  <option value={3}>Within 3 km</option>
+                  <option value={5}>Within 5 km</option>
+                  <option value={10}>Within 10 km</option>
+                </select>
+              </label>
+              {radius > 0 && !userLoc && (
+                <p className="text-sm text-amber-800">
+                  Location is needed for distance filtering. You can search by neighbourhood
+                  instead.
+                </p>
+              )}
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={openOnly}
+                  onChange={(e) => setOpenOnly(e.target.checked)}
+                />
+                Only plans with open spots
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={women}
+                  onChange={(e) => setWomen(e.target.checked)}
+                />
+                Women-only plans
+              </label>
+            </div>
+          )}
+          {source === 'loading' ? (
+            <div role="status" className="py-14 text-center text-gray-600">
+              Loading plans…
+            </div>
+          ) : source === 'error' ? (
+            <div role="alert" className="p-6 rounded-2xl border border-amber-200 bg-amber-50">
+              <h2 className="font-bold">We couldn’t refresh the plans</h2>
+              <p className="text-sm my-2">
+                Check your connection and try again. Any plans shown below may be out of date.
+              </p>
+              <button className="secondary" onClick={onRetry}>
+                Try again
+              </button>
+            </div>
+          ) : (
+            <p className="text-sm font-medium text-gray-600 mb-4" aria-live="polite">
+              {filtered.length} upcoming {filtered.length === 1 ? 'plan' : 'plans'}
+              {userLoc ? ' · nearest first' : ''}
+            </p>
+          )}
+          {source === 'live' && filtered.length === 0 ? (
+            <div className="text-center py-12 sm:py-16">
+              <span className="text-4xl" aria-hidden="true">
+                {hasFilters ? '🔎' : '🏸'}
+              </span>
+              <h2 className="text-xl font-bold mt-4">
+                {hasFilters ? 'No plans match yet' : 'Your next plan can start here'}
+              </h2>
+              <p className="text-gray-600 mt-2 mb-6 max-w-md mx-auto">
+                {hasFilters
+                  ? 'Try another day or clear your filters to see all upcoming plans.'
+                  : 'There are no upcoming plans in Jaipur right now. Pick a public meeting spot and invite people to join.'}
+              </p>
+              <button className="primary" onClick={hasFilters ? clear : onPost}>
+                {hasFilters ? 'Clear filters' : 'Post the first plan'}
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              {filtered.map((i) => (
+                <IntentCard
+                  key={i.id}
+                  intent={i}
+                  selected={false}
+                  userLoc={userLoc}
+                  onClick={() => onOpen(i)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </section>
   )

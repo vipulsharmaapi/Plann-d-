@@ -224,7 +224,7 @@ export default function App() {
     { key: 'inbox' as View, label: 'Inbox', icon: Inbox },
   ]
   return (
-    <div className="min-h-dvh flex flex-col bg-slate-50 pb-[calc(76px+env(safe-area-inset-bottom))] sm:pb-0">
+    <div className="app-shell min-h-dvh flex flex-col pb-[calc(76px+env(safe-area-inset-bottom))] sm:pb-0">
       <a className="sr-only focus:not-sr-only focus:p-3 focus:bg-white" href="#main-content">
         Skip to content
       </a>
@@ -385,12 +385,14 @@ export default function App() {
           </section>
         )}
       </main>
-      <footer className="max-w-5xl w-full mx-auto px-4 sm:px-8 py-4 flex justify-between items-center text-xs text-gray-600">
-        <span>Plann’d · Jaipur</span>
-        <button onClick={() => setHelpOpen(true)} className="flex items-center gap-1">
-          <HelpCircle size={15} />
-          Help, privacy & safety
-        </button>
+      <footer className="site-footer">
+        <div className="max-w-5xl w-full mx-auto px-4 sm:px-8 py-4 flex justify-between items-center text-xs text-gray-600">
+          <span>Plann’d · Jaipur</span>
+          <button onClick={() => setHelpOpen(true)} className="flex items-center gap-1">
+            <HelpCircle size={15} />
+            Help, privacy & safety
+          </button>
+        </div>
       </footer>
       <nav
         aria-label="Mobile navigation"

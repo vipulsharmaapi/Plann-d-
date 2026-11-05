@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CalendarPlus, MapPin, Bell } from 'lucide-react'
+import { CalendarPlus, MapPin, Bell, ChevronDown } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { downloadCalendar } from '../lib/calendar'
 import type { Intent } from '../types'
@@ -44,47 +44,50 @@ export default function PlanTools({ intent, userId }: { intent: Intent; userId?:
     }
   }
   return (
-    <div className="space-y-2 mt-3">
-      <div className="flex flex-wrap gap-2">
-        <button className="secondary text-xs" onClick={() => downloadCalendar(intent)}>
-          <CalendarPlus size={16} />
-          Add to calendar
-        </button>
-        <a
-          className="secondary text-xs"
-          href={`https://www.google.com/maps/dir/?api=1&destination=${intent.lat},${intent.lng}`}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <MapPin size={16} />
-          Directions
-        </a>
-        {userId && (
-          <button
-            className="secondary text-xs"
-            disabled={busy}
-            aria-pressed={enabled}
-            onClick={toggle}
-          >
-            <Bell size={16} />
-            {enabled ? 'Reminder on' : 'Remind me'}
+    <details className="plan-disclosure">
+      <summary>
+        Plan tools
+        <ChevronDown size={16} aria-hidden="true" />
+      </summary>
+      <div className="space-y-3 pb-4">
+        <div className="flex flex-wrap gap-2">
+          <button className="secondary text-xs" onClick={() => downloadCalendar(intent)}>
+            <CalendarPlus size={16} />
+            Add to calendar
           </button>
+          <a
+            className="secondary text-xs"
+            href={`https://www.google.com/maps/dir/?api=1&destination=${intent.lat},${intent.lng}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <MapPin size={16} />
+            Directions
+          </a>
+          {userId && (
+            <button
+              className="secondary text-xs"
+              disabled={busy}
+              aria-pressed={enabled}
+              onClick={toggle}
+            >
+              <Bell size={16} />
+              {enabled ? 'Reminder on' : 'Remind me'}
+            </button>
+          )}
+        </div>
+        {enabled && (
+          <p className="text-xs text-gray-600">
+            In-app reminder 30 minutes before the start. Calendar alerts use your calendar settings.
+          </p>
+        )}
+        <p className="text-xs text-gray-500">Download the calendar again if the plan changes.</p>
+        {error && (
+          <p role="alert" className="text-sm text-red-700">
+            {error}
+          </p>
         )}
       </div>
-      {enabled && (
-        <p className="text-xs text-gray-600">
-          A reminder appears in your inbox 30 minutes before the start. Calendar alerts depend on
-          your calendar settings.
-        </p>
-      )}
-      <p className="text-xs text-gray-500">
-        Calendar downloads do not update automatically if the plan changes.
-      </p>
-      {error && (
-        <p role="alert" className="text-sm text-red-700">
-          {error}
-        </p>
-      )}
-    </div>
+    </details>
   )
 }

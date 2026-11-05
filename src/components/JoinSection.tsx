@@ -4,6 +4,8 @@ import type { Auth } from '../hooks/useAuth'
 import type { Intent } from '../types'
 import PlanTools from './PlanTools'
 import PlanContext from './PlanContext'
+import VenueDetails from './VenueDetails'
+import { ChevronDown } from 'lucide-react'
 import SafetySheet from './SafetySheet'
 import ConfirmAction, { type Confirmation } from './ConfirmAction'
 interface Props {
@@ -224,185 +226,80 @@ export default function JoinSection({
         ),
     })
   }
+  const pendingCount = requests.filter((r) => r.status === 'pending').length
+  const acceptedCount = requests.filter((r) => r.status === 'accepted').length
+  const available = !ended && !blocked && !(loading && userId)
+  const canRequest =
+    available && !isMine && !mine && !(intent.womenOnly && userId && auth.gender !== 'female')
   return (
-    <div className="mt-4 space-y-4">
+    <div className="plan-join-section">
       <PlanContext intent={intent} onProfile={onViewProfile} />
-      <div className="flex items-center flex-wrap gap-2 text-sm">
-        <button className="secondary text-xs" onClick={share}>
-          Share
-        </button>
-        {!isMine && (
-          <button
-            className="secondary text-xs"
-            onClick={() => (userId ? setSafety(true) : onRequestAuth())}
-          >
-            Report or block
-          </button>
-        )}
-      </div>
-      {loading && userId ? (
-        <p role="status" className="text-sm">
-          Loading your request…
-        </p>
-      ) : ended ? (
-        <div className="p-4 bg-gray-100 rounded-xl">
-          <h3 className="font-semibold">
-            {intent.status === 'cancelled' || cancelled
-              ? 'This plan was cancelled'
-              : 'This plan has ended'}
-          </h3>
-          <p className="text-sm mt-1">New requests are closed. Check Explore for upcoming plans.</p>
-          {isMine && (
-            <p className="text-sm mt-2">To repeat this activity, use Repost in your profile.</p>
-          )}
-        </div>
-      ) : blocked ? (
-        <p className="p-4 bg-gray-100 rounded-xl text-sm">
-          This plan is unavailable because a block is in place. Manage your blocks in Help.
-        </p>
-      ) : isMine ? (
-        <>
-          <div className="flex flex-wrap gap-2">
-            <button className="primary text-sm" onClick={() => onOpenChat(intent)}>
-              Group chat
-            </button>
-            <button className="secondary text-sm" onClick={() => onEdit(intent)}>
-              Edit plan
-            </button>
-            <button disabled={busy} className="secondary text-sm !text-red-700" onClick={cancel}>
-              Cancel plan
-            </button>
-          </div>
-          <h3 className="font-bold text-sm">
-            Requests · {requests.filter((r) => r.status === 'pending').length} waiting
-          </h3>
-          {requests.length === 0 && (
-            <p className="text-sm text-gray-600">
-              No requests yet. Share the plan to invite people.
+      {mine?.status === 'accepted' && available && (
+        <p className="text-sm font-semibold text-green-800">You’re in.</p>
+      )}
+      <div className="plan-action-row">
+        <div className="min-w-0 flex-1">
+          {loading && userId ? (
+            <p role="status" className="text-sm">
+              Loading your request…
             </p>
-          )}
-          {requests.map((r) => (
-            <div
-              className="flex flex-wrap items-center gap-2 py-2 border-b border-gray-100"
-              key={r.id}
-            >
-              <button
-                className="flex-1 text-left underline text-sm min-w-[100px]"
-                onClick={() => onViewProfile(r.user_id)}
-              >
-                {r.name}
-              </button>
-              {r.status === 'pending' ? (
-                <>
-                  <button
-                    className="primary text-xs"
-                    disabled={busy || spots === 0}
-                    onClick={() => respond(r, 'accepted')}
-                  >
-                    Accept
-                  </button>
-                  <button
-                    className="secondary text-xs"
-                    disabled={busy}
-                    onClick={() => respond(r, 'declined')}
-                  >
-                    Decline
-                  </button>
-                </>
-              ) : r.status === 'accepted' ? (
-                <>
-                  <button className="secondary text-xs" onClick={() => contact(r.user_id)}>
-                    WhatsApp
-                  </button>
-                  <button
-                    className="secondary text-xs !text-red-700"
-                    disabled={busy}
-                    onClick={() =>
-                      setConfirmation({
-                        title: `Remove ${r.name}?`,
-                        description: 'Their spot and chat access will be released.',
-                        label: 'Remove member',
-                        action: () => respond(r, 'declined'),
-                      })
-                    }
-                  >
-                    Remove
-                  </button>
-                </>
-              ) : (
-                <span className="text-xs text-gray-600">Declined</span>
+          ) : ended ? (
+            <div role="status" className="text-sm">
+              <h3 className="font-semibold">
+                {intent.status === 'cancelled' || cancelled
+                  ? 'This plan was cancelled'
+                  : 'This plan has ended'}
+              </h3>
+              <p className="text-gray-600 mt-1">New requests are closed.</p>
+              {isMine && (
+                <p className="text-gray-600 mt-1">Use Repost in your profile to plan again.</p>
               )}
             </div>
-          ))}
-          <PlanTools intent={intent} userId={userId} />
-        </>
-      ) : mine?.status === 'accepted' ? (
-        <>
-          <p className="font-semibold text-green-800">You’re in. See you there!</p>
-          <button className="primary w-full" onClick={() => onOpenChat(intent)}>
-            Open group chat
-          </button>
-          <div className="flex flex-wrap gap-2">
-            {groupLink && (
-              <a
-                className="secondary text-xs"
-                href={groupLink}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                WhatsApp group ↗
-              </a>
-            )}
-            {intent.userId && (
-              <button className="secondary text-xs" onClick={() => contact(intent.userId!)}>
-                WhatsApp host ↗
+          ) : blocked ? (
+            <p className="text-sm">
+              This plan is unavailable because a block is in place. Manage your blocks in Help.
+            </p>
+          ) : isMine || mine?.status === 'accepted' ? (
+            <button className="primary w-full" onClick={() => onOpenChat(intent)}>
+              Open group chat
+            </button>
+          ) : mine?.status === 'pending' ? (
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-brand-900" role="status">
+                Waiting for {intent.posterName} to approve your request.
+              </p>
+              <button className="text-sm underline min-h-11" disabled={busy} onClick={withdraw}>
+                Withdraw request
               </button>
-            )}
-          </div>
-          <PlanTools intent={intent} userId={userId} />
-          <button className="text-sm underline text-red-700" disabled={busy} onClick={withdraw}>
-            Leave plan
-          </button>
-        </>
-      ) : mine?.status === 'pending' ? (
-        <>
-          <p className="font-semibold bg-brand-50 text-brand-900 rounded-xl p-4" role="status">
-            Waiting for {intent.posterName} to approve your request.
-          </p>
-          <button className="secondary text-sm" disabled={busy} onClick={withdraw}>
-            Withdraw request
-          </button>
-        </>
-      ) : mine?.status === 'declined' ? (
-        <p className="text-sm p-4 bg-gray-100 rounded-xl">
-          Your request was declined or your place was released. You can explore other upcoming
-          plans.
+            </div>
+          ) : mine?.status === 'declined' ? (
+            <p className="text-sm">
+              Your request was declined or your place was released. You can explore other plans.
+            </p>
+          ) : intent.womenOnly && userId && auth.gender !== 'female' ? (
+            <p className="text-sm">
+              This is a women-only plan. Eligibility uses your profile gender. Request a correction
+              in Help if needed.
+            </p>
+          ) : (
+            <button className="primary w-full" onClick={join} disabled={busy || spots === 0}>
+              {spots === 0 ? 'This plan is full' : busy ? 'Sending request…' : 'Request to join'}
+            </button>
+          )}
+        </div>
+        <button className="secondary text-sm shrink-0" onClick={share}>
+          Share
+        </button>
+      </div>
+      {canRequest && spots > 0 && (
+        <p className="text-xs text-gray-600">
+          The host approves your request. Chat opens once you’re accepted.
         </p>
-      ) : intent.womenOnly && userId && auth.gender !== 'female' ? (
-        <p className="text-sm p-4 bg-pink-50 text-pink-900">
-          This is a women-only plan. Eligibility uses your self-declared profile gender. If it is
-          incorrect, request a correction in Help.
-        </p>
-      ) : (
-        <>
-          <button className="primary w-full" onClick={join} disabled={busy || spots === 0}>
-            {spots === 0
-              ? 'This plan is full'
-              : busy
-                ? 'Sending request…'
-                : userId
-                  ? 'Request to join'
-                  : 'Sign in to request to join'}
-          </button>
-          <p className="text-xs text-gray-600">
-            The host approves your request. Chat opens once you’re accepted.
-          </p>
-        </>
       )}
       {error && (
         <div role="alert" className="text-sm text-red-700">
           <p>{error}</p>
-          <button className="underline" onClick={load}>
+          <button className="underline min-h-11" onClick={load}>
             Refresh status
           </button>
         </div>
@@ -411,6 +308,136 @@ export default function JoinSection({
         <p role="status" className="text-sm text-gray-700 break-words">
           {message}
         </p>
+      )}
+      {available && isMine && (
+        <div className="plan-sections">
+          <details className="plan-disclosure" open={pendingCount > 0}>
+            <summary>
+              <span>
+                Requests &amp; members{' '}
+                <span className="text-gray-600">
+                  · {pendingCount ? `${pendingCount} waiting` : acceptedCount}
+                </span>
+              </span>
+              <ChevronDown size={16} aria-hidden="true" />
+            </summary>
+            <div className="pb-4">
+              {requests.length === 0 && <p className="text-sm text-gray-600">No requests yet.</p>}
+              {requests.map((r) => (
+                <div
+                  className="flex flex-wrap items-center gap-2 py-2 border-b border-gray-100"
+                  key={r.id}
+                >
+                  <button
+                    className="flex-1 text-left underline text-sm min-w-[100px] break-words"
+                    onClick={() => onViewProfile(r.user_id)}
+                  >
+                    {r.name}
+                  </button>
+                  {r.status === 'pending' ? (
+                    <>
+                      <button
+                        className="primary text-xs"
+                        disabled={busy || spots === 0}
+                        onClick={() => respond(r, 'accepted')}
+                      >
+                        Accept
+                      </button>
+                      <button
+                        className="secondary text-xs"
+                        disabled={busy}
+                        onClick={() => respond(r, 'declined')}
+                      >
+                        Decline
+                      </button>
+                    </>
+                  ) : r.status === 'accepted' ? (
+                    <>
+                      <button className="secondary text-xs" onClick={() => contact(r.user_id)}>
+                        WhatsApp
+                      </button>
+                      <button
+                        className="secondary text-xs !text-red-700"
+                        disabled={busy}
+                        onClick={() =>
+                          setConfirmation({
+                            title: `Remove ${r.name}?`,
+                            description: 'Their spot and chat access will be released.',
+                            label: 'Remove member',
+                            action: () => respond(r, 'declined'),
+                          })
+                        }
+                      >
+                        Remove
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-xs text-gray-600">Declined</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </details>
+          <details className="plan-disclosure">
+            <summary>
+              Manage plan
+              <ChevronDown size={16} aria-hidden="true" />
+            </summary>
+            <div className="flex flex-wrap gap-2 pb-4">
+              <button className="secondary text-sm" onClick={() => onEdit(intent)}>
+                Edit plan
+              </button>
+              <button disabled={busy} className="secondary text-sm !text-red-700" onClick={cancel}>
+                Cancel plan
+              </button>
+            </div>
+          </details>
+          <PlanTools intent={intent} userId={userId} />
+        </div>
+      )}
+      {available && !isMine && mine?.status === 'accepted' && (
+        <div className="plan-sections">
+          <details className="plan-disclosure">
+            <summary>
+              Contacts &amp; membership
+              <ChevronDown size={16} aria-hidden="true" />
+            </summary>
+            <div className="flex flex-wrap gap-2 pb-4">
+              {groupLink && (
+                <a
+                  className="secondary text-sm"
+                  href={groupLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  WhatsApp group
+                </a>
+              )}
+              {intent.userId && (
+                <button className="secondary text-sm" onClick={() => contact(intent.userId!)}>
+                  WhatsApp host
+                </button>
+              )}
+              <button
+                className="secondary text-sm !text-red-700"
+                disabled={busy}
+                onClick={withdraw}
+              >
+                Leave plan
+              </button>
+            </div>
+          </details>
+          <PlanTools intent={intent} userId={userId} />
+        </div>
+      )}
+      <VenueDetails key={intent.id} intent={intent} />
+      {!isMine && (
+        <button
+          className="plan-safety-action"
+          onClick={() => (userId ? setSafety(true) : onRequestAuth())}
+        >
+          Report or block
+        </button>
       )}
       {safety && userId && (
         <SafetySheet

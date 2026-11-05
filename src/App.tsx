@@ -1,11 +1,10 @@
-import VenueDetails from './components/VenueDetails'
 import { navigate, useUrlParams, readAuthIntent, rememberAuthIntent } from './lib/navigation'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { CalendarDays, Compass, Map, Inbox, MapPin, Plus, HelpCircle, User } from 'lucide-react'
 import Explore from './components/Explore'
 import MyPlans from './components/MyPlans'
 import NotificationsSheet from './components/NotificationsSheet'
-import IntentCard from './components/IntentCard'
+import PlanHeader from './components/PlanHeader'
 import JoinSection from './components/JoinSection'
 import Sheet from './components/Sheet'
 import { useAuth } from './hooks/useAuth'
@@ -424,23 +423,22 @@ export default function App() {
         </div>
       )}
       {selected && (
-        <Sheet title="Plan details" onClose={closePlan}>
-          <div className="p-5 pt-16">
-            <IntentCard intent={selected} selected>
-              <JoinSection
-                intent={selected}
-                auth={auth}
-                onRequestAuth={() => signIn('plan')}
-                onEdit={(i) => {
-                  setEditing(i)
-                  setTemplate(null)
-                  setPostOpen(true)
-                }}
-                onViewProfile={setPeek}
-                onOpenChat={setChat}
-              />
-            </IntentCard>
-            <VenueDetails key={selected.id} intent={selected} />
+        <Sheet title="Plan details" className="plan-detail-sheet" onClose={closePlan}>
+          <div className="plan-detail-content">
+            <PlanHeader intent={selected} />
+            <JoinSection
+              key={selected.id}
+              intent={selected}
+              auth={auth}
+              onRequestAuth={() => signIn('plan')}
+              onEdit={(i) => {
+                setEditing(i)
+                setTemplate(null)
+                setPostOpen(true)
+              }}
+              onViewProfile={setPeek}
+              onOpenChat={setChat}
+            />
             {selected.womenOnly && (
               <p className="text-xs text-gray-600 mt-4">
                 Women-only eligibility uses self-declared gender. Plann’d does not verify identity.

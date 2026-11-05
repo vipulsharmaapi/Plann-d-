@@ -4,7 +4,8 @@ import { supabase } from '../lib/supabase'
 import type { Auth } from '../hooks/useAuth'
 import type { Intent } from '../types'
 import PlanTools from './PlanTools'
-import PlanContext from './PlanContext'
+import PlanContext, { PlanExtras } from './PlanContext'
+import { navigate } from '../lib/navigation'
 import VenueDetails from './VenueDetails'
 import { ChevronDown } from 'lucide-react'
 import SafetySheet from './SafetySheet'
@@ -163,7 +164,7 @@ export default function JoinSection({
           status: 'pending',
           introduction: introduction.trim() || null,
         }),
-      'Request sent. Waiting for the host’s approval.',
+      undefined,
       () => {
         setJoinReview(false)
         setIntroduction('')
@@ -285,11 +286,18 @@ export default function JoinSection({
               Open group chat
             </button>
           ) : mine?.status === 'pending' ? (
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-brand-900" role="status">
-                Waiting for {intent.posterName} to approve your request.
+            <div className="request-sent-state">
+              <p className="request-sent-label" role="status">
+                Request sent
               </p>
-              <button className="text-sm underline min-h-11" disabled={busy} onClick={withdraw}>
+              <p>
+                Waiting for {intent.posterName} to confirm your spot. You’ll find updates in My
+                plans.
+              </p>
+              <button className="secondary" onClick={() => navigate({ view: 'plans', p: null })}>
+                View my plans
+              </button>
+              <button className="text-button" disabled={busy} onClick={withdraw}>
                 Withdraw request
               </button>
             </div>
@@ -308,12 +316,10 @@ export default function JoinSection({
             </button>
           )}
         </div>
-        <button className="secondary text-sm shrink-0" onClick={share}>
-          Share
-        </button>
         {canRequest && spots > 0 && (
           <p className="join-approval">
-            The host approves your request. Chat opens once you’re accepted.
+            {intent.posterName} will confirm your spot.
+            {!userId ? ' Sign in when you request to join.' : ''}
           </p>
         )}
       </div>
@@ -452,7 +458,19 @@ export default function JoinSection({
           <PlanTools intent={intent} userId={userId} />
         </div>
       )}
-      <VenueDetails key={intent.id} intent={intent} />
+      <div className="plan-secondary-actions">
+        <button className="text-button" onClick={share}>
+          Share plan
+        </button>
+      </div>
+      <PlanExtras intent={intent} />
+      <details className="plan-disclosure venue-info-disclosure">
+        <summary>
+          About the venue
+          <ChevronDown size={16} aria-hidden="true" />
+        </summary>
+        <VenueDetails key={intent.id} intent={intent} />
+      </details>
       {!isMine && (
         <button
           className="plan-safety-action"

@@ -28,7 +28,7 @@ afterEach(() => {
   vi.resetAllMocks()
 })
 
-test('Explore exposes peer modes and venue discovery is public', async () => {
+test('Explore makes plans primary and venue discovery stays public', async () => {
   search.mockResolvedValue({ places: [] })
   const user = userEvent.setup()
   render(
@@ -49,7 +49,7 @@ test('Explore exposes peer modes and venue discovery is public', async () => {
   await user.click(screen.getByRole('button', { name: 'Explore venues' }))
   await screen.findByRole('search', { name: 'Search Jaipur venues' })
   expect(new URLSearchParams(location.search).get('browse')).toBe('search')
-  expect(screen.getByRole('button', { name: 'Join plans' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Back to plans' })).toBeTruthy()
 })
 
 test('editing waits for submission; pagination retains submitted query and the exact branch handoff', async () => {

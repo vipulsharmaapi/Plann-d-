@@ -89,21 +89,13 @@ describe('discovery states', () => {
     const user = userEvent.setup()
     history.replaceState(null, '', '/?p=' + plan.id)
     const sports: Intent = { ...plan, id: 'sports', activity: 'badminton', title: 'Badminton' }
-    render(
-      <Explore
-        {...props}
-        source="live"
-        intents={[plan, sports]}
-        selectedId={plan.id}
-        renderDetail={(item) => <h2>Details: {item.title}</h2>}
-      />,
-    )
-    expect(screen.getByRole('heading', { name: 'Details: ' + plan.title })).toBeTruthy()
-    await user.click(screen.getByRole('button', { name: 'Sports', exact: true }))
-    expect(screen.getByRole('heading', { name: 'Details: Badminton' })).toBeTruthy()
-    expect(screen.queryByRole('heading', { name: 'Details: ' + plan.title })).toBeNull()
+    render(<Explore {...props} source="live" intents={[plan, sports]} selectedId={plan.id} />)
+    expect(screen.getByRole('heading', { name: plan.title })).toBeTruthy()
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Activity' }), 'group:Sports')
+    expect(screen.getByRole('heading', { name: 'Badminton' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: plan.title })).toBeNull()
     expect(new URLSearchParams(location.search).get('p')).toBeNull()
-    await user.click(screen.getByRole('button', { name: 'Food', exact: true }))
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Activity' }), 'group:Food')
     expect(screen.getByText('No plans match yet')).toBeTruthy()
     expect(screen.queryByRole('heading', { name: /Details:/ })).toBeNull()
   })

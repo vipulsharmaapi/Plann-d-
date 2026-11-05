@@ -1,9 +1,10 @@
-import { lazy, Suspense, useEffect, useRef, useMemo, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useRef, useMemo, useState } from 'react'
 import { navigate, useUrlValue } from '../lib/navigation'
 import { matchesPlan } from '../lib/planDiscovery'
 import { groups, planGroup, matchesDay } from '../lib/discovery'
-import { Search, SlidersHorizontal, X, Plus, List, Map, MapPin } from 'lucide-react'
+import { Search, SlidersHorizontal, X, List, Map, MapPin, ChevronDown } from 'lucide-react'
 import PlanRow from './PlanRow'
+import PlanCard from './PlanCard'
 import type { IntentSource } from '../hooks/useIntents'
 import { haversineKm, type LatLng } from '../lib/geo'
 import { ACTIVITIES, type Intent, type ActivityKey, type VenueDraft } from '../types'
@@ -26,7 +27,6 @@ export default function Explore({
   onActivity,
   onVenuePost,
   selectedId,
-  renderDetail,
 }: {
   intents: Intent[]
   source: IntentSource
@@ -39,7 +39,6 @@ export default function Explore({
   onActivity: (a: ActivityKey | null) => void
   onVenuePost: (v: VenueDraft) => void
   selectedId?: string
-  renderDetail?: (i: Intent) => ReactNode
 }) {
   const [venuePin] = useUrlValue('pin')
   const [venueLayout] = useUrlValue('vlayout', 'list')
@@ -58,6 +57,7 @@ export default function Explore({
   const [filters, setFilters] = useState(false),
     [mapSelected, setMapSelected] = useState<string>(),
     [visited, setVisited] = useState({ search: browse === 'search', places: browse === 'places' })
+  const resultsHeading = useRef<HTMLHeadingElement>(null)
   const modeScroll = useRef<Record<string, number>>({})
   const previousMode = useRef(browse)
   useEffect(() => {
@@ -138,7 +138,7 @@ export default function Explore({
   const venueActivity = ACTIVITIES.find((a) => a.key === category)?.key ?? 'football'
   return (
     <section
-      className={`${layout === 'map' && browse === 'plans' ? 'map-mode' : ''} ${browse !== 'plans' && venuePin && venueLayout !== 'map' ? 'venue-detail-active' : ''}`}
+      className={`explore-v02 ${browse === 'plans' ? 'plans-home' : ''} ${layout === 'map' && browse === 'plans' ? 'map-mode' : ''} ${browse !== 'plans' && venuePin && venueLayout !== 'map' ? 'venue-detail-active' : ''}`}
     >
       <section className="intro jaipur-intro">
         <img className="canopy" src="/images/jaipur-panorama.webp" alt="" />
@@ -146,42 +146,128 @@ export default function Explore({
           <div>
             <h1>
               {browse === 'plans'
-                ? 'Good plans. Right here in Jaipur.'
+                ? 'Find people to do things with in Jaipur.'
                 : 'Find a place for your next plan.'}
             </h1>
             <p>
               {browse === 'plans'
-                ? 'Find a place, meet a few people, make an evening of it.'
+                ? 'Join a plan for coffee, a game or an outing. Or post your own and invite people along.'
                 : 'Cafés, courts and places to meet across Jaipur.'}
             </p>
           </div>
         </div>
       </section>
-      <div className="discovery-modes" role="group" aria-label="Explore mode">
-        <button
-          className={browse === 'plans' ? 'primary' : 'secondary'}
-          aria-pressed={browse === 'plans'}
-          onClick={() => setBrowse('plans')}
-        >
-          Join plans
-        </button>
-        <button
-          className={browse !== 'plans' ? 'primary' : 'secondary'}
-          aria-pressed={browse !== 'plans'}
-          onClick={() => setBrowse('search')}
-        >
-          Explore venues
-        </button>
+      <div className="discovery-modes">
+        {browse === 'plans' ? (
+          <>
+            <button
+              className="primary"
+              onClick={() => {
+                resultsHeading.current?.focus({ preventScroll: true })
+                resultsHeading.current?.scrollIntoView({
+                  behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+                    ? 'instant'
+                    : 'smooth',
+                  block: 'start',
+                })
+              }}
+            >
+              Explore plans
+            </button>
+            <button className="secondary" onClick={onPost}>
+              Post a plan
+            </button>
+          </>
+        ) : (
+          <button className="secondary" onClick={() => setBrowse('plans')}>
+            Back to plans
+          </button>
+        )}
       </div>
-      <div hidden={browse !== 'plans'}>
-        <div className="plan-search-bar">
-          {' '}
-          {browse === 'plans' && (
+      <div hidden={browse !== 'plans'} className="upcoming-plans">
+        <div className="upcoming-heading">
+          <h2 ref={resultsHeading} tabIndex={-1}>
+            Upcoming plans <span className="desktop-city"> in Jaipur</span>
+          </h2>
+          <button className="text-button" onClick={() => setBrowse('search')}>
+            Explore venues
+          </button>
+        </div>
+        <div className="plan-filter-row">
+          <div className="simple-plan-filters">
+            <label>
+              <span className="sr-only">Activity</span>
+              <select
+                value={activity || (group !== 'All plans' ? `group:${group}` : '')}
+                onChange={(e) => {
+                  const value = e.target.value
+                  onActivity(value && !value.startsWith('group:') ? (value as ActivityKey) : null)
+                  setGroup(value.startsWith('group:') ? value.slice(6) : 'All plans')
+                }}
+              >
+                <option value="">Any activity</option>
+                <optgroup label="Activity groups">
+                  {groups
+                    .filter((g) => g !== 'All plans')
+                    .map((g) => (
+                      <option key={g} value={`group:${g}`}>
+                        {g}
+                      </option>
+                    ))}
+                </optgroup>
+                <optgroup label="Activities">
+                  {ACTIVITIES.map((a) => (
+                    <option key={a.key} value={a.key}>
+                      {a.label}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+              <ChevronDown size={14} aria-hidden="true" />
+            </label>
+            <label>
+              <span className="sr-only">When</span>
+              <select value={day} onChange={(e) => setDay(e.target.value)}>
+                <option value="all">Upcoming</option>
+                <option value="today">Today</option>
+                <option value="tomorrow">Tomorrow</option>
+                <option value="weekend">Weekend</option>
+              </select>
+              <ChevronDown size={14} aria-hidden="true" />
+            </label>
+            <button
+              className="secondary"
+              aria-pressed={layout === 'map'}
+              onClick={() => setLayout(layout === 'map' ? 'list' : 'map')}
+            >
+              {layout === 'map' ? (
+                <>
+                  <List size={17} /> List
+                </>
+              ) : (
+                <>
+                  <Map size={17} /> Map
+                </>
+              )}
+            </button>
+          </div>
+          <button
+            className="text-button more-plan-filters"
+            aria-expanded={filters}
+            aria-controls="plan-filters"
+            onClick={() => setFilters(!filters)}
+          >
+            <SlidersHorizontal size={16} /> Search &amp; filters{hasFilters ? ' · Active' : ''}
+          </button>
+        </div>
+        {filters && (
+          <div id="plan-filters" className="filter-panel production-filters">
             <label className="search-field">
               <Search size={20} />
               <span className="sr-only">Search plans or places</span>
               <input
                 type="search"
+                aria-label="Search plans or places"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search plans or places"
@@ -192,36 +278,6 @@ export default function Explore({
                 </button>
               )}
             </label>
-          )}
-        </div>
-        <div className="category-bar">
-          <div className="category-scroll" role="group" aria-label="Activities">
-            {groups.map((c) => (
-              <button
-                key={c}
-                className={group === c && !activity ? 'active' : ''}
-                aria-pressed={group === c && !activity}
-                onClick={() => {
-                  onActivity(null)
-                  setGroup(c)
-                }}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-          <button
-            className={`filter-button ${filters ? 'active' : ''}`}
-            aria-label="Search & filters"
-            aria-expanded={filters}
-            onClick={() => setFilters(!filters)}
-          >
-            <SlidersHorizontal size={18} />
-            <span>Filters</span>
-          </button>
-        </div>
-        {filters && (
-          <div className="filter-panel production-filters">
             <label>
               Neighbourhood
               <input
@@ -229,20 +285,6 @@ export default function Explore({
                 onChange={(e) => setArea(e.target.value)}
                 placeholder="All Jaipur"
               />
-            </label>
-            <label>
-              Activity
-              <select
-                value={activity ?? ''}
-                onChange={(e) => onActivity((e.target.value || null) as ActivityKey | null)}
-              >
-                <option value="">All activities</option>
-                {ACTIVITIES.map((a) => (
-                  <option key={a.key} value={a.key}>
-                    {a.label}
-                  </option>
-                ))}
-              </select>
             </label>
             <label>
               Time
@@ -294,46 +336,9 @@ export default function Explore({
           </div>
         )}
         <div className="discovery">
-          <div className="toolbar">
-            <div className="date-tabs" role="group" aria-label="When">
-              {[
-                ['all', 'Upcoming'],
-                ['today', 'Today'],
-                ['tomorrow', 'Tomorrow'],
-                ['weekend', 'Weekend'],
-              ].map(([v, l]) => (
-                <button
-                  key={v}
-                  className={day === v ? 'active' : ''}
-                  aria-pressed={day === v}
-                  onClick={() => setDay(v)}
-                >
-                  {l}
-                </button>
-              ))}
-            </div>
-            <div className="view-switch" role="group" aria-label="Discovery view">
-              <button
-                aria-pressed={layout !== 'map'}
-                className={layout !== 'map' ? 'active' : ''}
-                onClick={() => setLayout('list')}
-              >
-                <List size={17} />
-                List
-              </button>
-              <button
-                aria-pressed={layout === 'map'}
-                className={layout === 'map' ? 'active' : ''}
-                onClick={() => setLayout('map')}
-              >
-                <Map size={17} />
-                Map
-              </button>
-            </div>
-          </div>
-          <div className={`discovery-grid ${layout === 'map' ? 'map-view' : ''}`}>
+          <div className={`discovery-grid ${layout === 'map' ? 'map-view' : 'plan-card-grid'}`}>
             <section className="plans-list" aria-label="Available plans">
-              <div className="list-heading">
+              <div className="list-heading sr-only" aria-live="polite">
                 <span>
                   {source === 'loading'
                     ? 'Loading plans…'
@@ -351,17 +356,21 @@ export default function Explore({
               ) : source === 'loading' ? (
                 <p role="status">Loading plans in Jaipur…</p>
               ) : filtered.length ? (
-                filtered.map((i) => (
-                  <PlanRow
-                    key={i.id}
-                    intent={i}
-                    selected={active?.id === i.id}
-                    onClick={() => {
-                      setMapSelected(i.id)
-                      onOpen(i)
-                    }}
-                  />
-                ))
+                filtered.map((i) =>
+                  layout === 'map' ? (
+                    <PlanRow
+                      key={i.id}
+                      intent={i}
+                      selected={active?.id === i.id}
+                      onClick={() => {
+                        setMapSelected(i.id)
+                        onOpen(i)
+                      }}
+                    />
+                  ) : (
+                    <PlanCard key={i.id} intent={i} onOpen={() => onOpen(i)} />
+                  ),
+                )
               ) : (
                 <div className="empty-state">
                   <h2>{hasFilters ? 'No plans match yet' : 'No upcoming plans yet'}</h2>
@@ -380,12 +389,6 @@ export default function Explore({
                   </button>
                 </div>
               )}
-              <div className="list-footer">
-                <span>Have a place in mind?</span>
-                <button className="inline-link" onClick={onPost}>
-                  Post a plan <Plus size={16} />
-                </button>
-              </div>
             </section>
             {layout === 'map' ? (
               <Suspense fallback={<p role="status">Loading Jaipur map…</p>}>
@@ -394,19 +397,11 @@ export default function Explore({
                   selected={active}
                   onSelect={(p) => setMapSelected(p.id)}
                   onDetails={(p) => {
-                    setLayout('list')
                     onOpen(p)
                   }}
                 />
               </Suspense>
-            ) : active ? (
-              <div className="desktop-detail">{renderDetail?.(active)}</div>
-            ) : (
-              <div className="quiet-empty">
-                <img src="/images/jaipur-canopy.webp" alt="" />
-                <p>A little more Jaipur, together.</p>
-              </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

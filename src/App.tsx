@@ -6,10 +6,8 @@ import Explore from './components/Explore'
 import MyPlans from './components/MyPlans'
 import NotificationsSheet from './components/NotificationsSheet'
 import PlanDetail from './components/PlanDetail'
-import { usePhone } from './hooks/usePhone'
 import { useSavedPlans } from './hooks/useSavedPlans'
 import JoinSection from './components/JoinSection'
-import Sheet from './components/Sheet'
 import { useAuth } from './hooks/useAuth'
 import { INTENT_COLUMNS, rowToIntent, useIntents, type IntentRow } from './hooks/useIntents'
 import { useNotifications, type AppNotification } from './hooks/useNotifications'
@@ -28,7 +26,6 @@ export default function App() {
   const auth = useAuth(),
     { intents, source, refresh } = useIntents(auth.session?.user.id),
     notifications = useNotifications(auth.session)
-  const phone = usePhone()
   const saved = useSavedPlans(auth.session?.user.id)
   const route = useUrlParams()
   const view = (
@@ -69,7 +66,14 @@ export default function App() {
     () => readAuthIntent()?.action ?? null,
   )
   const [planKey, setPlanKey] = useState(0)
+  const planReturn = useRef<{ scroll: number; focus: HTMLElement | null } | null>(null)
   const openPlan = useCallback((intent: Intent) => {
+    if (!new URLSearchParams(location.search).get('p')) {
+      planReturn.current = {
+        scroll: window.scrollY,
+        focus: document.activeElement instanceof HTMLElement ? document.activeElement : null,
+      }
+    }
     setSelected(intent)
     setNotice('')
     navigate({ p: intent.id }, 'push', { planndPlan: true })
@@ -123,6 +127,23 @@ export default function App() {
       previous ? (intents.find((i) => i.id === previous.id) ?? previous) : null,
     )
   }, [intents])
+  const detailPlanId = selected?.id
+  const detailWasOpen = useRef(false)
+  useEffect(() => {
+    if (detailPlanId && routePlan) {
+      detailWasOpen.current = true
+      requestAnimationFrame(() => {
+        window.scrollTo(0, 0)
+        document.querySelector<HTMLElement>('.plan-detail-page h1')?.focus({ preventScroll: true })
+      })
+    } else if (!routePlan && detailWasOpen.current) {
+      detailWasOpen.current = false
+      requestAnimationFrame(() => {
+        window.scrollTo(0, planReturn.current?.scroll ?? 0)
+        planReturn.current?.focus?.focus({ preventScroll: true })
+      })
+    }
+  }, [detailPlanId, routePlan])
   const selectedId = selected?.id
   useEffect(() => {
     if (!selectedId) return
@@ -334,89 +355,93 @@ export default function App() {
         </div>
       )}
       <main id="main-content" className="flex-1 min-w-0">
-        <div hidden={view !== 'explore'}>
-          <Explore
-            intents={intents}
-            source={source}
-            onOpen={openPlan}
-            onPost={post}
-            onRetry={refresh}
-            userLoc={userLoc}
-            onRequestLocation={locate}
-            activity={activity}
-            onActivity={setActivity}
-            onVenuePost={postAtVenue}
-            selectedId={selected?.id}
-            renderDetail={phone ? undefined : renderPlan}
-          />
-        </div>
-        {view === 'plans' && (
-          <MyPlans
-            key={`${planKey}-${auth.session?.user.id ?? 'guest'}`}
-            userId={auth.session?.user.id}
-            sessionLoading={auth.loading}
-            onExplore={() => setView('explore')}
-            onSignIn={() => signIn()}
-            saved={saved}
-            onOpen={openPlan}
-            onPost={post}
-          />
+        {selected && routePlan && (
+          <div className="plan-detail-page">{renderPlan(selected, closePlan)}</div>
         )}
-        {view === 'inbox' && (
-          <NotificationsSheet
-            items={notifications.items}
-            state={notifications.state}
-            signedIn={!!auth.session}
-            sessionLoading={auth.loading}
-            onExplore={() => setView('explore')}
-            onSignIn={() => signIn()}
-            onOpenNotification={openNotification}
-            onRetry={notifications.refresh}
-            onMarkAll={notifications.markAllRead}
-          />
-        )}
-        {view === 'map' && (
-          <section className="relative h-[calc(100dvh-148px)] sm:h-[calc(100dvh-120px)] min-h-[480px]">
-            <Suspense
-              fallback={
-                <p role="status" className="p-8">
-                  Loading the map…
+        <div hidden={!!selected && !!routePlan}>
+          <div hidden={view !== 'explore'}>
+            <Explore
+              intents={intents}
+              source={source}
+              onOpen={openPlan}
+              onPost={post}
+              onRetry={refresh}
+              userLoc={userLoc}
+              onRequestLocation={locate}
+              activity={activity}
+              onActivity={setActivity}
+              onVenuePost={postAtVenue}
+              selectedId={selected?.id}
+            />
+          </div>
+          {view === 'plans' && (
+            <MyPlans
+              key={`${planKey}-${auth.session?.user.id ?? 'guest'}`}
+              userId={auth.session?.user.id}
+              sessionLoading={auth.loading}
+              onExplore={() => setView('explore')}
+              onSignIn={() => signIn()}
+              saved={saved}
+              onOpen={openPlan}
+              onPost={post}
+            />
+          )}
+          {view === 'inbox' && (
+            <NotificationsSheet
+              items={notifications.items}
+              state={notifications.state}
+              signedIn={!!auth.session}
+              sessionLoading={auth.loading}
+              onExplore={() => setView('explore')}
+              onSignIn={() => signIn()}
+              onOpenNotification={openNotification}
+              onRetry={notifications.refresh}
+              onMarkAll={notifications.markAllRead}
+            />
+          )}
+          {view === 'map' && (
+            <section className="relative h-[calc(100dvh-148px)] sm:h-[calc(100dvh-120px)] min-h-[480px]">
+              <Suspense
+                fallback={
+                  <p role="status" className="p-8">
+                    Loading the map…
+                  </p>
+                }
+              >
+                <JaipurMap
+                  plans={mapIntents}
+                  selected={selected ?? undefined}
+                  onSelect={openPlan}
+                  onDetails={openPlan}
+                />
+              </Suspense>
+              <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-3 pointer-events-none">
+                <p className="bg-white shadow rounded-xl px-4 py-3 text-sm font-semibold pointer-events-auto">
+                  {source === 'loading'
+                    ? 'Loading plans…'
+                    : source === 'error'
+                      ? 'Plans could not be refreshed'
+                      : `${mapIntents.length} upcoming ${mapIntents.length === 1 ? 'plan' : 'plans'}`}
                 </p>
-              }
-            >
-              <JaipurMap
-                plans={mapIntents}
-                selected={selected ?? undefined}
-                onSelect={openPlan}
-                onDetails={openPlan}
-              />
-            </Suspense>
-            <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-3 pointer-events-none">
-              <p className="bg-white shadow rounded-xl px-4 py-3 text-sm font-semibold pointer-events-auto">
-                {source === 'loading'
-                  ? 'Loading plans…'
-                  : source === 'error'
-                    ? 'Plans could not be refreshed'
-                    : `${mapIntents.length} upcoming ${mapIntents.length === 1 ? 'plan' : 'plans'}`}
-              </p>
-              <button className="primary pointer-events-auto" onClick={post}>
-                <Plus size={18} />
-                Post
-              </button>
-            </div>
-            {mapIntents.length === 0 && source === 'live' && (
-              <div className="absolute bottom-6 left-4 right-4 max-w-md mx-auto bg-white rounded-2xl shadow-lg p-5 text-center">
-                <h1 className="font-bold text-lg">No upcoming plans yet</h1>
-                <p className="text-sm text-gray-600 mt-2 mb-4">
-                  Choose a public spot and get the first plan started.
-                </p>
-                <button className="primary" onClick={post}>
-                  Post a plan
+                <button className="primary pointer-events-auto" onClick={post}>
+                  <Plus size={18} />
+                  Post
                 </button>
               </div>
-            )}
-          </section>
-        )}
+              {mapIntents.length === 0 && source === 'live' && (
+                <div className="absolute bottom-6 left-4 right-4 max-w-md mx-auto bg-white rounded-2xl shadow-lg p-5 text-center">
+                  <h1 className="font-bold text-lg">No upcoming plans yet</h1>
+                  <p className="text-sm text-gray-600 mt-2 mb-4">
+                    Choose a public spot and get the first plan started.
+                  </p>
+                  <button className="primary" onClick={post}>
+                    Post a plan
+                  </button>
+                </div>
+              )}
+            </section>
+          )}
+        </div>
       </main>
       <footer className="page-footer">
         <span>Made for a little more Jaipur.</span>
@@ -452,15 +477,6 @@ export default function App() {
           Opening plan…
         </div>
       )}
-      {selected &&
-        (phone ||
-          view !== 'explore' ||
-          ['search', 'places'].includes(route.get('browse') ?? '') ||
-          !intents.some((i) => i.id === selected.id)) && (
-          <Sheet title="Plan details" className="redesign-plan-sheet" onClose={closePlan}>
-            {renderPlan(selected, closePlan)}
-          </Sheet>
-        )}
       <Suspense
         fallback={
           <div

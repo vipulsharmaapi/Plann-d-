@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, expect, test, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import PlanDetail from '../src/components/PlanDetail'
+import type { SavedPlans } from '../src/hooks/useSavedPlans'
 import JoinSection from '../src/components/JoinSection'
 import VenueDetails from '../src/components/VenueDetails'
 import type { Auth } from '../src/hooks/useAuth'
@@ -103,7 +105,7 @@ test('guest sees one host row and joining still begins sign-in without sending a
   expect(screen.getAllByText('Hosted by Jack')).toHaveLength(1)
   expect(screen.queryByText('Cost and booking details not added.')).toBeNull()
   expect(
-    screen.getByText('The host approves your request. Chat opens once you’re accepted.'),
+    screen.getByText('Jack will confirm your spot. Sign in when you request to join.'),
   ).toBeTruthy()
 })
 
@@ -191,6 +193,7 @@ test('join review sends the optional introduction only after confirmation and re
   render(<JoinSection intent={plan} auth={auth('guest')} {...callbacks()} />)
   await user.click(await screen.findByRole('button', { name: 'Request to join' }))
   expect(mock.insert).not.toHaveBeenCalled()
+  expect(screen.queryByText('Request sent', { exact: true })).toBeNull()
   const hello = screen.getByPlaceholderText('Introduce yourself to the host')
   await user.type(hello, 'Happy to join for coffee.')
   await user.click(screen.getByRole('button', { name: 'Send request' }))
@@ -198,6 +201,7 @@ test('join review sends the optional introduction only after confirmation and re
     await screen.findByText('Connection interrupted', { selector: '.form-error' }),
   ).toBeTruthy()
   expect((hello as HTMLTextAreaElement).value).toBe('Happy to join for coffee.')
+  expect(screen.queryByText('Request sent', { exact: true })).toBeNull()
   mock.insert.mockImplementationOnce(async () => {
     mock.requests = [{ id: 'new-request', user_id: 'guest', status: 'pending' }]
     return { error: null }
@@ -210,7 +214,13 @@ test('join review sends the optional introduction only after confirmation and re
     introduction: 'Happy to join for coffee.',
     status: 'pending',
   })
-  expect(await screen.findByText(/Request sent. Waiting for the host/)).toBeTruthy()
+  expect(await screen.findByText('Request sent', { exact: true })).toBeTruthy()
+  expect(
+    screen.getByText('Waiting for Jack to confirm your spot. You’ll find updates in My plans.'),
+  ).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'Open group chat' })).toBeNull()
+  await user.click(screen.getByRole('button', { name: 'View my plans' }))
+  expect(new URLSearchParams(location.search).get('view')).toBe('plans')
 })
 
 test('a cancelled plan does not advertise remaining spots or allow new requests', async () => {
@@ -218,4 +228,48 @@ test('a cancelled plan does not advertise remaining spots or allow new requests'
   expect(await screen.findByText('Cancelled', { exact: true })).toBeTruthy()
   expect(screen.queryByText(/spots left/)).toBeNull()
   expect(screen.queryByRole('button', { name: 'Request to join' })).toBeNull()
+})
+
+test('detail photo and venue disclosure share one exact-place lookup and image failures stay honest', async () => {
+  mock.venue.mockResolvedValue({
+    id: 'ChIJexactbranch',
+    displayName: { text: 'Exact branch' },
+    photos: [
+      {
+        name: 'photo',
+        authorAttributions: [{ displayName: 'Venue owner', uri: 'https://example.com/owner' }],
+      },
+    ],
+  })
+  const saved = {
+    ids: [],
+    loading: false,
+    busy: false,
+    error: '',
+    refresh: vi.fn(),
+    toggle: vi.fn(),
+  } as SavedPlans
+  render(
+    <PlanDetail
+      intent={{ ...plan, googlePlaceId: 'ChIJexactbranch' }}
+      saved={saved}
+      onSave={vi.fn()}
+    >
+      <VenueDetails intent={plan} />
+    </PlanDetail>,
+  )
+  const image = await screen.findByRole('img', { name: plan.venueName })
+  expect(mock.venue).toHaveBeenCalledOnce()
+  expect(mock.venue.mock.calls[0][0].googlePlaceId).toBe('ChIJexactbranch')
+  expect(within(image.closest('figure')!).getByRole('link', { name: 'Venue owner' })).toBeTruthy()
+  fireEvent.error(image)
+  expect(screen.getByText('Venue photo unavailable')).toBeTruthy()
+  expect(screen.queryByRole('img', { name: plan.venueName })).toBeNull()
+})
+
+test('signed-in join helper uses the host name without asking to sign in again', async () => {
+  render(<JoinSection intent={plan} auth={auth('guest')} {...callbacks()} />)
+  await screen.findByRole('button', { name: 'Request to join' })
+  expect(screen.getByText('Jack will confirm your spot.')).toBeTruthy()
+  expect(screen.queryByText(/Sign in when you request/)).toBeNull()
 })

@@ -1,6 +1,6 @@
 import Avatar from './Avatar'
 import { useEffect, useState } from 'react'
-import { type Intent } from '../types'
+import { humanDay, type Intent } from '../types'
 import { CalendarDays, MapPin, ChevronDown } from 'lucide-react'
 import { formatTimeRange } from '../lib/time'
 import { supabase } from '../lib/supabase'
@@ -60,7 +60,7 @@ export default function PlanContext({
             userId={intent.userId}
             name={host?.first_name || intent.posterName}
             url={host?.avatar_url}
-            size={40}
+            size={36}
           />
           <button
             className="text-left min-h-11 font-semibold text-sm hover:underline break-words"
@@ -74,7 +74,7 @@ export default function PlanContext({
           {closed ||
             (intent.spotsFilled >= intent.spotsNeeded
               ? 'Full'
-              : `${intent.spotsNeeded - intent.spotsFilled} spot${intent.spotsNeeded - intent.spotsFilled === 1 ? '' : 's'} left`)}
+              : `${intent.spotsNeeded - intent.spotsFilled} spot${intent.spotsNeeded - intent.spotsFilled === 1 ? '' : 's'} open`)}
         </span>
       </div>
       {intent.note && <p className="description whitespace-pre-wrap break-words">{intent.note}</p>}
@@ -82,78 +82,74 @@ export default function PlanContext({
         <div>
           <CalendarDays size={20} />
           <span>
-            {new Date(`${intent.date}T12:00:00+05:30`).toLocaleDateString('en-IN', {
-              weekday: 'long',
-              day: 'numeric',
-              month: 'long',
-              timeZone: 'Asia/Kolkata',
-            })}
-            <br />
-            <span className="muted">{formatTimeRange(intent.startsAt, intent.endsAt)}</span>
+            {humanDay(intent.date)}, {formatTimeRange(intent.startsAt, intent.endsAt)}
           </span>
         </div>
         <div>
           <MapPin size={20} />
           <span>
-            {intent.venueArea || intent.venueName}
-            <br />
             <a
               className="inline-link"
               href={`https://www.google.com/maps/search/?api=1&query=${intent.lat},${intent.lng}${intent.googlePlaceId ? `&query_place_id=${encodeURIComponent(intent.googlePlaceId)}` : ''}`}
               target="_blank"
               rel="noopener noreferrer"
             >
-              View meeting place
+              {intent.venueArea ? `${intent.venueArea}, Jaipur` : intent.venueName}
             </a>
           </span>
         </div>
       </div>
-      <details className="plan-disclosure good-to-know">
-        <summary>
-          Good to know
-          <ChevronDown size={16} />
-        </summary>
-        <div className="more-details">
-          <p>
-            {intent.spotsFilled + 1} {intent.spotsFilled === 0 ? 'person' : 'people'} confirmed · up
-            to {intent.spotsNeeded + 1} including the host
-          </p>
-          {intent.expectedCost != null || intent.skillLevel || intent.bookingStatus ? (
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-              {intent.expectedCost != null && (
-                <div>
-                  <dt className="text-gray-600">Expected cost / person</dt>
-                  <dd className="font-semibold mt-1">
-                    {intent.expectedCost === 0
-                      ? 'Free'
-                      : `About ₹${Number(intent.expectedCost).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`}
-                  </dd>
-                </div>
-              )}
-              {intent.skillLevel && (
-                <div>
-                  <dt className="text-gray-600">Skill level</dt>
-                  <dd className="font-semibold mt-1">{skillLabels[intent.skillLevel]}</dd>
-                </div>
-              )}
-              {intent.bookingStatus && (
-                <div className="col-span-2">
-                  <dt className="text-gray-600">Venue booking</dt>
-                  <dd className="font-semibold mt-1">{bookingLabels[intent.bookingStatus]}</dd>
-                </div>
-              )}
-            </dl>
-          ) : null}
-          {intent.meetingInstructions && (
-            <div>
-              <h3 className="font-semibold text-sm">Where to meet & what to expect</h3>
-              <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap break-words">
-                {intent.meetingInstructions}
-              </p>
-            </div>
-          )}
-        </div>
-      </details>
     </div>
+  )
+}
+
+export function PlanExtras({ intent }: { intent: Intent }) {
+  return (
+    <details className="plan-disclosure good-to-know">
+      <summary>
+        Good to know
+        <ChevronDown size={16} />
+      </summary>
+      <div className="more-details">
+        <p>
+          {intent.spotsFilled + 1} {intent.spotsFilled === 0 ? 'person' : 'people'} confirmed · up
+          to {intent.spotsNeeded + 1} including the host
+        </p>
+        {intent.expectedCost != null || intent.skillLevel || intent.bookingStatus ? (
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+            {intent.expectedCost != null && (
+              <div>
+                <dt className="text-gray-600">Expected cost / person</dt>
+                <dd className="font-semibold mt-1">
+                  {intent.expectedCost === 0
+                    ? 'Free'
+                    : `About ₹${Number(intent.expectedCost).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`}
+                </dd>
+              </div>
+            )}
+            {intent.skillLevel && (
+              <div>
+                <dt className="text-gray-600">Skill level</dt>
+                <dd className="font-semibold mt-1">{skillLabels[intent.skillLevel]}</dd>
+              </div>
+            )}
+            {intent.bookingStatus && (
+              <div className="col-span-2">
+                <dt className="text-gray-600">Venue booking</dt>
+                <dd className="font-semibold mt-1">{bookingLabels[intent.bookingStatus]}</dd>
+              </div>
+            )}
+          </dl>
+        ) : null}
+        {intent.meetingInstructions && (
+          <div>
+            <h3 className="font-semibold text-sm">Where to meet & what to expect</h3>
+            <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap break-words">
+              {intent.meetingInstructions}
+            </p>
+          </div>
+        )}
+      </div>
+    </details>
   )
 }
